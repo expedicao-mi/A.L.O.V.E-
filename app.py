@@ -599,6 +599,20 @@ st.markdown(html_prod_completo.replace('\n', ''), unsafe_allow_html=True)
 # ==============================================================================
 # 🚚 BLOCO 3: EXPEDIÇÃO DO DIA & TURNOS
 # ==============================================================================
+# ==============================================================================
+# 🚚 BLOCO 3: EXPEDIÇÃO DO DIA & TURNOS
+# ==============================================================================
+# 1. Função de arredondamento para números pares (Garante a regra física da fábrica)
+def forcar_par(valor):
+    val_int = int(round(float(valor or 0)))
+    if val_int % 2 != 0:
+        val_int += 1 
+    return val_int
+
+# 2. Resgate seguro do volume de ontem da nuvem
+vol_ontem = safe_to_numeric(cache_dict.get("vol_ontem", 0))
+
+# 3. Lógica de Tempo e Turnos
 agora_br = datetime.utcnow() - timedelta(hours=3)
 hoje_date = agora_br.date()
 ontem_date = hoje_date - timedelta(days=1)
