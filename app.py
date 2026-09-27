@@ -597,21 +597,100 @@ html_prod_completo = f"""
 st.markdown(html_prod_completo.replace('\n', ''), unsafe_allow_html=True)
 
 # ==============================================================================
-# 🚚 BLOCO 3: EXPEDIÇÃO DO DIA & TURNOS
-## ==============================================================================
+# 🛠️ FUNÇÃO DE BUSCA HISTÓRICA REVISADA (SEM O BUG DE SUBTRAÇÃO ZERADA)
+# ==============================================================================
+@st.cache_data(ttl=60)
+def buscar_dados_turnos_historico(data_alvo):
+    agora_br = datetime.utcnow() - timedelta(hours=3)
+    hoje_date = agora_br.date()
+    is_hoje = (data_alvo == hoje_date)
+    letras = descobrir_letras_turnos(data_alvo)
+    
+    ativo_key = None
+    if is_hoje:
+        if agora_br.hour < 8: ativo_key = "t1"
+        elif agora_br.hour < 16: ativo_key = "t2"
+        else: ativo_key = "t3"
+
+    try:
+        url_csv = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv&gid=0"
+        resp = requests.get(url_csv, timeout=10)
+        resp.encoding = 'utf-8'
+        linhas = list(csv.reader(StringIO(resp.text)))
+
+        hora_00 = datetime.combine(data_alvo, datetime.min.time())
+        hora_08 = hora_00.replace(hour=8)
+        hora_16 = hora_00.replace(hour=16)
+        hora_fim = hora_00.replace(hour=23, minute=59, second=59)
+
+        corte_00 = None
+        corte_08 = None
+        corte_16 = None
+        corte_fim = None
+        ultimo_antes_meia_noite = None
+
+        for row in reversed(linhas[1:]):
+            if len(row) > 3:
+                try:
+                    dt_row = datetime.strptime(row[0].strip(), "%d/%m/%Y %H:%M:%S")
+                    vol_linha = safe_to_numeric(row[3])
+                    
+                    if dt_row < hora_00 and ultimo_antes_meia_noite is None:
+                        ultimo_antes_meia_noite = vol_linha
+
+                    if dt_row.date() == data_alvo:
+                        if corte_fim is None and dt_row <= hora_fim: corte_fim = vol_linha
+                        if corte_16 is None and dt_row <= hora_16: corte_16 = vol_linha
+                        if corte_08 is None and dt_row <= hora_08: corte_08 = vol_linha
+                        if corte_00 is None and dt_row <= hora_00: corte_00 = vol_linha
+                except:
+                    continue
+
+        # Se não achou corte exato às 00h00 de hoje, usa o último fechamento de ontem
+        if corte_00 is None:
+            corte_00 = ultimo_antes_meia_noite if ultimo_antes_meia_noite is not None else 0.0
+
+        # Se não houve marcação às 08h, assume o patamar das 00h (produção zero)
+        if corte_08 is None:
+            corte_08 = corte_00
+
+        # Cálculo do Turno 1 (00h - 08h): só há volume se corte_08 > corte_00
+        if corte_00 > 0.0 and corte_08 >= corte_00:
+            vol_t1 = forcar_par(corte_08 - corte_00)
+        else:
+            vol_t1 = 0
+
+        # Cálculo dos demais turnos
+        if is_hoje:
+            ponto_atual = corte_fim if corte_fim is not None else corte_08
+            if agora_br.hour >= 16:
+                vol_t2 = forcar_par(max(0.0, (corte_16 or ponto_atual) - corte_08))
+                vol_t3 = forcar_par(max(0.0, ponto_atual - (corte_16 or ponto_atual)))
+            elif agora_br.hour >= 8:
+                vol_t2 = forcar_par(max(0.0, ponto_atual - corte_08))
+                vol_t3 = 0
+            else:
+                vol_t2 = 0
+                vol_t3 = 0
+        else:
+            ponto_16 = corte_16 if corte_16 is not None else corte_08
+            ponto_fim = corte_fim if corte_fim is not None else ponto_16
+            vol_t2 = forcar_par(max(0.0, ponto_16 - corte_08))
+            vol_t3 = forcar_par(max(0.0, ponto_fim - ponto_16))
+
+        turnos_exibir = []
+        turnos_exibir.append({"key": "t1", "letra": f"Turno {letras['madrugada']}", "vol": vol_t1, "horario": "00h - 08h"})
+        turnos_exibir.append({"key": "t2", "letra": f"Turno {letras['08_16']}", "vol": vol_t2, "horario": "08h - 16h"})
+        turnos_exibir.append({"key": "t3", "letra": f"Turno {letras['16_00']}", "vol": vol_t3, "horario": "16h - 00h"})
+        
+        total_dia = vol_t1 + vol_t2 + vol_t3
+        return {"ativo_key": ativo_key, "turnos": turnos_exibir, "total_dia": total_dia}
+    except Exception:
+        return None
+
+# ==============================================================================
 # 🚚 BLOCO 3: EXPEDIÇÃO DO DIA & TURNOS
 # ==============================================================================
-# 1. Função de arredondamento para números pares (Garante a regra física da fábrica)
-def forcar_par(valor):
-    val_int = int(round(float(valor or 0)))
-    if val_int % 2 != 0:
-        val_int += 1 
-    return val_int
-
-# 2. Resgate seguro do volume de ontem da nuvem
-vol_ontem = safe_to_numeric(cache_dict.get("vol_ontem", 0))
-
-# 3. Lógica de Tempo e Turnos
 agora_br = datetime.utcnow() - timedelta(hours=3)
 hoje_date = agora_br.date()
 ontem_date = hoje_date - timedelta(days=1)
@@ -619,7 +698,9 @@ ontem_date = hoje_date - timedelta(days=1)
 dados_exp_hoje = buscar_dados_turnos_historico(hoje_date)
 dados_exp_ontem = buscar_dados_turnos_historico(ontem_date)
 
-vol_exp_hoje = vol_hoje if vol_hoje > 0 else (forcar_par(dados_exp_hoje.get("total_dia", 0)) if dados_exp_hoje else 0)
+# O volume total exibido respeita a soma real calculada dos turnos de hoje
+vol_calculado_hoje = forcar_par(dados_exp_hoje.get("total_dia", 0)) if dados_exp_hoje else 0
+vol_exp_hoje = vol_calculado_hoje if vol_hoje == 0 else vol_hoje
 vol_exp_ontem = vol_ontem if vol_ontem > 0 else (forcar_par(dados_exp_ontem.get("total_dia", 0)) if dados_exp_ontem else 0)
 
 html_hoje = "<div style='font-size:0.75rem; font-weight:800; color:#00D672; text-transform:uppercase; margin-bottom:10px; text-align:left;'>Turnos em Operação Hoje:</div>"
@@ -681,7 +762,6 @@ html_exp_completo = f"""
 </details>
 """
 st.markdown(html_exp_completo.replace('\n', ''), unsafe_allow_html=True)
-
 
 # ==============================================================================
 # 📦 BLOCO 4: ESTOQUE TOTAL E MATERIAIS
