@@ -597,7 +597,7 @@ html_prod_completo = f"""
 st.markdown(html_prod_completo.replace('\n', ''), unsafe_allow_html=True)
 
 # ==============================================================================
-# 🛠️ FUNÇÃO DE BUSCA HISTÓRICA (NOVA LEITURA CRONOLÓGICA + REGRA DE FOLGA)
+# 🛠️ FUNÇÃO DE BUSCA HISTÓRICA (COM REGRA DE RESET DIÁRIO E FOLGAS)
 # ==============================================================================
 @st.cache_data(ttl=60)
 def buscar_dados_turnos_historico(data_alvo):
@@ -625,7 +625,6 @@ def buscar_dados_turnos_historico(data_alvo):
 
         corte_00, corte_08, corte_16, corte_fim = 0.0, 0.0, 0.0, 0.0
 
-        # Lê do começo ao fim. O valor gravado será o ÚLTIMO antes de cruzar a linha do horário.
         for row in linhas[1:]:
             if len(row) > 3:
                 try:
@@ -639,9 +638,10 @@ def buscar_dados_turnos_historico(data_alvo):
                 except:
                     continue
 
-        vol_t1 = forcar_par(max(0.0, corte_08 - corte_00))
-        vol_t2 = forcar_par(max(0.0, corte_16 - corte_08))
-        vol_t3 = forcar_par(max(0.0, corte_fim - corte_16))
+        # 🔥 REGRA DE RESET: Se o corte for menor que o anterior, significa que a planilha zerou à meia-noite.
+        vol_t1 = forcar_par(corte_08) if corte_08 < corte_00 else forcar_par(max(0.0, corte_08 - corte_00))
+        vol_t2 = forcar_par(corte_16) if corte_16 < corte_08 else forcar_par(max(0.0, corte_16 - corte_08))
+        vol_t3 = forcar_par(corte_fim) if corte_fim < corte_16 else forcar_par(max(0.0, corte_fim - corte_16))
 
         # Ajuste de turnos futuros se for hoje
         if is_hoje:
@@ -650,7 +650,7 @@ def buscar_dados_turnos_historico(data_alvo):
 
         turnos_exibir = []
         
-        # 🚀 REGRA DE FOLGA: data_alvo.weekday() -> 6 = Domingo, 0 = Segunda
+        # 🚀 REGRA DE FOLGA DO TURNO D (00h às 08h): Domingo (6) e Segunda (0)
         if data_alvo.weekday() in [6, 0]:
             str_vol_t1 = "Folga"
             vol_real_t1 = 0
