@@ -597,7 +597,7 @@ html_prod_completo = f"""
 st.markdown(html_prod_completo.replace('\n', ''), unsafe_allow_html=True)
 
 # ==============================================================================
-# 🛠️ FUNÇÃO DE BUSCA HISTÓRICA REVISADA (SEM O BUG DE SUBTRAÇÃO ZERADA)
+# 🛠️ FUNÇÃO DE BUSCA HISTÓRICA (NOVA LEITURA CRONOLÓGICA + REGRA DE FOLGA)
 # ==============================================================================
 @st.cache_data(ttl=60)
 def buscar_dados_turnos_historico(data_alvo):
@@ -623,67 +623,48 @@ def buscar_dados_turnos_historico(data_alvo):
         hora_16 = hora_00.replace(hour=16)
         hora_fim = hora_00.replace(hour=23, minute=59, second=59)
 
-        corte_00 = None
-        corte_08 = None
-        corte_16 = None
-        corte_fim = None
-        ultimo_antes_meia_noite = None
+        corte_00, corte_08, corte_16, corte_fim = 0.0, 0.0, 0.0, 0.0
 
-        for row in reversed(linhas[1:]):
+        # Lê do começo ao fim. O valor gravado será o ÚLTIMO antes de cruzar a linha do horário.
+        for row in linhas[1:]:
             if len(row) > 3:
                 try:
                     dt_row = datetime.strptime(row[0].strip(), "%d/%m/%Y %H:%M:%S")
                     vol_linha = safe_to_numeric(row[3])
                     
-                    if dt_row < hora_00 and ultimo_antes_meia_noite is None:
-                        ultimo_antes_meia_noite = vol_linha
-
-                    if dt_row.date() == data_alvo:
-                        if corte_fim is None and dt_row <= hora_fim: corte_fim = vol_linha
-                        if corte_16 is None and dt_row <= hora_16: corte_16 = vol_linha
-                        if corte_08 is None and dt_row <= hora_08: corte_08 = vol_linha
-                        if corte_00 is None and dt_row <= hora_00: corte_00 = vol_linha
+                    if dt_row <= hora_00: corte_00 = vol_linha
+                    if dt_row <= hora_08: corte_08 = vol_linha
+                    if dt_row <= hora_16: corte_16 = vol_linha
+                    if dt_row <= hora_fim: corte_fim = vol_linha
                 except:
                     continue
 
-        # Se não achou corte exato às 00h00 de hoje, usa o último fechamento de ontem
-        if corte_00 is None:
-            corte_00 = ultimo_antes_meia_noite if ultimo_antes_meia_noite is not None else 0.0
+        vol_t1 = forcar_par(max(0.0, corte_08 - corte_00))
+        vol_t2 = forcar_par(max(0.0, corte_16 - corte_08))
+        vol_t3 = forcar_par(max(0.0, corte_fim - corte_16))
 
-        # Se não houve marcação às 08h, assume o patamar das 00h (produção zero)
-        if corte_08 is None:
-            corte_08 = corte_00
-
-        # Cálculo do Turno 1 (00h - 08h): só há volume se corte_08 > corte_00
-        if corte_00 > 0.0 and corte_08 >= corte_00:
-            vol_t1 = forcar_par(corte_08 - corte_00)
-        else:
-            vol_t1 = 0
-
-        # Cálculo dos demais turnos
+        # Ajuste de turnos futuros se for hoje
         if is_hoje:
-            ponto_atual = corte_fim if corte_fim is not None else corte_08
-            if agora_br.hour >= 16:
-                vol_t2 = forcar_par(max(0.0, (corte_16 or ponto_atual) - corte_08))
-                vol_t3 = forcar_par(max(0.0, ponto_atual - (corte_16 or ponto_atual)))
-            elif agora_br.hour >= 8:
-                vol_t2 = forcar_par(max(0.0, ponto_atual - corte_08))
-                vol_t3 = 0
-            else:
-                vol_t2 = 0
-                vol_t3 = 0
-        else:
-            ponto_16 = corte_16 if corte_16 is not None else corte_08
-            ponto_fim = corte_fim if corte_fim is not None else ponto_16
-            vol_t2 = forcar_par(max(0.0, ponto_16 - corte_08))
-            vol_t3 = forcar_par(max(0.0, ponto_fim - ponto_16))
+            if agora_br.hour < 8: vol_t2, vol_t3 = 0, 0
+            elif agora_br.hour < 16: vol_t3 = 0
 
         turnos_exibir = []
-        turnos_exibir.append({"key": "t1", "letra": f"Turno {letras['madrugada']}", "vol": vol_t1, "horario": "00h - 08h"})
-        turnos_exibir.append({"key": "t2", "letra": f"Turno {letras['08_16']}", "vol": vol_t2, "horario": "08h - 16h"})
-        turnos_exibir.append({"key": "t3", "letra": f"Turno {letras['16_00']}", "vol": vol_t3, "horario": "16h - 00h"})
         
-        total_dia = vol_t1 + vol_t2 + vol_t3
+        # 🚀 REGRA DE FOLGA: data_alvo.weekday() -> 6 = Domingo, 0 = Segunda
+        if data_alvo.weekday() in [6, 0]:
+            str_vol_t1 = "Folga"
+            vol_real_t1 = 0
+            lbl_sub_t1 = "Somente Armazen."
+        else:
+            str_vol_t1 = f"{vol_t1:,.0f} t"
+            vol_real_t1 = vol_t1
+            lbl_sub_t1 = "00h - 08h"
+
+        turnos_exibir.append({"key": "t1", "letra": f"Turno {letras.get('madrugada', 'D')}", "vol": vol_real_t1, "str_vol": str_vol_t1, "horario": lbl_sub_t1})
+        turnos_exibir.append({"key": "t2", "letra": f"Turno {letras.get('08_16', 'C')}", "vol": vol_t2, "str_vol": f"{vol_t2:,.0f} t", "horario": "08h - 16h"})
+        turnos_exibir.append({"key": "t3", "letra": f"Turno {letras.get('16_00', 'B')}", "vol": vol_t3, "str_vol": f"{vol_t3:,.0f} t", "horario": "16h - 00h"})
+        
+        total_dia = vol_real_t1 + vol_t2 + vol_t3
         return {"ativo_key": ativo_key, "turnos": turnos_exibir, "total_dia": total_dia}
     except Exception:
         return None
@@ -698,7 +679,6 @@ ontem_date = hoje_date - timedelta(days=1)
 dados_exp_hoje = buscar_dados_turnos_historico(hoje_date)
 dados_exp_ontem = buscar_dados_turnos_historico(ontem_date)
 
-# O volume total exibido respeita a soma real calculada dos turnos de hoje
 vol_calculado_hoje = forcar_par(dados_exp_hoje.get("total_dia", 0)) if dados_exp_hoje else 0
 vol_exp_hoje = vol_calculado_hoje if vol_hoje == 0 else vol_hoje
 vol_exp_ontem = vol_ontem if vol_ontem > 0 else (forcar_par(dados_exp_ontem.get("total_dia", 0)) if dados_exp_ontem else 0)
@@ -713,10 +693,17 @@ if dados_exp_hoje and "turnos" in dados_exp_hoje:
         cor_b = "#FF9F1C" if is_atv else "#1c2b42"
         cor_txt = "#FF9F1C" if is_atv else "#ffffff"
         sub_txt = f"{t['horario']} (ATIVO)" if is_atv else t['horario']
-        v_par = forcar_par(t['vol'])
         
-        html_hoje += f"<div style='flex:1; background-color:#111c2e; border:1.5px solid {cor_b}; border-radius:8px; padding:8px; text-align:center;'><div style='font-size:0.75rem; font-weight:800; color:{cor_txt};'>{t['letra']}</div><div style='font-size:1.1rem; font-weight:900; color:#ffffff;'>{v_par:,.0f} t</div><div style='font-size:0.65rem; color:#94a3b8;'>{sub_txt}</div></div>"
-        chart_data_hoje.append({"label": t['letra'], "value": v_par, "text": f"{v_par:,.0f} t", "color": "#FF9F1C" if is_atv else "#00D672"})
+        v_str = t.get("str_vol", f"{t['vol']:,.0f} t")
+        if v_str == "Folga":
+            html_val = f"<div style='font-size:0.85rem; font-weight:900; color:#E74C3C; padding: 5px 0;'>EM FOLGA</div>"
+            c_text = "Folga"
+        else:
+            html_val = f"<div style='font-size:1.1rem; font-weight:900; color:#ffffff;'>{v_str}</div>"
+            c_text = v_str
+            
+        html_hoje += f"<div style='flex:1; background-color:#111c2e; border:1.5px solid {cor_b}; border-radius:8px; padding:8px; text-align:center;'><div style='font-size:0.75rem; font-weight:800; color:{cor_txt};'>{t['letra']}</div>{html_val}<div style='font-size:0.65rem; color:#94a3b8;'>{sub_txt}</div></div>"
+        chart_data_hoje.append({"label": t['letra'], "value": t['vol'], "text": c_text, "color": "#FF9F1C" if is_atv else "#00D672"})
     html_hoje += "</div>"
     html_hoje += build_vertical_chart(chart_data_hoje)
 else:
@@ -727,9 +714,16 @@ if dados_exp_ontem and "turnos" in dados_exp_ontem:
     html_ontem += "<div style='display:flex; gap:6px; margin-bottom:8px;'>"
     chart_data_ontem = []
     for t in dados_exp_ontem["turnos"]:
-        v_par_ontem = forcar_par(t['vol'])
-        html_ontem += f"<div style='flex:1; background-color:#111c2e; border:1.5px solid #1c2b42; border-radius:8px; padding:8px; text-align:center;'><div style='font-size:0.75rem; font-weight:800; color:#38bdf8;'>{t['letra']}</div><div style='font-size:1.1rem; font-weight:900; color:#ffffff;'>{v_par_ontem:,.0f} t</div><div style='font-size:0.65rem; color:#94a3b8;'>{t['horario']}</div></div>"
-        chart_data_ontem.append({"label": t['letra'], "value": v_par_ontem, "text": f"{v_par_ontem:,.0f} t", "color": "#38bdf8"})
+        v_str_o = t.get("str_vol", f"{t['vol']:,.0f} t")
+        if v_str_o == "Folga":
+            html_val_o = f"<div style='font-size:0.85rem; font-weight:900; color:#E74C3C; padding: 5px 0;'>EM FOLGA</div>"
+            c_text_o = "Folga"
+        else:
+            html_val_o = f"<div style='font-size:1.1rem; font-weight:900; color:#ffffff;'>{v_str_o}</div>"
+            c_text_o = v_str_o
+            
+        html_ontem += f"<div style='flex:1; background-color:#111c2e; border:1.5px solid #1c2b42; border-radius:8px; padding:8px; text-align:center;'><div style='font-size:0.75rem; font-weight:800; color:#38bdf8;'>{t['letra']}</div>{html_val_o}<div style='font-size:0.65rem; color:#94a3b8;'>{t['horario']}</div></div>"
+        chart_data_ontem.append({"label": t['letra'], "value": t['vol'], "text": c_text_o, "color": "#38bdf8"})
     html_ontem += "</div>"
     html_ontem += build_vertical_chart(chart_data_ontem)
 else:
