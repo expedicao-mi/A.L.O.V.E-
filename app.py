@@ -598,8 +598,7 @@ st.markdown(html_prod_completo.replace('\n', ''), unsafe_allow_html=True)
 
 # ==============================================================================
 # 🚚 BLOCO 3: EXPEDIÇÃO DO DIA & TURNOS
-# ==============================================================================
-# ==============================================================================
+## ==============================================================================
 # 🚚 BLOCO 3: EXPEDIÇÃO DO DIA & TURNOS
 # ==============================================================================
 # 1. Função de arredondamento para números pares (Garante a regra física da fábrica)
@@ -682,6 +681,7 @@ html_exp_completo = f"""
 </details>
 """
 st.markdown(html_exp_completo.replace('\n', ''), unsafe_allow_html=True)
+
 
 # ==============================================================================
 # 📦 BLOCO 4: ESTOQUE TOTAL E MATERIAIS
