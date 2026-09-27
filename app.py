@@ -343,7 +343,14 @@ if not df_dash.empty:
     prev_prod = forcar_par(safe_to_numeric(row_d.get("PREV_PRODUCAO", 0)))
     estoque_total = forcar_par(safe_to_numeric(row_d.get("ESTOQUE_TOTAL", 0)))
     status_transbordo = str(row_d.get("STATUS_TRANSBORDO", "NORMAL"))
-    ritmo_torre = str(row_d.get("RITMO_TORRE", "NORMAL"))
+    
+    # --- INTERCEPTAÇÃO DO TEXTO DO RITMO ---
+    ritmo_torre_bruto = str(row_d.get("RITMO_TORRE", "NORMAL")).upper()
+    if "OPERAÇÃO NO 12" in ritmo_torre_bruto or "ACELERADO" in ritmo_torre_bruto:
+        ritmo_torre = "RITMO DE ATUALIZAÇÃO: RÁPIDO"
+    else:
+        ritmo_torre = ritmo_torre_bruto
+    # ---------------------------------------
     
     dados_patio["PR"] = {"veiculos": int(safe_to_numeric(row_d.get("PR_VEIC", 0))), "peso": forcar_par(safe_to_numeric(row_d.get("PR_TON", 0)))}
     dados_patio["00"] = {"veiculos": int(safe_to_numeric(row_d.get("00_VEIC", 0))), "peso": forcar_par(safe_to_numeric(row_d.get("00_TON", 0)))}
