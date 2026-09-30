@@ -795,21 +795,36 @@ html_destinos = f"""
 """
 
 if balanco_destinos:
+    # --- LÓGICA DE ORDENAÇÃO CUSTOMIZADA ---
+    def regra_ordenacao(d):
+        nome = str(d.get('destino', '')).upper()
+        if "MI / LATAM" in nome or "MI/LATAM" in nome:
+            return 999999 # Peso gigante para ficar no topo
+        try:
+            # Extrai o número do terminal (ex: "1680 - EBLOG" -> 1680)
+            return int(nome.split('-')[0].strip())
+        except:
+            return 0
+            
+    # Aplica a ordenação do maior para o menor
+    balanco_destinos_ordenado = sorted(balanco_destinos, key=regra_ordenacao, reverse=True)
+    # ---------------------------------------
+
     html_destinos += """
     <div style="background-color: #111c2e; border: 1px solid #1c2b42; border-radius: 8px; padding: 10px; overflow-x: auto;">
-        <table style="width: 100%; border-collapse: collapse; font-size: 0.75rem; text-align: right; color: #ffffff;">
+        <table style="width: 100%; border-collapse: collapse; font-size: 0.75rem; text-align: center; color: #ffffff;">
             <thead>
                 <tr style="border-bottom: 1px solid #1c2b42; color: #94a3b8; font-weight: 800;">
                     <th style="text-align: left; padding: 8px 4px;">Destino</th>
-                    <th style="padding: 8px 4px; color: #38bdf8;">Plano</th>
-                    <th style="padding: 8px 4px; color: #00D672;">Carr.</th>
-                    <th style="padding: 8px 4px; color: #E5B800;">Falta</th>
-                    <th style="padding: 8px 4px;">%</th>
+                    <th style="text-align: center; padding: 8px 4px; color: #38bdf8;">Plano</th>
+                    <th style="text-align: center; padding: 8px 4px; color: #00D672;">Carr.</th>
+                    <th style="text-align: center; padding: 8px 4px; color: #E5B800;">Falta</th>
+                    <th style="text-align: center; padding: 8px 4px;">%</th>
                 </tr>
             </thead>
             <tbody>
     """
-    for d in balanco_destinos:
+    for d in balanco_destinos_ordenado:
         ating = d['atingimento']
         cor_ating = "#00D672" if ating >= 100 else ("#38bdf8" if ating > 0 else "#94a3b8")
         
@@ -829,10 +844,10 @@ if balanco_destinos:
         html_destinos += f"""
             <tr style="border-bottom: 1px dashed #1c2b42;">
                 <td style="text-align: left; padding: 10px 4px; font-weight: 700;">{dest_nome}</td>
-                <td style="padding: 10px 4px; color: #38bdf8; font-weight: 800;">{d['meta']:,.0f}</td>
-                <td style="padding: 10px 4px; color: #00D672; font-weight: 800;">{d['realizado']:,.0f}</td>
-                <td style="padding: 10px 4px; color: {cor_saldo}; font-weight: 800;">{saldo_str}</td>
-                <td style="padding: 10px 4px; color: {cor_ating}; font-weight: 900;">{ating:.0f}%</td>
+                <td style="text-align: center; padding: 10px 4px; color: #38bdf8; font-weight: 800;">{d['meta']:,.0f}</td>
+                <td style="text-align: center; padding: 10px 4px; color: #00D672; font-weight: 800;">{d['realizado']:,.0f}</td>
+                <td style="text-align: center; padding: 10px 4px; color: {cor_saldo}; font-weight: 800;">{saldo_str}</td>
+                <td style="text-align: center; padding: 10px 4px; color: {cor_ating}; font-weight: 900;">{ating:.0f}%</td>
             </tr>
         """
     html_destinos += """
