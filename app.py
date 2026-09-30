@@ -38,12 +38,12 @@ st.markdown("""
         /* ---------------- PREVISÕES ---------------- */
         .prev-container { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px; }
         .prev-card-prod { background-color: #05080f; border: 2px solid #00f3ff; border-radius: 12px; padding: 14px; box-shadow: 0 0 12px rgba(0, 243, 255, 0.25), inset 0 0 8px rgba(0, 243, 255, 0.1); }
-        .prev-card-prod .prev-title { color: #00f3ff; font-size: 0.78rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 4px; }
-        .prev-card-prod .prev-val { color: #00f3ff; font-size: 1.85rem; font-weight: 900; line-height: 1.1; margin-bottom: 2px; text-shadow: 0 0 10px rgba(0, 243, 255, 0.4); }
+        .prev-card-prod .prev-title { color: #00f3ff; font-size: 0.78rem; font-weight: normal; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 4px; }
+        .prev-card-prod .prev-val { color: #00f3ff; font-size: 1.85rem; font-weight: normal; line-height: 1.1; margin-bottom: 2px; text-shadow: 0 0 10px rgba(0, 243, 255, 0.4); }
         
         .prev-card-carr { background-color: #0d0600; border: 2px solid #ff7700; border-radius: 12px; padding: 14px; box-shadow: 0 0 12px rgba(255, 119, 0, 0.25), inset 0 0 8px rgba(255, 119, 0, 0.1); }
-        .prev-card-carr .prev-title { color: #ff7700; font-size: 0.78rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 4px; }
-        .prev-card-carr .prev-val { color: #ff7700; font-size: 1.85rem; font-weight: 900; line-height: 1.1; margin-bottom: 2px; text-shadow: 0 0 10px rgba(255, 119, 0, 0.4); }
+        .prev-card-carr .prev-title { color: #ff7700; font-size: 0.78rem; font-weight: normal; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 4px; }
+        .prev-card-carr .prev-val { color: #ff7700; font-size: 1.85rem; font-weight: normal; line-height: 1.1; margin-bottom: 2px; text-shadow: 0 0 10px rgba(255, 119, 0, 0.4); }
 
         /* ---------------- MASTER BOX ---------------- */
         summary { list-style: none; outline: none; }
@@ -63,13 +63,13 @@ st.markdown("""
         }
         details.master-box[open] > summary::after { transform: translateY(-50%) rotate(180deg); }
         
-        .master-metric-title { color: #94a3b8; font-size: 1.1rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; padding-right: 20px;}
-        .master-metric-val { color: #ffffff; font-size: 2.4rem; font-weight: 900; line-height: 1.1; margin-bottom: 6px; }
-        .master-metric-sub { font-size: 0.95rem; font-weight: 700; }
+        .master-metric-title { color: #94a3b8; font-size: 1.1rem; font-weight: normal; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; padding-right: 20px;}
+        .master-metric-val { color: #ffffff; font-size: 2.4rem; font-weight: normal; line-height: 1.1; margin-bottom: 6px; }
+        .master-metric-sub { font-size: 0.95rem; font-weight: normal; }
         .master-content { background-color: #0a101d; padding: 16px; border-top: 1px dashed #1c2b42; }
 
         /* ---------------- EXPEDIÇÃO MAIN VIEWS E DESTINOS ---------------- */
-        .css-tabs-view label { display: inline-block; padding: 8px 20px; background-color: #162438; color: #94a3b8; border-radius: 8px; font-size: 0.9rem; font-weight: 900; margin: 0 4px 14px 4px; cursor: pointer; border: 1px solid #1c2b42; transition: 0.2s; }
+        .css-tabs-view label { display: inline-block; padding: 8px 20px; background-color: #162438; color: #94a3b8; border-radius: 8px; font-size: 0.9rem; font-weight: normal; margin: 0 4px 14px 4px; cursor: pointer; border: 1px solid #1c2b42; transition: 0.2s; }
         .css-tabs-view input[type="radio"]#view_turnos:checked + label.lbl-v-turnos { background-color: #00D672; color: #0a101d; border-color: #00D672; }
         .css-tabs-view input[type="radio"]#view_destinos:checked + label.lbl-v-destinos { background-color: #38bdf8; color: #0a101d; border-color: #38bdf8; }
         .view-content-exp { display: none; animation: fadeIn 0.3s ease; }
@@ -77,7 +77,7 @@ st.markdown("""
         #view_destinos:checked ~ #content_view_destinos { display: block; }
 
         /* ---------------- PÁTIO E EXPEDIÇÃO TURNOS ---------------- */
-        .css-tabs-exp label { display: inline-block; padding: 6px 16px; background-color: #162438; color: #94a3b8; border-radius: 6px; font-size: 0.85rem; font-weight: 800; margin: 0 4px; cursor: pointer; border: 1px solid #1c2b42; transition: 0.2s; }
+        .css-tabs-exp label { display: inline-block; padding: 6px 16px; background-color: #162438; color: #94a3b8; border-radius: 6px; font-size: 0.85rem; font-weight: normal; margin: 0 4px; cursor: pointer; border: 1px solid #1c2b42; transition: 0.2s; }
         .css-tabs-exp input[type="radio"]#tab_ontem:checked + label.lbl-ontem { background-color: #38bdf8; color: #0a101d; border-color: #38bdf8; }
         .css-tabs-exp input[type="radio"]#tab_hoje:checked + label.lbl-hoje { background-color: #00D672; color: #0a101d; border-color: #00D672; }
         .tab-content-exp { display: none; animation: fadeIn 0.3s ease; }
@@ -86,9 +86,9 @@ st.markdown("""
 
         /* ---------------- FROTA (DKRO) ---------------- */
         .frota-tabs-main { display: flex; gap: 8px; justify-content: center; margin-bottom: 16px; }
-        .frota-tabs-main label { padding: 8px 16px; background-color: #162438; color: #94a3b8; border-radius: 6px; cursor: pointer; border: 1px solid #1c2b42; font-weight: 800; font-size: 0.9rem; transition: 0.2s; }
+        .frota-tabs-main label { padding: 8px 16px; background-color: #162438; color: #94a3b8; border-radius: 6px; cursor: pointer; border: 1px solid #1c2b42; font-weight: normal; font-size: 0.9rem; transition: 0.2s; }
         .frota-tabs-sub { display: flex; gap: 6px; justify-content: center; margin-bottom: 14px; }
-        .frota-tabs-sub label { padding: 6px 12px; background-color: #111c2e; color: #64748b; border-radius: 6px; cursor: pointer; border: 1px solid #1c2b42; font-weight: 800; font-size: 0.8rem; transition: 0.2s; }
+        .frota-tabs-sub label { padding: 6px 12px; background-color: #111c2e; color: #64748b; border-radius: 6px; cursor: pointer; border: 1px solid #1c2b42; font-weight: normal; font-size: 0.8rem; transition: 0.2s; }
 
         .f-rad-main, .f-rad-sub { display: none; }
         .f-content-dia { display: none; animation: fadeIn 0.3s ease; }
@@ -106,9 +106,9 @@ st.markdown("""
         .f-tag-ok { background-color: #00D672; color: #0a101d; }
         .f-tag-avaria { background-color: #E74C3C; color: #ffffff; }
         .f-tag-aten { background-color: #FFD600; color: #0a101d; }
-        .f-tag-title { font-size: 0.85rem; color: #ffffff; font-weight: 800; margin-bottom: 8px; border-bottom: 1px dashed #1c2b42; padding-bottom: 4px; }
+        .f-tag-title { font-size: 0.85rem; color: #ffffff; font-weight: normal; margin-bottom: 8px; border-bottom: 1px dashed #1c2b42; padding-bottom: 4px; }
         .f-tag-container { margin-bottom: 16px; }
-        .tag-box { display: inline-block; padding: 6px 10px; margin: 3px; border-radius: 6px; font-weight: 800; font-size: 0.8rem; text-align: center; }
+        .tag-box { display: inline-block; padding: 6px 10px; margin: 3px; border-radius: 6px; font-weight: normal; font-size: 0.8rem; text-align: center; }
 
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
     </style>
@@ -167,8 +167,8 @@ def build_vertical_chart(data, height=150):
     for d in data:
         h_pct = min(100, (d["value"] / max_v) * 100)
         color = d.get("color", "#38bdf8")
-        html += f"<div style='display:flex; flex-direction:column; align-items:center; height:100%; width:100%; justify-content:flex-end;'><span style='font-size:0.85rem; font-weight:800; color:{color}; margin-bottom:6px;'>{d['text']}</span><div style='width:38px; height:{h_pct}%; background-color:{color}; border-radius:4px 4px 0 0;'></div></div>"
-        lbl_html += f"<div style='width:100%; text-align:center; font-size:0.75rem; color:#94a3b8; font-weight:800;'>{d['label']}</div>"
+        html += f"<div style='display:flex; flex-direction:column; align-items:center; height:100%; width:100%; justify-content:flex-end;'><span style='font-size:0.85rem; font-weight:normal; color:{color}; margin-bottom:6px;'>{d['text']}</span><div style='width:38px; height:{h_pct}%; background-color:{color}; border-radius:4px 4px 0 0;'></div></div>"
+        lbl_html += f"<div style='width:100%; text-align:center; font-size:0.75rem; color:#94a3b8; font-weight:normal;'>{d['label']}</div>"
     html += "</div>"
     lbl_html += "</div>"
     return html + lbl_html
@@ -345,15 +345,15 @@ with col_logo:
     try:
         st.image("logo_alove.png", use_container_width=True)
     except:
-        st.markdown("<h3 style='margin:0; color:#00f3ff; font-style:italic; font-weight: 900;'>A.L.O.V.E.</h3>", unsafe_allow_html=True)
+        st.markdown("<h3 style='margin:0; color:#00f3ff; font-style:italic; font-weight: normal;'>A.L.O.V.E.</h3>", unsafe_allow_html=True)
 
 with col_status:
     st.markdown(f"""
         <div style="text-align: right;">
-            <div style="color: #00D672; font-size: 0.85rem; font-weight: 800; display: flex; justify-content: flex-end; align-items: center; gap: 6px;">
+            <div style="color: #00D672; font-size: 0.85rem; font-weight: normal; display: flex; justify-content: flex-end; align-items: center; gap: 6px;">
                 <span style="font-size: 1.1rem;">🎯</span> {ritmo_torre}
             </div>
-            <div style="color: #94a3b8; font-size: 0.7rem; font-weight: 600; margin-top: 2px;">
+            <div style="color: #94a3b8; font-size: 0.7rem; font-weight: normal; margin-top: 2px;">
                 Sincronizado: {ultima_att}
             </div>
         </div>
@@ -397,8 +397,8 @@ if not df_alertas.empty:
         corpo_alt = "<br>".join(linhas_alt[:4])
         st.markdown(f"""
             <div style="background-color: {bg_b}; border-left: 4px solid {cor_b}; padding: 10px 14px; margin-bottom: 12px; border-radius: 6px;">
-                <div style="color: {cor_b}; font-size: 11px; font-weight: 800; text-transform: uppercase;">🚨 Observações & Alertas Críticos</div>
-                <div style="color: {txt_cor}; font-size: 12px; font-weight: 600; margin-top: 4px;">{corpo_alt}</div>
+                <div style="color: {cor_b}; font-size: 11px; font-weight: normal; text-transform: uppercase;">🚨 Observações & Alertas Críticos</div>
+                <div style="color: {txt_cor}; font-size: 12px; font-weight: normal; margin-top: 4px;">{corpo_alt}</div>
             </div>
         """, unsafe_allow_html=True)
 
@@ -444,19 +444,19 @@ html_meta_anual = f"""
     <div class="master-content">
         <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px;">
             <div style="background-color:#111c2e; border:1px solid #1c2b42; border-radius:8px; padding:10px;">
-                <div style="font-size:0.75rem; color:#007BFF; font-weight:800;">EXPEDIÇÃO ANUAL</div>
-                <div style="font-size:1.3rem; font-weight:900; color:#fff;">{carr_ano_atual:,.0f} t</div>
-                <div style="font-size:0.7rem; color:#94a3b8;">Proj. 31/12: <b style="color:#007BFF;">{proj_carr_fechamento:,.0f} t</b></div>
+                <div style="font-size:0.75rem; color:#007BFF; font-weight:normal;">EXPEDIÇÃO ANUAL</div>
+                <div style="font-size:1.3rem; font-weight:normal; color:#fff;">{carr_ano_atual:,.0f} t</div>
+                <div style="font-size:0.7rem; color:#94a3b8;">Proj. 31/12: <span style="color:#007BFF;">{proj_carr_fechamento:,.0f} t</span></div>
             </div>
             <div style="background-color:#111c2e; border:1px solid #1c2b42; border-radius:8px; padding:10px;">
-                <div style="font-size:0.75rem; color:#00D672; font-weight:800;">PRODUÇÃO ANUAL</div>
-                <div style="font-size:1.3rem; font-weight:900; color:#fff;">{prod_ano_atual:,.0f} t</div>
-                <div style="font-size:0.7rem; color:#94a3b8;">Proj. 31/12: <b style="color:#00D672;">{proj_prod_fechamento:,.0f} t</b></div>
+                <div style="font-size:0.75rem; color:#00D672; font-weight:normal;">PRODUÇÃO ANUAL</div>
+                <div style="font-size:1.3rem; font-weight:normal; color:#fff;">{prod_ano_atual:,.0f} t</div>
+                <div style="font-size:0.7rem; color:#94a3b8;">Proj. 31/12: <span style="color:#00D672;">{proj_prod_fechamento:,.0f} t</span></div>
             </div>
         </div>
         <div style="background-color:#111c2e; border:1px solid #1c2b42; border-radius:8px; padding:12px; font-size:0.82rem; color:#cbd5e1; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;">
-            <span>Variação Produção vs Expedição: <b style="color:{cor_variacao}; font-size:0.9rem;">{txt_variacao}</b></span>
-            <span>Estoque de Virada 25/26: <b style="color:#38bdf8; font-size:0.9rem;">3.468 t</b></span>
+            <span>Variação Produção vs Expedição: <span style="color:{cor_variacao}; font-size:0.9rem;">{txt_variacao}</span></span>
+            <span>Estoque de Virada 25/26: <span style="color:#38bdf8; font-size:0.9rem;">3.468 t</span></span>
         </div>
     </div>
 </details>
@@ -494,8 +494,8 @@ for tit, chv, cor in blocos_patio:
         for item in lista_destinos:
             linhas_dest_html += f"""
             <div style="display:flex; justify-content:space-between; align-items:center; padding:5px 0; border-bottom:1px dashed #1c2b42; font-size:0.8rem;">
-                <span style="color:#ffffff; font-weight:700;">{item['destino']}</span>
-                <span style="color:#38bdf8; font-weight:800;">{item['veic']} veíc. <span style="color:#94a3b8; font-weight:600;">({item['ton']:,.0f} t)</span></span>
+                <span style="color:#ffffff; font-weight:normal;">{item['destino']}</span>
+                <span style="color:#38bdf8; font-weight:normal;">{item['veic']} veíc. <span style="color:#94a3b8; font-weight:normal;">({item['ton']:,.0f} t)</span></span>
             </div>
             """
     else:
@@ -505,13 +505,13 @@ for tit, chv, cor in blocos_patio:
     <details style="background-color:#111c2e; border:1px solid #1c2b42; border-left:4px solid {cor}; border-radius:8px; overflow:hidden;">
         <summary style="padding:10px 14px; cursor:pointer; list-style:none; display:flex; justify-content:space-between; align-items:center; -webkit-tap-highlight-color:transparent;">
             <div>
-                <span style="color:{cor}; font-weight:800; font-size:0.85rem; text-transform:uppercase;">{tit}</span>
-                <div style="font-size:1.25rem; font-weight:900; color:#ffffff; margin-top:2px;">
-                    {v_qtd} <span style="font-size:0.75rem; color:#94a3b8; font-weight:600;">veíc. / <span style="color:#cbd5e1;">{v_ton:,.0f} t</span></span>
+                <span style="color:{cor}; font-weight:normal; font-size:0.85rem; text-transform:uppercase;">{tit}</span>
+                <div style="font-size:1.25rem; font-weight:normal; color:#ffffff; margin-top:2px;">
+                    {v_qtd} <span style="font-size:0.75rem; color:#94a3b8; font-weight:normal;">veíc. / <span style="color:#cbd5e1;">{v_ton:,.0f} t</span></span>
                 </div>
             </div>
             <div style="text-align:right;">
-                <div style="font-size:0.75rem; color:#38bdf8; font-weight:700;">Tocar para ver Destinos</div>
+                <div style="font-size:0.75rem; color:#38bdf8; font-weight:normal;">Tocar para ver Destinos</div>
             </div>
         </summary>
         <div style="background-color:#070d18; padding:10px 14px; border-top:1px solid #1c2b42;">
@@ -526,13 +526,13 @@ v_ton_tr = forcar_par(dados_patio.get("TR", {}).get("peso", 0))
 html_patio += f"""
 <div style="background-color:#111c2e; border:1px solid #1c2b42; border-left:4px solid #95A5A6; border-radius:8px; padding:10px 14px; display:flex; justify-content:space-between; align-items:center;">
     <div>
-        <span style="color:#95A5A6; font-weight:800; font-size:0.85rem; text-transform:uppercase;">📄 Termo SAP</span>
-        <div style="font-size:1.25rem; font-weight:900; color:#ffffff; margin-top:2px;">
-            {v_qtd_tr} <span style="font-size:0.75rem; color:#94a3b8; font-weight:600;">veíc. / <span style="color:#cbd5e1;">{v_ton_tr:,.0f} t</span></span>
+        <span style="color:#95A5A6; font-weight:normal; font-size:0.85rem; text-transform:uppercase;">📄 Termo SAP</span>
+        <div style="font-size:1.25rem; font-weight:normal; color:#ffffff; margin-top:2px;">
+            {v_qtd_tr} <span style="font-size:0.75rem; color:#94a3b8; font-weight:normal;">veíc. / <span style="color:#cbd5e1;">{v_ton_tr:,.0f} t</span></span>
         </div>
     </div>
     <div style="text-align:right;">
-        <div style="font-size:0.75rem; color:#64748b; font-weight:700;">Fila de Faturamento</div>
+        <div style="font-size:0.75rem; color:#64748b; font-weight:normal;">Fila de Faturamento</div>
     </div>
 </div>
 """
@@ -588,12 +588,12 @@ for maq in ["MS1", "MS2"]:
             html_virada = f"""
             <div style='background-color: #070d18; border: 1px solid #1c2b42; border-left: 4px solid {cor_alerta}; padding: 10px; margin-top: 14px; border-radius: 6px;'>
                 <div style='display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;'>
-                    <span style='font-size:0.75rem; color:#94a3b8; font-weight:800; text-transform:uppercase;'>Saldo a Produzir ({mat_maq})</span>
-                    <span style='font-size:1.1rem; font-weight:900; color:#ffffff;'>{s_rest:,.0f} t</span>
+                    <span style='font-size:0.75rem; color:#94a3b8; font-weight:normal; text-transform:uppercase;'>Saldo a Produzir ({mat_maq})</span>
+                    <span style='font-size:1.1rem; font-weight:normal; color:#ffffff;'>{s_rest:,.0f} t</span>
                 </div>
                 <div style='display:flex; justify-content:space-between; align-items:center; font-size:0.75rem;'>
-                    <span style='color:#cbd5e1; font-weight:600;'>🔜 Prox: <b style='color:#38bdf8;'>{p_mat}</b> ({p_prev})</span>
-                    <span style='color:{cor_alerta}; font-weight:800;'>{txt_alerta}</span>
+                    <span style='color:#cbd5e1; font-weight:normal;'>🔜 Prox: <span style='color:#38bdf8;'>{p_mat}</span> ({p_prev})</span>
+                    <span style='color:{cor_alerta}; font-weight:normal;'>{txt_alerta}</span>
                 </div>
             </div>
             """
@@ -601,36 +601,36 @@ for maq in ["MS1", "MS2"]:
         html_prod_content += f"""
         <div style='background-color: #111c2e; border: 1.5px solid {cor_card_borda}; border-radius: 8px; padding: 16px; margin-bottom: 12px;'>
             <div style='display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;'>
-                <span style='color:#ffffff; font-weight:900; font-size:1.25rem;'>⚙️ {maq}</span>
-                <span style='color:#FF9F1C; font-weight:900; font-size:1.35rem;'>📦 MAT: {mat_maq}</span>
-                <span style='color:#38bdf8; font-weight:900; font-size:1.4rem;'>{p_maq:,.0f} t</span>
+                <span style='color:#ffffff; font-weight:normal; font-size:1.25rem;'>⚙️ {maq}</span>
+                <span style='color:#FF9F1C; font-weight:normal; font-size:1.35rem;'>📦 MAT: {mat_maq}</span>
+                <span style='color:#38bdf8; font-weight:normal; font-size:1.4rem;'>{p_maq:,.0f} t</span>
             </div>
             
-            <div style='display:flex; justify-content:flex-end; gap: 16px; margin-bottom: 12px; font-size: 0.85rem; color: #94a3b8; font-weight: 800;'>
+            <div style='display:flex; justify-content:flex-end; gap: 16px; margin-bottom: 12px; font-size: 0.85rem; color: #94a3b8; font-weight: normal;'>
                 <span>{lbl_l1}: <span style='color:#ffffff;'>{l1:,.0f} t</span></span>
                 <span>{lbl_l2}: <span style='color:#ffffff;'>{l2:,.0f} t</span></span>
             </div>
             
             <div style='display: flex; justify-content: space-between; text-align: center; border-top: 1px dashed #1c2b42; padding-top: 14px;'>
                 <div>
-                    <div style='font-size:0.75rem; color:#94a3b8; font-weight:800; text-transform:uppercase;'>ALVURA</div>
-                    <div style='font-size:1.35rem; font-weight:900; color:{c_alv}; margin: 4px 0;'>{q_alvura:.2f}%</div>
-                    <div style='font-size:0.7rem; color:#64748b; font-weight:700;'>(Mín: 88,5)</div>
+                    <div style='font-size:0.75rem; color:#94a3b8; font-weight:normal; text-transform:uppercase;'>ALVURA</div>
+                    <div style='font-size:1.35rem; font-weight:normal; color:{c_alv}; margin: 4px 0;'>{q_alvura:.2f}%</div>
+                    <div style='font-size:0.7rem; color:#64748b; font-weight:normal;'>(Mín: 88,5)</div>
                 </div>
                 <div>
-                    <div style='font-size:0.75rem; color:#94a3b8; font-weight:800; text-transform:uppercase;'>SUJIDADE</div>
-                    <div style='font-size:1.35rem; font-weight:900; color:{c_suj}; margin: 4px 0;'>{q_suj:.2f}</div>
-                    <div style='font-size:0.7rem; color:#64748b; font-weight:700;'>(Máx: 2,5)</div>
+                    <div style='font-size:0.75rem; color:#94a3b8; font-weight:normal; text-transform:uppercase;'>SUJIDADE</div>
+                    <div style='font-size:1.35rem; font-weight:normal; color:{c_suj}; margin: 4px 0;'>{q_suj:.2f}</div>
+                    <div style='font-size:0.7rem; color:#64748b; font-weight:normal;'>(Máx: 2,5)</div>
                 </div>
                 <div>
-                    <div style='font-size:0.75rem; color:#94a3b8; font-weight:800; text-transform:uppercase;'>VISCOSID.</div>
-                    <div style='font-size:1.35rem; font-weight:900; color:{c_vis}; margin: 4px 0;'>{q_visc:,.0f}</div>
-                    <div style='font-size:0.7rem; color:#64748b; font-weight:700;'>(Mín: 650)</div>
+                    <div style='font-size:0.75rem; color:#94a3b8; font-weight:normal; text-transform:uppercase;'>VISCOSID.</div>
+                    <div style='font-size:1.35rem; font-weight:normal; color:{c_vis}; margin: 4px 0;'>{q_visc:,.0f}</div>
+                    <div style='font-size:0.7rem; color:#64748b; font-weight:normal;'>(Mín: 650)</div>
                 </div>
                 <div>
-                    <div style='font-size:0.75rem; color:#94a3b8; font-weight:800; text-transform:uppercase;'>pH</div>
-                    <div style='font-size:1.35rem; font-weight:900; color:{c_ph}; margin: 4px 0;'>{q_ph:.1f}</div>
-                    <div style='font-size:0.7rem; color:#64748b; font-weight:700;'>(5,5 - 8,5)</div>
+                    <div style='font-size:0.75rem; color:#94a3b8; font-weight:normal; text-transform:uppercase;'>pH</div>
+                    <div style='font-size:1.35rem; font-weight:normal; color:{c_ph}; margin: 4px 0;'>{q_ph:.1f}</div>
+                    <div style='font-size:0.7rem; color:#64748b; font-weight:normal;'>(5,5 - 8,5)</div>
                 </div>
             </div>
             {html_virada}
@@ -738,7 +738,7 @@ vol_exp_hoje = vol_calculado_hoje if vol_hoje == 0 else vol_hoje
 vol_exp_ontem = vol_ontem if vol_ontem > 0 else (forcar_par(dados_exp_ontem.get("total_dia", 0)) if dados_exp_ontem else 0)
 
 # Montagem do HTML de Turnos
-html_hoje = "<div style='font-size:0.75rem; font-weight:800; color:#00D672; text-transform:uppercase; margin-bottom:10px; text-align:left;'>Turnos em Operação Hoje:</div>"
+html_hoje = "<div style='font-size:0.75rem; font-weight:normal; color:#00D672; text-transform:uppercase; margin-bottom:10px; text-align:left;'>Turnos em Operação Hoje:</div>"
 if dados_exp_hoje and "turnos" in dados_exp_hoje:
     ativo_key = dados_exp_hoje.get("ativo_key")
     html_hoje += "<div style='display:flex; gap:6px; margin-bottom:8px;'>"
@@ -751,33 +751,33 @@ if dados_exp_hoje and "turnos" in dados_exp_hoje:
         
         v_str = t.get("str_vol", f"{t['vol']:,.0f} t")
         if v_str == "Folga":
-            html_val = f"<div style='font-size:0.85rem; font-weight:900; color:#E74C3C; padding: 5px 0;'>EM FOLGA</div>"
+            html_val = f"<div style='font-size:0.85rem; font-weight:normal; color:#E74C3C; padding: 5px 0;'>EM FOLGA</div>"
             c_text = "Folga"
         else:
-            html_val = f"<div style='font-size:1.1rem; font-weight:900; color:#ffffff;'>{v_str}</div>"
+            html_val = f"<div style='font-size:1.1rem; font-weight:normal; color:#ffffff;'>{v_str}</div>"
             c_text = v_str
             
-        html_hoje += f"<div style='flex:1; background-color:#111c2e; border:1.5px solid {cor_b}; border-radius:8px; padding:8px; text-align:center;'><div style='font-size:0.75rem; font-weight:800; color:{cor_txt};'>{t['letra']}</div>{html_val}<div style='font-size:0.65rem; color:#94a3b8;'>{sub_txt}</div></div>"
+        html_hoje += f"<div style='flex:1; background-color:#111c2e; border:1.5px solid {cor_b}; border-radius:8px; padding:8px; text-align:center;'><div style='font-size:0.75rem; font-weight:normal; color:{cor_txt};'>{t['letra']}</div>{html_val}<div style='font-size:0.65rem; color:#94a3b8;'>{sub_txt}</div></div>"
         chart_data_hoje.append({"label": t['letra'], "value": t['vol'], "text": c_text, "color": "#FF9F1C" if is_atv else "#00D672"})
     html_hoje += "</div>"
     html_hoje += build_vertical_chart(chart_data_hoje)
 else:
     html_hoje += "<div style='color:gray; text-align:left;'>Aguardando dados de hoje...</div>"
 
-html_ontem = f"<div style='font-size:0.75rem; font-weight:800; color:#38bdf8; text-transform:uppercase; margin-bottom:10px; text-align:left;'>Fechamento de Ontem ({ontem_date.strftime('%d/%m')}):</div>"
+html_ontem = f"<div style='font-size:0.75rem; font-weight:normal; color:#38bdf8; text-transform:uppercase; margin-bottom:10px; text-align:left;'>Fechamento de Ontem ({ontem_date.strftime('%d/%m')}):</div>"
 if dados_exp_ontem and "turnos" in dados_exp_ontem:
     html_ontem += "<div style='display:flex; gap:6px; margin-bottom:8px;'>"
     chart_data_ontem = []
     for t in dados_exp_ontem["turnos"]:
         v_str_o = t.get("str_vol", f"{t['vol']:,.0f} t")
         if v_str_o == "Folga":
-            html_val_o = f"<div style='font-size:0.85rem; font-weight:900; color:#E74C3C; padding: 5px 0;'>EM FOLGA</div>"
+            html_val_o = f"<div style='font-size:0.85rem; font-weight:normal; color:#E74C3C; padding: 5px 0;'>EM FOLGA</div>"
             c_text_o = "Folga"
         else:
-            html_val_o = f"<div style='font-size:1.1rem; font-weight:900; color:#ffffff;'>{v_str_o}</div>"
+            html_val_o = f"<div style='font-size:1.1rem; font-weight:normal; color:#ffffff;'>{v_str_o}</div>"
             c_text_o = v_str_o
             
-        html_ontem += f"<div style='flex:1; background-color:#111c2e; border:1.5px solid #1c2b42; border-radius:8px; padding:8px; text-align:center;'><div style='font-size:0.75rem; font-weight:800; color:#38bdf8;'>{t['letra']}</div>{html_val_o}<div style='font-size:0.65rem; color:#94a3b8;'>{t['horario']}</div></div>"
+        html_ontem += f"<div style='flex:1; background-color:#111c2e; border:1.5px solid #1c2b42; border-radius:8px; padding:8px; text-align:center;'><div style='font-size:0.75rem; font-weight:normal; color:#38bdf8;'>{t['letra']}</div>{html_val_o}<div style='font-size:0.65rem; color:#94a3b8;'>{t['horario']}</div></div>"
         chart_data_ontem.append({"label": t['letra'], "value": t['vol'], "text": c_text_o, "color": "#38bdf8"})
     html_ontem += "</div>"
     html_ontem += build_vertical_chart(chart_data_ontem)
@@ -790,12 +790,12 @@ else:
 html_destinos = f"""
 <div style="display:flex; justify-content:space-around; background-color:#111c2e; border:1px solid #1c2b42; border-radius:8px; padding:12px; margin-bottom:14px; text-align:center;">
     <div>
-        <div style="font-size:0.75rem; color:#94a3b8; font-weight:800; text-transform:uppercase;">Plano Total Diário</div>
-        <div style="font-size:1.4rem; color:#ffffff; font-weight:900;">{total_expedicao_meta:,.0f} <span style="font-size:0.8rem;">t</span></div>
+        <div style="font-size:0.75rem; color:#94a3b8; font-weight:normal; text-transform:uppercase;">Plano Total Diário</div>
+        <div style="font-size:1.4rem; color:#ffffff; font-weight:normal;">{total_expedicao_meta:,.0f} <span style="font-size:0.8rem;">t</span></div>
     </div>
     <div style="border-left:1px solid #1c2b42; padding-left:20px;">
-        <div style="font-size:0.75rem; color:#38bdf8; font-weight:800; text-transform:uppercase;">Total Carregado</div>
-        <div style="font-size:1.4rem; color:#38bdf8; font-weight:900;">{total_expedicao_real:,.0f} <span style="font-size:0.8rem;">t</span></div>
+        <div style="font-size:0.75rem; color:#38bdf8; font-weight:normal; text-transform:uppercase;">Total Carregado</div>
+        <div style="font-size:1.4rem; color:#38bdf8; font-weight:normal;">{total_expedicao_real:,.0f} <span style="font-size:0.8rem;">t</span></div>
     </div>
 </div>
 """
@@ -805,27 +805,25 @@ if balanco_destinos:
     def regra_ordenacao(d):
         nome = str(d.get('destino', '')).upper()
         if "MI / LATAM" in nome or "MI/LATAM" in nome:
-            return 999999 # Peso gigante para ficar no topo
+            return 999999
         try:
-            # Extrai o número do terminal (ex: "1680 - EBLOG" -> 1680)
             return int(nome.split('-')[0].strip())
         except:
             return 0
             
-    # Aplica a ordenação do maior para o menor
     balanco_destinos_ordenado = sorted(balanco_destinos, key=regra_ordenacao, reverse=True)
     # ---------------------------------------
 
     html_destinos += """
     <div style="background-color: #111c2e; border: 1px solid #1c2b42; border-radius: 8px; padding: 10px; overflow-x: auto;">
-        <table style="width: 100%; border-collapse: collapse; font-size: 0.75rem; text-align: center; color: #ffffff;">
+        <table style="width: 100%; border-collapse: collapse; font-size: 0.75rem; text-align: center; color: #ffffff; font-weight: normal;">
             <thead>
-                <tr style="border-bottom: 1px solid #1c2b42; color: #94a3b8; font-weight: 800;">
-                    <th style="text-align: left; padding: 8px 4px;">Destino</th>
-                    <th style="text-align: center; padding: 8px 4px; color: #38bdf8;">Plano</th>
-                    <th style="text-align: center; padding: 8px 4px; color: #00D672;">Carr.</th>
-                    <th style="text-align: center; padding: 8px 4px; color: #E5B800;">Falta</th>
-                    <th style="text-align: center; padding: 8px 4px;">%</th>
+                <tr style="border-bottom: 1px solid #1c2b42; color: #94a3b8; font-weight: normal;">
+                    <th style="text-align: left; padding: 8px 4px; font-weight: normal;">Destino</th>
+                    <th style="text-align: center; padding: 8px 4px; color: #38bdf8; font-weight: normal;">Plano</th>
+                    <th style="text-align: center; padding: 8px 4px; color: #00D672; font-weight: normal;">Carr.</th>
+                    <th style="text-align: center; padding: 8px 4px; color: #E5B800; font-weight: normal;">Falta</th>
+                    <th style="text-align: center; padding: 8px 4px; font-weight: normal;">%</th>
                 </tr>
             </thead>
             <tbody>
@@ -841,19 +839,18 @@ if balanco_destinos:
             saldo_str = f"{d['saldo']:,.0f}"
             cor_saldo = "#E5B800"
 
-        # Simplifica o nome do destino para não quebrar no celular (Ex: "1680 - EBLOG - SANTOS" vira "1680 - EBLOG")
         dest_parts = d['destino'].split('-')
         dest_nome = f"{dest_parts[0].strip()}"
         if len(dest_parts) > 1:
             dest_nome += f" - {dest_parts[1].strip()}"
 
         html_destinos += f"""
-            <tr style="border-bottom: 1px dashed #1c2b42;">
-                <td style="text-align: left; padding: 10px 4px; font-weight: 700;">{dest_nome}</td>
-                <td style="text-align: center; padding: 10px 4px; color: #38bdf8; font-weight: 800;">{d['meta']:,.0f}</td>
-                <td style="text-align: center; padding: 10px 4px; color: #00D672; font-weight: 800;">{d['realizado']:,.0f}</td>
-                <td style="text-align: center; padding: 10px 4px; color: {cor_saldo}; font-weight: 800;">{saldo_str}</td>
-                <td style="text-align: center; padding: 10px 4px; color: {cor_ating}; font-weight: 900;">{ating:.0f}%</td>
+            <tr style="border-bottom: 1px dashed #1c2b42; font-weight: normal;">
+                <td style="text-align: left; padding: 10px 4px; font-weight: normal;">{dest_nome}</td>
+                <td style="text-align: center; padding: 10px 4px; color: #38bdf8; font-weight: normal;">{d['meta']:,.0f}</td>
+                <td style="text-align: center; padding: 10px 4px; color: #00D672; font-weight: normal;">{d['realizado']:,.0f}</td>
+                <td style="text-align: center; padding: 10px 4px; color: {cor_saldo}; font-weight: normal;">{saldo_str}</td>
+                <td style="text-align: center; padding: 10px 4px; color: {cor_ating}; font-weight: normal;">{ating:.0f}%</td>
             </tr>
         """
     html_destinos += """
@@ -1009,7 +1006,7 @@ ch_h_08 = "checked" if 8 <= agora_h < 16 else ""
 ch_h_16 = "checked" if 16 <= agora_h else ""
 
 def render_tags(dict_equip):
-    if not dict_equip: return "<span style='color:#64748b; font-size:0.8rem; font-weight:600;'>Nenhum registro neste turno.</span>"
+    if not dict_equip: return "<span style='color:#64748b; font-size:0.8rem; font-weight:normal;'>Nenhum registro neste turno.</span>"
     html_t = ""
     for eq, cond in sorted(dict_equip.items()):
         cls = "f-tag-avaria" if cond == "AVARIA" else ("f-tag-aten" if cond == "ATENÇÃO" else "f-tag-ok")
@@ -1136,4 +1133,4 @@ else:
 html_glp += '</details>'
 st.markdown(html_glp, unsafe_allow_html=True)
 
-st.markdown("<br><center><span style='color:#94a3b8; font-size: 0.80rem; font-weight: 600; letter-spacing: 0.5px;'>A.L.O.V.E - Mobile / Developed by Cristiano Ciriaco</span></center>", unsafe_allow_html=True)
+st.markdown("<br><center><span style='color:#94a3b8; font-size: 0.80rem; font-weight: normal; letter-spacing: 0.5px;'>A.L.O.V.E - Mobile / Developed by Cristiano Ciriaco</span></center>", unsafe_allow_html=True)
