@@ -252,7 +252,8 @@ df_dash = carregar_dados_nuvem("Mobile_Dashboard", cabecalho=0)
 df_qual = carregar_dados_nuvem("Mobile_Qualidade", cabecalho=0)
 df_alertas = carregar_dados_nuvem("Mobile_Alertas", cabecalho=0)
 df_cache = carregar_dados_nuvem("Cache_Painel", cabecalho=0)
-df_patio_dest = carregar_dados_nuvem("Patio_Destino_Status", cabecalho=0)
+df_patio_dest = carregar_dados_nuvem("Patio_Destino_Status", cabecalho=2) # Mantido conforme seu cenário
+df_status_virada = carregar_dados_nuvem("Status_Virada_Turnos", cabecalho=0)
 
 cache_dict = {str(row.iloc[0]).strip(): str(row.iloc[1]).strip() for _, row in df_cache.iterrows()} if not df_cache.empty else {}
 dados_segregados = parse_robusto(cache_dict.get("dados_segregados", "{}"))
@@ -298,63 +299,50 @@ if not df_dash.empty:
     dados_patio["FC"] = {"veiculos": int(safe_to_numeric(row_d.get("FC_VEIC", 0))), "peso": forcar_par(safe_to_numeric(row_d.get("FC_TON", 0)))}
     dados_patio["TR"] = {"veiculos": int(safe_to_numeric(row_d.get("TR_VEIC", 0))), "peso": forcar_par(safe_to_numeric(row_d.get("TR_TON", 0)))}
 
-# ----------------- VARIÁVEIS GLOBAIS DE PÁTIO (CRÍTICO: NUNCA DEIXAR FALTAR) -----------------
 total_veiculos_fisicos = dados_patio["00"]["veiculos"] + dados_patio["01"]["veiculos"] + dados_patio["FC"]["veiculos"]
 vol_patio_disponivel = forcar_par(dados_patio["00"]["peso"] + dados_patio["01"]["peso"] + dados_patio["FC"]["peso"])
 
-# ==============================================================================
-# 1. CARREGAMENTO CORRETO DA ABA Patio_Destino_Status (Linha 3 = cabecalho=2)
-# ==============================================================================
-df_patio_dest = carregar_dados_nuvem("Patio_Destino_Status", cabecalho=2)
+# Mapeamento do Status Virada de Linha
+viradas_info = {}
+if not df_status_virada.empty:
+    for _, row_st in df_status_virada.iterrows():
+        linha = str(row_st.get("LINHA", "")).strip().upper()
+        viradas_info[linha] = {
+            "prox_mat": str(row_st.get("PROXIMO_MATERIAL", "--")),
+            "prev_virada": str(row_st.get("PREVISAO_VIRADA", "--")),
+            "saldo_rest": forcar_par(safe_to_numeric(row_st.get("SALDO_RESTANTE_T", 0))),
+            "status_email": str(row_st.get("STATUS_EMAIL_TROCA", "N/D"))
+        }
 
-# Dicionário para guardar a lista de destinos de cada status
+# Agrupamento de Destinos por Status
 destinos_por_status = {
-    "PR": [],
-    "00": [],
-    "01": [],
-    "FC": []
+    "PR": [], "00": [], "01": [], "FC": [], "TR": []
 }
 
 if not df_patio_dest.empty:
     for _, r_p in df_patio_dest.iterrows():
-        # Busca o nome do destino na primeira coluna (ou coluna DESTINO)
         dest_nome = str(r_p.get("DESTINO", r_p.iloc[0])).strip()
-        
-        # Ignora linhas de cabeçalho repetido ou totais
-        if not dest_nome or dest_nome.upper() in ["TOTAL", "TOTAL GERAL FÁBRICA", "DESTINO", "NAN", "NONE"]:
-            continue
+        if dest_nome and dest_nome.upper() not in ["TOTAL", "TOTAL GERAL FÁBRICA", "DESTINO", "NAN", "NONE"]:
+            def extrair_val(col_nome, col_idx):
+                if col_nome in r_p: return safe_to_numeric(r_p[col_nome])
+                elif len(r_p) > col_idx: return safe_to_numeric(r_p.iloc[col_idx])
+                return 0.0
 
-        # Helper para ler flexível por nome de coluna ou posição
-        def extrair_val(col_nome, col_idx):
-            if col_nome in r_p:
-                return safe_to_numeric(r_p[col_nome])
-            elif len(r_p) > col_idx:
-                return safe_to_numeric(r_p.iloc[col_idx])
-            return 0.0
+            pr_v = int(extrair_val("PR_VEIC", 1))
+            pr_t = forcar_par(extrair_val("PR_TON", 2))
+            if pr_v > 0 or pr_t > 0: destinos_por_status["PR"].append({"destino": dest_nome, "veic": pr_v, "ton": pr_t})
 
-        # PR: Col B (1) Veic, Col C (2) Ton
-        pr_v = int(extrair_val("PR_VEIC", 1))
-        pr_t = forcar_par(extrair_val("PR_TON", 2))
-        if pr_v > 0 or pr_t > 0:
-            destinos_por_status["PR"].append({"destino": dest_nome, "veic": pr_v, "ton": pr_t})
+            v00 = int(extrair_val("00_VEIC", 3))
+            t00 = forcar_par(extrair_val("00_TON", 4))
+            if v00 > 0 or t00 > 0: destinos_por_status["00"].append({"destino": dest_nome, "veic": v00, "ton": t00})
 
-        # 00: Col D (3) Veic, Col E (4) Ton
-        v00 = int(extrair_val("00_VEIC", 3))
-        t00 = forcar_par(extrair_val("00_TON", 4))
-        if v00 > 0 or t00 > 0:
-            destinos_por_status["00"].append({"destino": dest_nome, "veic": v00, "ton": t00})
+            v01 = int(extrair_val("01_VEIC", 5))
+            t01 = forcar_par(extrair_val("01_TON", 6))
+            if v01 > 0 or t01 > 0: destinos_por_status["01"].append({"destino": dest_nome, "veic": v01, "ton": t01})
 
-        # 01: Col F (5) Veic, Col G (6) Ton
-        v01 = int(extrair_val("01_VEIC", 5))
-        t01 = forcar_par(extrair_val("01_TON", 6))
-        if v01 > 0 or t01 > 0:
-            destinos_por_status["01"].append({"destino": dest_nome, "veic": v01, "ton": t01})
-
-        # FC: Col H (7) Veic, Col I (8) Ton
-        vfc = int(extrair_val("FC_VEIC", 7))
-        tfc = forcar_par(extrair_val("FC_TON", 8))
-        if vfc > 0 or tfc > 0:
-            destinos_por_status["FC"].append({"destino": dest_nome, "veic": vfc, "ton": tfc})
+            vfc = int(extrair_val("FC_VEIC", 7))
+            tfc = forcar_par(extrair_val("FC_TON", 8))
+            if vfc > 0 or tfc > 0: destinos_por_status["FC"].append({"destino": dest_nome, "veic": vfc, "ton": tfc})
 
 dados_maquinas = {"MS1": {}, "MS2": {}}
 if not df_qual.empty:
@@ -529,7 +517,6 @@ for tit, chv, cor in blocos_patio:
     v_ton = forcar_par(dados_patio.get(chv, {}).get("peso", 0))
     lista_destinos = destinos_por_status.get(chv, [])
 
-    # Monta as linhas internas de destinos
     linhas_dest_html = ""
     if lista_destinos:
         for item in lista_destinos:
@@ -563,7 +550,7 @@ for tit, chv, cor in blocos_patio:
     """
 
 html_patio += '</div></div></details>'
-st.markdown(html_patio, unsafe_allow_html=True)
+st.markdown(html_patio.replace('\n', ''), unsafe_allow_html=True)
 
 # ==============================================================================
 # 🏭 BLOCO 2: PRODUÇÃO DO DIA (MS1 / MS2)
@@ -592,6 +579,37 @@ for maq in ["MS1", "MS2"]:
         
         lbl_l1 = "Linha A" if maq == "MS1" else "Linha C"
         lbl_l2 = "Linha B" if maq == "MS1" else "Linha D"
+
+        info_v = viradas_info.get(maq, {})
+        html_virada = ""
+        if info_v:
+            p_mat = info_v["prox_mat"]
+            p_prev = info_v["prev_virada"]
+            s_rest = info_v["saldo_rest"]
+            st_em = info_v["status_email"]
+
+            if "🚨" in st_em:
+                cor_alerta = "#E74C3C"
+                txt_alerta = f"⚠️ Falta E-mail ({st_em})"
+            elif "✅" in st_em:
+                cor_alerta = "#00D672"
+                txt_alerta = f"📧 E-mail {st_em}"
+            else:
+                cor_alerta = "#38bdf8"
+                txt_alerta = f"📧 {st_em}"
+
+            html_virada = f"""
+            <div style='background-color: #070d18; border: 1px solid #1c2b42; border-left: 4px solid {cor_alerta}; padding: 10px; margin-top: 14px; border-radius: 6px;'>
+                <div style='display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;'>
+                    <span style='font-size:0.75rem; color:#94a3b8; font-weight:800; text-transform:uppercase;'>Saldo a Produzir ({mat_maq})</span>
+                    <span style='font-size:1.1rem; font-weight:900; color:#ffffff;'>{s_rest:,.0f} t</span>
+                </div>
+                <div style='display:flex; justify-content:space-between; align-items:center; font-size:0.75rem;'>
+                    <span style='color:#cbd5e1; font-weight:600;'>🔜 Prox: <b style='color:#38bdf8;'>{p_mat}</b> ({p_prev})</span>
+                    <span style='color:{cor_alerta}; font-weight:800;'>{txt_alerta}</span>
+                </div>
+            </div>
+            """
 
         html_prod_content += f"""
         <div style='background-color: #111c2e; border: 1.5px solid {cor_card_borda}; border-radius: 8px; padding: 16px; margin-bottom: 12px;'>
@@ -628,6 +646,7 @@ for maq in ["MS1", "MS2"]:
                     <div style='font-size:0.7rem; color:#64748b; font-weight:700;'>(5,5 - 8,5)</div>
                 </div>
             </div>
+            {html_virada}
         </div>
         """
     else:
@@ -971,7 +990,7 @@ html_frota = f"""
             </div>
             <div id="frota_o_content_08" class="f-content-turno-ontem">
                 <div class="f-tag-container"><div class="f-tag-title">🟢 Empilhadeiras Logadas</div><div>{render_tags(frota_agrupada['ontem']['08h - 16h']['EMP'])}</div></div>
-                <div class="f-tag-container" style="margin-bottom:0;"><div class="f-tag-title">🏗️ Talhas / Pontes Rolantes</div><div>{render_tags(frota_agrupada['ontem']['08h - 16h']['TALHA'])}</div></div>
+                <div class="f-tag-container" style="margin-bottom:0;"><div class="f-tag-title">🏗️️ Talhas / Pontes Rolantes</div><div>{render_tags(frota_agrupada['ontem']['08h - 16h']['TALHA'])}</div></div>
             </div>
             <div id="frota_o_content_16" class="f-content-turno-ontem">
                 <div class="f-tag-container"><div class="f-tag-title">🟢 Empilhadeiras Logadas</div><div>{render_tags(frota_agrupada['ontem']['16h - 00h']['EMP'])}</div></div>
