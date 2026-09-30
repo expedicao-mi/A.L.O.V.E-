@@ -86,6 +86,10 @@ st.markdown("""
         }
 
         /* ---------------- MASTER BOX ---------------- */
+        /* MATA A SETINHA PADRÃO DO NAVEGADOR EM TODOS OS SUMMARIES */
+        summary { list-style: none; outline: none; }
+        summary::-webkit-details-marker { display: none; }
+
         details.master-box {
             background-color: #111c2e;
             border-radius: 12px;
@@ -97,21 +101,21 @@ st.markdown("""
             border-right: 1px solid #1c2b42;
             border-bottom: 1px solid #1c2b42;
         }
-        details.master-box summary {
-            list-style: none;
+        details.master-box > summary {
             cursor: pointer;
             padding: 16px 20px;
             position: relative;
-            outline: none;
             -webkit-tap-highlight-color: transparent; 
         }
-        details.master-box summary::-webkit-details-marker { display: none; }
-        details.master-box summary::after {
-            content: '▼';
+        /* MÃOZINHA QUE GIRA NO LUGAR DO TRIÂNGULO */
+        details.master-box > summary::after {
+            content: '👇';
             position: absolute; right: 20px; top: 50%; transform: translateY(-50%);
-            color: #94a3b8; font-size: 1.2rem; transition: transform 0.3s ease;
+            font-size: 1.3rem; transition: transform 0.3s ease;
         }
-        details.master-box[open] summary::after { transform: translateY(-50%) rotate(180deg); color: #38bdf8; }
+        details.master-box[open] > summary::after { 
+            transform: translateY(-50%) rotate(180deg); 
+        }
         
         .master-metric-title { color: #94a3b8; font-size: 1.1rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; padding-right: 20px;}
         .master-metric-val { color: #ffffff; font-size: 2.4rem; font-weight: 900; line-height: 1.1; margin-bottom: 6px; }
@@ -489,7 +493,7 @@ html_meta_anual = f"""
 st.markdown(html_meta_anual.replace('\n', ''), unsafe_allow_html=True)
 
 # ==============================================================================
-# 📦 BLOCO 1: PÁTIO DE VEÍCULOS (EXPANSÍVEL POR DESTINOS)
+# 📦 BLOCO 1: PÁTIO DE VEÍCULOS (EXPANSÍVEL POR DESTINOS + TERMO FIXO)
 # ==============================================================================
 html_patio = '<details class="master-box" style="border-left-color: #38bdf8;" open>'
 html_patio += f'''
@@ -536,7 +540,7 @@ for tit, chv, cor in blocos_patio:
                 </div>
             </div>
             <div style="text-align:right;">
-                <div style="font-size:0.7rem; color:#38bdf8; font-weight:700;">Tocar para ver Destinos</div>
+                <div style="font-size:0.75rem; color:#38bdf8; font-weight:700;">Tocar para ver Destinos</div>
             </div>
         </summary>
         <div style="background-color:#070d18; padding:10px 14px; border-top:1px solid #1c2b42;">
@@ -544,6 +548,24 @@ for tit, chv, cor in blocos_patio:
         </div>
     </details>
     """
+
+# Bloco fixo do TR (Termo SAP) que não expande
+v_qtd_tr = int(dados_patio.get("TR", {}).get("veiculos", 0))
+v_ton_tr = forcar_par(dados_patio.get("TR", {}).get("peso", 0))
+
+html_patio += f"""
+<div style="background-color:#111c2e; border:1px solid #1c2b42; border-left:4px solid #95A5A6; border-radius:8px; padding:10px 14px; display:flex; justify-content:space-between; align-items:center;">
+    <div>
+        <span style="color:#95A5A6; font-weight:800; font-size:0.85rem; text-transform:uppercase;">📄 Termo SAP</span>
+        <div style="font-size:1.25rem; font-weight:900; color:#ffffff; margin-top:2px;">
+            {v_qtd_tr} <span style="font-size:0.75rem; color:#94a3b8; font-weight:600;">veíc. / <span style="color:#cbd5e1;">{v_ton_tr:,.0f} t</span></span>
+        </div>
+    </div>
+    <div style="text-align:right;">
+        <div style="font-size:0.75rem; color:#64748b; font-weight:700;">Fila de Faturamento</div>
+    </div>
+</div>
+"""
 
 html_patio += '</div></div></details>'
 st.markdown(html_patio.replace('\n', ''), unsafe_allow_html=True)
