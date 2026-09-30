@@ -658,7 +658,7 @@ st.markdown(html_prod_completo.replace('\n', ''), unsafe_allow_html=True)
 # ==============================================================================
 @st.cache_data(ttl=60)
 def buscar_dados_turnos_historico(data_alvo):
-    agora_br = datetime.utcnow() - timedelta(hours=3)
+    agora_br = datetime.utcnow() - timedelta(hours=4)
     hoje_date = agora_br.date()
     is_hoje = (data_alvo == hoje_date)
     letras = descobrir_letras_turnos(data_alvo)
@@ -726,7 +726,7 @@ def buscar_dados_turnos_historico(data_alvo):
 # ==============================================================================
 # 🚚 BLOCO 3: EXPEDIÇÃO DO DIA & TURNOS E DESTINOS
 # ==============================================================================
-agora_br = datetime.utcnow() - timedelta(hours=3)
+agora_br = datetime.utcnow() - timedelta(hours=4)
 hoje_date = agora_br.date()
 ontem_date = hoje_date - timedelta(days=1)
 
@@ -946,7 +946,7 @@ st.markdown(html_est, unsafe_allow_html=True)
 # ==============================================================================
 df_frota = carregar_dados_nuvem("Historico_DKRO", cabecalho=0)
 
-agora_br = datetime.utcnow() - timedelta(hours=3)
+agora_br = datetime.utcnow() - timedelta(hours=4)
 hoje_date = agora_br.date()
 ontem_date = hoje_date - timedelta(days=1)
 
