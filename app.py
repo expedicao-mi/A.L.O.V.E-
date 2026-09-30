@@ -69,14 +69,6 @@ st.markdown("""
         .view-content-exp { display: none; animation: fadeIn 0.3s ease; }
         #view_turnos:checked ~ #content_view_turnos { display: block; }
         #view_destinos:checked ~ #content_view_destinos { display: block; }
-        
-        .dest-card { background-color: #111c2e; border: 1px solid #1c2b42; border-radius: 8px; padding: 12px; margin-bottom: 8px; display: flex; flex-direction: column; text-align: left; }
-        .dest-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
-        .dest-title { color: #ffffff; font-weight: 800; font-size: 0.85rem; text-transform: uppercase; }
-        .dest-perc { font-weight: 900; font-size: 1.1rem; }
-        .dest-bar-bg { width: 100%; background-color: #05080f; height: 8px; border-radius: 4px; overflow: hidden; margin-bottom: 6px; }
-        .dest-bar-fill { height: 100%; transition: width 0.5s ease; border-radius: 4px; }
-        .dest-stats { display: flex; justify-content: space-between; font-size: 0.75rem; font-weight: 700; }
 
         /* ---------------- PÁTIO E EXPEDIÇÃO TURNOS ---------------- */
         .css-tabs-exp label { display: inline-block; padding: 6px 16px; background-color: #162438; color: #94a3b8; border-radius: 6px; font-size: 0.85rem; font-weight: 800; margin: 0 4px; cursor: pointer; border: 1px solid #1c2b42; transition: 0.2s; }
@@ -204,7 +196,7 @@ df_alertas = carregar_dados_nuvem("Mobile_Alertas", cabecalho=0)
 df_cache = carregar_dados_nuvem("Cache_Painel", cabecalho=0)
 df_patio_dest = carregar_dados_nuvem("Patio_Destino_Status", cabecalho=2)
 df_status_virada = carregar_dados_nuvem("Status_Virada_Turnos", cabecalho=0)
-df_balanco_dest = carregar_dados_nuvem("Balanco_Expedicao_Destino", cabecalho=2) # 👈 NOVO CARREGAMENTO
+df_balanco_dest = carregar_dados_nuvem("Balanco_Expedicao_Destino", cabecalho=2)
 
 cache_dict = {str(row.iloc[0]).strip(): str(row.iloc[1]).strip() for _, row in df_cache.iterrows()} if not df_cache.empty else {}
 dados_segregados = parse_robusto(cache_dict.get("dados_segregados", "{}"))
@@ -295,7 +287,7 @@ if not df_patio_dest.empty:
             tfc = forcar_par(extrair_val("FC_TON", 8))
             if vfc > 0 or tfc > 0: destinos_por_status["FC"].append({"destino": dest_nome, "veic": vfc, "ton": tfc})
 
-# 👈 NOVO: Extração do Balanço de Expedição por Destino
+# Extração do Balanço de Expedição por Destino
 balanco_destinos = []
 total_expedicao_meta = 0.0
 total_expedicao_real = 0.0
@@ -522,7 +514,6 @@ for tit, chv, cor in blocos_patio:
     </details>
     """
 
-# Bloco fixo do TR (Termo SAP) que não expande
 v_qtd_tr = int(dados_patio.get("TR", {}).get("veiculos", 0))
 v_ton_tr = forcar_par(dados_patio.get("TR", {}).get("peso", 0))
 
@@ -727,7 +718,7 @@ def buscar_dados_turnos_historico(data_alvo):
         return None
 
 # ==============================================================================
-# 🚚 BLOCO 3: EXPEDIÇÃO DO DIA & TURNOS (COM SUB-ABAS DE DESTINOS)
+# 🚚 BLOCO 3: EXPEDIÇÃO DO DIA & TURNOS E DESTINOS
 # ==============================================================================
 agora_br = datetime.utcnow() - timedelta(hours=3)
 hoje_date = agora_br.date()
@@ -787,7 +778,9 @@ if dados_exp_ontem and "turnos" in dados_exp_ontem:
 else:
     html_ontem += "<div style='color:gray; text-align:left;'>Sem dados consolidados de ontem.</div>"
 
-# 👈 NOVO: Montagem do HTML de Destinos (Barras de progresso e saldos)
+# ==============================================================================
+# 🎯 MONTAGEM DO HTML DE DESTINOS (TABELA COMPACTA NO LUGAR DOS CARDS)
+# ==============================================================================
 html_destinos = f"""
 <div style="display:flex; justify-content:space-around; background-color:#111c2e; border:1px solid #1c2b42; border-radius:8px; padding:12px; margin-bottom:14px; text-align:center;">
     <div>
@@ -802,34 +795,51 @@ html_destinos = f"""
 """
 
 if balanco_destinos:
+    html_destinos += """
+    <div style="background-color: #111c2e; border: 1px solid #1c2b42; border-radius: 8px; padding: 10px; overflow-x: auto;">
+        <table style="width: 100%; border-collapse: collapse; font-size: 0.75rem; text-align: right; color: #ffffff;">
+            <thead>
+                <tr style="border-bottom: 1px solid #1c2b42; color: #94a3b8; font-weight: 800;">
+                    <th style="text-align: left; padding: 8px 4px;">Destino</th>
+                    <th style="padding: 8px 4px; color: #38bdf8;">Plano</th>
+                    <th style="padding: 8px 4px; color: #00D672;">Carr.</th>
+                    <th style="padding: 8px 4px; color: #E5B800;">Falta</th>
+                    <th style="padding: 8px 4px;">%</th>
+                </tr>
+            </thead>
+            <tbody>
+    """
     for d in balanco_destinos:
         ating = d['atingimento']
         cor_ating = "#00D672" if ating >= 100 else ("#38bdf8" if ating > 0 else "#94a3b8")
-        ating_bar = min(100, max(0, ating))
         
         if d['saldo'] <= 0 and d['realizado'] > 0:
-            saldo_str = "✅ Concluído"
+            saldo_str = "0"
             cor_saldo = "#00D672"
         else:
-            saldo_str = f"Falta {d['saldo']:,.0f} t"
+            saldo_str = f"{d['saldo']:,.0f}"
             cor_saldo = "#E5B800"
 
+        # Simplifica o nome do destino para não quebrar no celular (Ex: "1680 - EBLOG - SANTOS" vira "1680 - EBLOG")
+        dest_parts = d['destino'].split('-')
+        dest_nome = f"{dest_parts[0].strip()}"
+        if len(dest_parts) > 1:
+            dest_nome += f" - {dest_parts[1].strip()}"
+
         html_destinos += f"""
-        <div class="dest-card">
-            <div class="dest-card-header">
-                <span class="dest-title">{d['destino']}</span>
-                <span class="dest-perc" style="color:{cor_ating};">{ating:.1f}%</span>
-            </div>
-            <div class="dest-bar-bg">
-                <div class="dest-bar-fill" style="width:{ating_bar}%; background-color:{cor_ating};"></div>
-            </div>
-            <div class="dest-stats">
-                <span style="color:#94a3b8;">Meta: {d['meta']:,.0f} t</span>
-                <span style="color:#ffffff;">Carr: {d['realizado']:,.0f} t</span>
-                <span style="color:{cor_saldo};">{saldo_str}</span>
-            </div>
-        </div>
+            <tr style="border-bottom: 1px dashed #1c2b42;">
+                <td style="text-align: left; padding: 10px 4px; font-weight: 700;">{dest_nome}</td>
+                <td style="padding: 10px 4px; color: #38bdf8; font-weight: 800;">{d['meta']:,.0f}</td>
+                <td style="padding: 10px 4px; color: #00D672; font-weight: 800;">{d['realizado']:,.0f}</td>
+                <td style="padding: 10px 4px; color: {cor_saldo}; font-weight: 800;">{saldo_str}</td>
+                <td style="padding: 10px 4px; color: {cor_ating}; font-weight: 900;">{ating:.0f}%</td>
+            </tr>
         """
+    html_destinos += """
+            </tbody>
+        </table>
+    </div>
+    """
 else:
     html_destinos += '<div style="color:#64748b; font-size:0.8rem; text-align:center;">Nenhum destino ativo reportado.</div>'
 
