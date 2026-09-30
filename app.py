@@ -50,28 +50,35 @@ st.markdown("""
         }
         details.master-box > summary { cursor: pointer; padding: 16px 20px; position: relative; -webkit-tap-highlight-color: transparent; }
         
-        /* MÃOZINHA QUE GIRA NO LUGAR DO TRIÂNGULO */
         details.master-box > summary::after {
             content: '👆';
             position: absolute; right: 20px; top: 50%; transform: translateY(-50%);
             font-size: 1.3rem; transition: transform 0.3s ease;
         }
-        details.master-box[open] > summary::after { 
-            transform: translateY(-50%) rotate(180deg); 
-        }
+        details.master-box[open] > summary::after { transform: translateY(-50%) rotate(180deg); }
         
         .master-metric-title { color: #94a3b8; font-size: 1.1rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; padding-right: 20px;}
         .master-metric-val { color: #ffffff; font-size: 2.4rem; font-weight: 900; line-height: 1.1; margin-bottom: 6px; }
         .master-metric-sub { font-size: 0.95rem; font-weight: 700; }
         .master-content { background-color: #0a101d; padding: 16px; border-top: 1px dashed #1c2b42; }
 
-        /* ---------------- PÁTIO E EXPEDIÇÃO ---------------- */
-        .patio-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
-        .card-patio-sub { background-color: #111c2e; border-radius: 8px; padding: 10px; border-left: 4px solid; border: 1px solid #1c2b42;}
-        .card-patio-title { font-weight: 800; font-size: 0.95rem; margin-bottom: 4px; }
-        .card-patio-qtd { font-size: 1.4rem; font-weight: 900; color: #ffffff; }
-        .card-patio-ton { font-size: 0.85rem; color: #94a3b8; font-weight: 600; }
+        /* ---------------- EXPEDIÇÃO MAIN VIEWS E DESTINOS ---------------- */
+        .css-tabs-view label { display: inline-block; padding: 8px 20px; background-color: #162438; color: #94a3b8; border-radius: 8px; font-size: 0.9rem; font-weight: 900; margin: 0 4px 14px 4px; cursor: pointer; border: 1px solid #1c2b42; transition: 0.2s; }
+        .css-tabs-view input[type="radio"]#view_turnos:checked + label.lbl-v-turnos { background-color: #00D672; color: #0a101d; border-color: #00D672; }
+        .css-tabs-view input[type="radio"]#view_destinos:checked + label.lbl-v-destinos { background-color: #38bdf8; color: #0a101d; border-color: #38bdf8; }
+        .view-content-exp { display: none; animation: fadeIn 0.3s ease; }
+        #view_turnos:checked ~ #content_view_turnos { display: block; }
+        #view_destinos:checked ~ #content_view_destinos { display: block; }
+        
+        .dest-card { background-color: #111c2e; border: 1px solid #1c2b42; border-radius: 8px; padding: 12px; margin-bottom: 8px; display: flex; flex-direction: column; text-align: left; }
+        .dest-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+        .dest-title { color: #ffffff; font-weight: 800; font-size: 0.85rem; text-transform: uppercase; }
+        .dest-perc { font-weight: 900; font-size: 1.1rem; }
+        .dest-bar-bg { width: 100%; background-color: #05080f; height: 8px; border-radius: 4px; overflow: hidden; margin-bottom: 6px; }
+        .dest-bar-fill { height: 100%; transition: width 0.5s ease; border-radius: 4px; }
+        .dest-stats { display: flex; justify-content: space-between; font-size: 0.75rem; font-weight: 700; }
 
+        /* ---------------- PÁTIO E EXPEDIÇÃO TURNOS ---------------- */
         .css-tabs-exp label { display: inline-block; padding: 6px 16px; background-color: #162438; color: #94a3b8; border-radius: 6px; font-size: 0.85rem; font-weight: 800; margin: 0 4px; cursor: pointer; border: 1px solid #1c2b42; transition: 0.2s; }
         .css-tabs-exp input[type="radio"]#tab_ontem:checked + label.lbl-ontem { background-color: #38bdf8; color: #0a101d; border-color: #38bdf8; }
         .css-tabs-exp input[type="radio"]#tab_hoje:checked + label.lbl-hoje { background-color: #00D672; color: #0a101d; border-color: #00D672; }
@@ -195,8 +202,9 @@ df_dash = carregar_dados_nuvem("Mobile_Dashboard", cabecalho=0)
 df_qual = carregar_dados_nuvem("Mobile_Qualidade", cabecalho=0)
 df_alertas = carregar_dados_nuvem("Mobile_Alertas", cabecalho=0)
 df_cache = carregar_dados_nuvem("Cache_Painel", cabecalho=0)
-df_patio_dest = carregar_dados_nuvem("Patio_Destino_Status", cabecalho=2) # Mantido conforme seu cenário
+df_patio_dest = carregar_dados_nuvem("Patio_Destino_Status", cabecalho=2)
 df_status_virada = carregar_dados_nuvem("Status_Virada_Turnos", cabecalho=0)
+df_balanco_dest = carregar_dados_nuvem("Balanco_Expedicao_Destino", cabecalho=2) # 👈 NOVO CARREGAMENTO
 
 cache_dict = {str(row.iloc[0]).strip(): str(row.iloc[1]).strip() for _, row in df_cache.iterrows()} if not df_cache.empty else {}
 dados_segregados = parse_robusto(cache_dict.get("dados_segregados", "{}"))
@@ -257,7 +265,7 @@ if not df_status_virada.empty:
             "status_email": str(row_st.get("STATUS_EMAIL_TROCA", "N/D"))
         }
 
-# Agrupamento de Destinos por Status
+# Agrupamento de Destinos por Status (Patio)
 destinos_por_status = {
     "PR": [], "00": [], "01": [], "FC": [], "TR": []
 }
@@ -286,6 +294,32 @@ if not df_patio_dest.empty:
             vfc = int(extrair_val("FC_VEIC", 7))
             tfc = forcar_par(extrair_val("FC_TON", 8))
             if vfc > 0 or tfc > 0: destinos_por_status["FC"].append({"destino": dest_nome, "veic": vfc, "ton": tfc})
+
+# 👈 NOVO: Extração do Balanço de Expedição por Destino
+balanco_destinos = []
+total_expedicao_meta = 0.0
+total_expedicao_real = 0.0
+
+if not df_balanco_dest.empty:
+    for _, r_b in df_balanco_dest.iterrows():
+        dest_nome = str(r_b.get("DESTINO", r_b.iloc[0])).strip()
+        if not dest_nome or dest_nome.upper() in ["NAN", "NONE", "DESTINO"]: continue
+        
+        meta_val = forcar_par(safe_to_numeric(r_b.get("META_DIA_T", r_b.iloc[1])))
+        real_val = forcar_par(safe_to_numeric(r_b.get("EXPEDIDO_ZLE_T", r_b.iloc[2])))
+        saldo_val = forcar_par(safe_to_numeric(r_b.get("SALDO_A_EXPEDIR_T", r_b.iloc[3])))
+        
+        try: ating_val = float(str(r_b.get("ATINGIMENTO_%", r_b.iloc[4])).replace('%', '').replace(',', '.'))
+        except: ating_val = 0.0
+
+        if dest_nome.upper() == "TOTAL EXPEDIÇÃO":
+            total_expedicao_meta = meta_val
+            total_expedicao_real = real_val
+        elif meta_val > 0 or real_val > 0:
+            balanco_destinos.append({
+                "destino": dest_nome, "meta": meta_val, "realizado": real_val,
+                "saldo": saldo_val, "atingimento": ating_val
+            })
 
 dados_maquinas = {"MS1": {}, "MS2": {}}
 if not df_qual.empty:
@@ -432,7 +466,7 @@ html_meta_anual = f"""
 st.markdown(html_meta_anual.replace('\n', ''), unsafe_allow_html=True)
 
 # ==============================================================================
-# 📦 BLOCO 1: PÁTIO DE VEÍCULOS (EXPANSÍVEL POR DESTINOS + TERMO FIXO)
+# 📦 BLOCO 1: PÁTIO DE VEÍCULOS (EXPANSÍVEL POR DESTINOS)
 # ==============================================================================
 html_patio = '<details class="master-box" style="border-left-color: #38bdf8;" open>'
 html_patio += f'''
@@ -505,9 +539,9 @@ html_patio += f"""
     </div>
 </div>
 """
-
 html_patio += '</div></div></details>'
 st.markdown(html_patio.replace('\n', ''), unsafe_allow_html=True)
+
 # ==============================================================================
 # 🏭 BLOCO 2: PRODUÇÃO DO DIA (MS1 / MS2)
 # ==============================================================================
@@ -693,7 +727,7 @@ def buscar_dados_turnos_historico(data_alvo):
         return None
 
 # ==============================================================================
-# 🚚 BLOCO 3: EXPEDIÇÃO DO DIA & TURNOS
+# 🚚 BLOCO 3: EXPEDIÇÃO DO DIA & TURNOS (COM SUB-ABAS DE DESTINOS)
 # ==============================================================================
 agora_br = datetime.utcnow() - timedelta(hours=3)
 hoje_date = agora_br.date()
@@ -706,6 +740,7 @@ vol_calculado_hoje = forcar_par(dados_exp_hoje.get("total_dia", 0)) if dados_exp
 vol_exp_hoje = vol_calculado_hoje if vol_hoje == 0 else vol_hoje
 vol_exp_ontem = vol_ontem if vol_ontem > 0 else (forcar_par(dados_exp_ontem.get("total_dia", 0)) if dados_exp_ontem else 0)
 
+# Montagem do HTML de Turnos
 html_hoje = "<div style='font-size:0.75rem; font-weight:800; color:#00D672; text-transform:uppercase; margin-bottom:10px; text-align:left;'>Turnos em Operação Hoje:</div>"
 if dados_exp_hoje and "turnos" in dados_exp_hoje:
     ativo_key = dados_exp_hoje.get("ativo_key")
@@ -752,6 +787,52 @@ if dados_exp_ontem and "turnos" in dados_exp_ontem:
 else:
     html_ontem += "<div style='color:gray; text-align:left;'>Sem dados consolidados de ontem.</div>"
 
+# 👈 NOVO: Montagem do HTML de Destinos (Barras de progresso e saldos)
+html_destinos = f"""
+<div style="display:flex; justify-content:space-around; background-color:#111c2e; border:1px solid #1c2b42; border-radius:8px; padding:12px; margin-bottom:14px; text-align:center;">
+    <div>
+        <div style="font-size:0.75rem; color:#94a3b8; font-weight:800; text-transform:uppercase;">Plano Total Diário</div>
+        <div style="font-size:1.4rem; color:#ffffff; font-weight:900;">{total_expedicao_meta:,.0f} <span style="font-size:0.8rem;">t</span></div>
+    </div>
+    <div style="border-left:1px solid #1c2b42; padding-left:20px;">
+        <div style="font-size:0.75rem; color:#38bdf8; font-weight:800; text-transform:uppercase;">Total Carregado</div>
+        <div style="font-size:1.4rem; color:#38bdf8; font-weight:900;">{total_expedicao_real:,.0f} <span style="font-size:0.8rem;">t</span></div>
+    </div>
+</div>
+"""
+
+if balanco_destinos:
+    for d in balanco_destinos:
+        ating = d['atingimento']
+        cor_ating = "#00D672" if ating >= 100 else ("#38bdf8" if ating > 0 else "#94a3b8")
+        ating_bar = min(100, max(0, ating))
+        
+        if d['saldo'] <= 0 and d['realizado'] > 0:
+            saldo_str = "✅ Concluído"
+            cor_saldo = "#00D672"
+        else:
+            saldo_str = f"Falta {d['saldo']:,.0f} t"
+            cor_saldo = "#E5B800"
+
+        html_destinos += f"""
+        <div class="dest-card">
+            <div class="dest-card-header">
+                <span class="dest-title">{d['destino']}</span>
+                <span class="dest-perc" style="color:{cor_ating};">{ating:.1f}%</span>
+            </div>
+            <div class="dest-bar-bg">
+                <div class="dest-bar-fill" style="width:{ating_bar}%; background-color:{cor_ating};"></div>
+            </div>
+            <div class="dest-stats">
+                <span style="color:#94a3b8;">Meta: {d['meta']:,.0f} t</span>
+                <span style="color:#ffffff;">Carr: {d['realizado']:,.0f} t</span>
+                <span style="color:{cor_saldo};">{saldo_str}</span>
+            </div>
+        </div>
+        """
+else:
+    html_destinos += '<div style="color:#64748b; font-size:0.8rem; text-align:center;">Nenhum destino ativo reportado.</div>'
+
 html_exp_completo = f"""
 <details class="master-box" style="border-left-color: #00D672;" open>
     <summary>
@@ -759,20 +840,38 @@ html_exp_completo = f"""
         <div class="master-metric-val">{vol_exp_hoje:,.0f} <span style="font-size:1.1rem; color:#94a3b8;">TON</span></div>
         <div class="master-metric-sub" style="color: #00D672;">Consolidado Ontem (D-1): {vol_exp_ontem:,.0f} t</div>
     </summary>
-    <div class="master-content css-tabs-exp">
+    <div class="master-content css-tabs-view">
         <div style="text-align: center; margin-bottom: 16px;">
-            <input type="radio" name="exp_tabs" id="tab_ontem">
-            <label for="tab_ontem" class="lbl-ontem">⏮️ Ontem (D-1)</label>
+            <input type="radio" name="exp_main_view" id="view_turnos" checked>
+            <label for="view_turnos" class="lbl-v-turnos">⏰ Turnos</label>
             
-            <input type="radio" name="exp_tabs" id="tab_hoje" checked>
-            <label for="tab_hoje" class="lbl-hoje">📅 Hoje</label>
+            <input type="radio" name="exp_main_view" id="view_destinos">
+            <label for="view_destinos" class="lbl-v-destinos">📍 Destinos</label>
             
-            <div class="tab-content-exp" id="content_ontem" style="margin-top: 14px;">
-                {html_ontem}
+            <!-- CONTEUDO: VISÃO TURNOS -->
+            <div class="view-content-exp" id="content_view_turnos" style="margin-top: 14px;">
+                <div class="css-tabs-exp">
+                    <div style="text-align: center;">
+                        <input type="radio" name="exp_tabs" id="tab_ontem">
+                        <label for="tab_ontem" class="lbl-ontem">⏮️ Ontem (D-1)</label>
+                        
+                        <input type="radio" name="exp_tabs" id="tab_hoje" checked>
+                        <label for="tab_hoje" class="lbl-hoje">📅 Hoje</label>
+                        
+                        <div class="tab-content-exp" id="content_ontem" style="margin-top: 14px;">
+                            {html_ontem}
+                        </div>
+                        
+                        <div class="tab-content-exp" id="content_hoje" style="margin-top: 14px;">
+                            {html_hoje}
+                        </div>
+                    </div>
+                </div>
             </div>
-            
-            <div class="tab-content-exp" id="content_hoje" style="margin-top: 14px;">
-                {html_hoje}
+
+            <!-- CONTEUDO: VISÃO DESTINOS -->
+            <div class="view-content-exp" id="content_view_destinos" style="margin-top: 14px; text-align: left;">
+                {html_destinos}
             </div>
         </div>
     </div>
@@ -946,7 +1045,7 @@ html_frota = f"""
             </div>
             <div id="frota_o_content_08" class="f-content-turno-ontem">
                 <div class="f-tag-container"><div class="f-tag-title">🟢 Empilhadeiras Logadas</div><div>{render_tags(frota_agrupada['ontem']['08h - 16h']['EMP'])}</div></div>
-                <div class="f-tag-container" style="margin-bottom:0;"><div class="f-tag-title">🏗️️ Talhas / Pontes Rolantes</div><div>{render_tags(frota_agrupada['ontem']['08h - 16h']['TALHA'])}</div></div>
+                <div class="f-tag-container" style="margin-bottom:0;"><div class="f-tag-title">🏗 Talhas / Pontes Rolantes</div><div>{render_tags(frota_agrupada['ontem']['08h - 16h']['TALHA'])}</div></div>
             </div>
             <div id="frota_o_content_16" class="f-content-turno-ontem">
                 <div class="f-tag-container"><div class="f-tag-title">🟢 Empilhadeiras Logadas</div><div>{render_tags(frota_agrupada['ontem']['16h - 00h']['EMP'])}</div></div>
