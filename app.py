@@ -311,6 +311,7 @@ df_dash = carregar_dados_nuvem("Mobile_Dashboard", cabecalho=0)
 df_qual = carregar_dados_nuvem("Mobile_Qualidade", cabecalho=0)
 df_alertas = carregar_dados_nuvem("Mobile_Alertas", cabecalho=0)
 df_cache = carregar_dados_nuvem("Cache_Painel", cabecalho=0)
+df_patio_dest = carregar_dados_nuvem("Patio_Destino_Status", cabecalho=0)
 
 cache_dict = {str(row.iloc[0]).strip(): str(row.iloc[1]).strip() for _, row in df_cache.iterrows()} if not df_cache.empty else {}
 dados_segregados = parse_robusto(cache_dict.get("dados_segregados", "{}"))
@@ -325,41 +326,41 @@ estoque_total = 0
 status_transbordo = "NORMAL"
 ritmo_torre = "NORMAL"
 
-dados_patio = {
-    "PR": {"veiculos": 0, "peso": 0},
-    "00": {"veiculos": 0, "peso": 0},
-    "01": {"veiculos": 0, "peso": 0},
-    "FC": {"veiculos": 0, "peso": 0},
-    "TR": {"veiculos": 0, "peso": 0}
+destinos_por_status = {
+    "PR": [],
+    "00": [],
+    "01": [],
+    "FC": [],
+    "TR": []
 }
 
-if not df_dash.empty:
-    row_d = df_dash.iloc[0]
-    ultima_att = str(row_d.get("DATA_HORA", ultima_att))
-    vol_hoje = forcar_par(safe_to_numeric(row_d.get("EXPEDICAO_HOJE", 0)))
-    vol_ontem = forcar_par(safe_to_numeric(row_d.get("EXPEDICAO_ONTEM", 0)))
-    prev_carr = forcar_par(safe_to_numeric(row_d.get("PREV_EXPEDICAO", 0)))
-    prod_hoje_calc = forcar_par(safe_to_numeric(row_d.get("PRODUCAO_HOJE", 0)))
-    prev_prod = forcar_par(safe_to_numeric(row_d.get("PREV_PRODUCAO", 0)))
-    estoque_total = forcar_par(safe_to_numeric(row_d.get("ESTOQUE_TOTAL", 0)))
-    status_transbordo = str(row_d.get("STATUS_TRANSBORDO", "NORMAL"))
-    
-    # --- INTERCEPTAÇÃO DO TEXTO DO RITMO ---
-    ritmo_torre_bruto = str(row_d.get("RITMO_TORRE", "NORMAL")).upper()
-    if "OPERAÇÃO NO 12" in ritmo_torre_bruto or "ACELERADO" in ritmo_torre_bruto:
-        ritmo_torre = "RITMO DE ATUALIZAÇÃO: RÁPIDO"
-    else:
-        ritmo_torre = ritmo_torre_bruto
-    # ---------------------------------------
-    
-    dados_patio["PR"] = {"veiculos": int(safe_to_numeric(row_d.get("PR_VEIC", 0))), "peso": forcar_par(safe_to_numeric(row_d.get("PR_TON", 0)))}
-    dados_patio["00"] = {"veiculos": int(safe_to_numeric(row_d.get("00_VEIC", 0))), "peso": forcar_par(safe_to_numeric(row_d.get("00_TON", 0)))}
-    dados_patio["01"] = {"veiculos": int(safe_to_numeric(row_d.get("01_VEIC", 0))), "peso": forcar_par(safe_to_numeric(row_d.get("01_TON", 0)))}
-    dados_patio["FC"] = {"veiculos": int(safe_to_numeric(row_d.get("FC_VEIC", 0))), "peso": forcar_par(safe_to_numeric(row_d.get("FC_TON", 0)))}
-    dados_patio["TR"] = {"veiculos": int(safe_to_numeric(row_d.get("TR_VEIC", 0))), "peso": forcar_par(safe_to_numeric(row_d.get("TR_TON", 0)))}
+if not df_patio_dest.empty:
+    for _, r_p in df_patio_dest.iterrows():
+        dest_nome = str(r_p.get("DESTINO", "")).strip()
+        if dest_nome and dest_nome.upper() not in ["TOTAL", "TOTAL GERAL FÁBRICA", ""]:
+            # Status PR
+            pr_v = int(safe_to_numeric(r_p.get("PR_VEIC", 0)))
+            pr_t = forcar_par(safe_to_numeric(r_p.get("PR_TON", 0)))
+            if pr_v > 0 or pr_t > 0:
+                destinos_por_status["PR"].append({"destino": dest_nome, "veic": pr_v, "ton": pr_t})
 
-total_veiculos_fisicos = dados_patio["00"]["veiculos"] + dados_patio["01"]["veiculos"] + dados_patio["FC"]["veiculos"]
-vol_patio_disponivel = forcar_par(dados_patio["00"]["peso"] + dados_patio["01"]["peso"] + dados_patio["FC"]["peso"])
+            # Status 00 (Checklist)
+            v00 = int(safe_to_numeric(r_p.get("00_VEIC", 0)))
+            t00 = forcar_par(safe_to_numeric(r_p.get("00_TON", 0)))
+            if v00 > 0 or t00 > 0:
+                destinos_por_status["00"].append({"destino": dest_nome, "veic": v00, "ton": t00})
+
+            # Status 01 (Apoio)
+            v01 = int(safe_to_numeric(r_p.get("01_VEIC", 0)))
+            t01 = forcar_par(safe_to_numeric(r_p.get("01_TON", 0)))
+            if v01 > 0 or t01 > 0:
+                destinos_por_status["01"].append({"destino": dest_nome, "veic": v01, "ton": t01})
+
+            # Status FC (Fila)
+            vfc = int(safe_to_numeric(r_p.get("FC_VEIC", 0)))
+            tfc = forcar_par(safe_to_numeric(r_p.get("FC_TON", 0)))
+            if vfc > 0 or tfc > 0:
+                destinos_por_status["FC"].append({"destino": dest_nome, "veic": vfc, "ton": tfc})
 
 dados_maquinas = {"MS1": {}, "MS2": {}}
 if not df_qual.empty:
@@ -506,19 +507,68 @@ html_meta_anual = f"""
 st.markdown(html_meta_anual.replace('\n', ''), unsafe_allow_html=True)
 
 # ==============================================================================
-# 📦 BLOCO 1: PÁTIO DE VEÍCULOS
+# 📦 BLOCO 1: PÁTIO DE VEÍCULOS (EXPANSÍVEL POR DESTINOS)
 # ==============================================================================
-html_patio = '<details class="master-box" style="border-left-color: #38bdf8;">'
-html_patio += f'<summary><div class="master-metric-title">🚛 Pátio da Fábrica (Tempo Real)</div><div class="master-metric-val">{total_veiculos_fisicos} <span style="font-size:1.1rem; color:#94a3b8;">Veículos Físicos</span></div><div class="master-metric-sub" style="color: #38bdf8;">Carga Disponível: {vol_patio_disponivel:,.0f} t</div></summary>'
-html_patio += '<div class="master-content patio-grid">'
+html_patio = '<details class="master-box" style="border-left-color: #38bdf8;" open>'
+html_patio += f'''
+<summary>
+    <div class="master-metric-title">🚛 Pátio da Fábrica (Tempo Real)</div>
+    <div class="master-metric-val">{total_veiculos_fisicos} <span style="font-size:1.1rem; color:#94a3b8;">Veículos Físicos</span></div>
+    <div class="master-metric-sub" style="color: #38bdf8;">Carga Disponível: {vol_patio_disponivel:,.0f} t</div>
+</summary>
+<div class="master-content">
+    <div style="font-size:0.75rem; color:#94a3b8; font-weight:700; margin-bottom:10px;">
+        💡 Toque em qualquer status abaixo para ver os destinos:
+    </div>
+    <div style="display:flex; flex-direction:column; gap:8px;">
+'''
 
-blocos_patio = [("🚙 Prog/Chegando", "PR", "#94A3B8"), ("📋 Checklist", "00", "#E5B800"), ("🚛 Apoio", "01", "#E67E22"), ("✅ Fila", "FC", "#00D672"), ("📄 Termo SAP", "TR", "#3498DB")]
+blocos_patio = [
+    ("🚙 Prog/Chegando", "PR", "#3498DB"),
+    ("📋 Checklist", "00", "#E5B800"),
+    ("🚛 Apoio", "01", "#E67E22"),
+    ("✅ Fila de Carregamento", "FC", "#00D672")
+]
+
 for tit, chv, cor in blocos_patio:
-    v_qtd = dados_patio.get(chv, {}).get("veiculos", 0)
+    v_qtd = int(dados_patio.get(chv, {}).get("veiculos", 0))
     v_ton = forcar_par(dados_patio.get(chv, {}).get("peso", 0))
-    html_patio += f"<div class='card-patio-sub' style='border-left-color: {cor};'><div class='card-patio-title' style='color: {cor};'>{tit}</div><div class='card-patio-qtd'>{int(v_qtd)} <span style='font-size:0.75rem; color:#94a3b8;'>veíc</span></div><div class='card-patio-ton'>{v_ton:,.0f} t</div></div>"
+    lista_destinos = destinos_por_status.get(chv, [])
 
-html_patio += "</div></details>"
+    # Monta a lista interna dos destinos daquele status
+    linhas_dest_html = ""
+    if lista_destinos:
+        for item in lista_destinos:
+            linhas_dest_html += f"""
+            <div style="display:flex; justify-content:space-between; align-items:center; padding:5px 0; border-bottom:1px dashed #1c2b42; font-size:0.8rem;">
+                <span style="color:#ffffff; font-weight:700;">{item['destino']}</span>
+                <span style="color:#38bdf8; font-weight:800;">{item['veic']} veíc. <span style="color:#94a3b8; font-weight:600;">({item['ton']:,.0f} t)</span></span>
+            </div>
+            """
+    else:
+        linhas_dest_html = '<div style="color:#64748b; font-size:0.75rem; padding:4px 0;">Nenhum veículo alocado neste status.</div>'
+
+    html_patio += f"""
+    <details style="background-color:#111c2e; border:1px solid #1c2b42; border-left:4px solid {cor}; border-radius:8px; overflow:hidden;">
+        <summary style="padding:10px 14px; cursor:pointer; list-style:none; display:flex; justify-content:space-between; align-items:center; -webkit-tap-highlight-color:transparent;">
+            <div>
+                <span style="color:{cor}; font-weight:800; font-size:0.85rem; text-transform:uppercase;">{tit}</span>
+                <div style="font-size:1.25rem; font-weight:900; color:#ffffff; margin-top:2px;">
+                    {v_qtd} <span style="font-size:0.75rem; color:#94a3b8; font-weight:600;">veíc.</span>
+                </div>
+            </div>
+            <div style="text-align:right;">
+                <span style="font-size:0.95rem; font-weight:800; color:#cbd5e1;">{v_ton:,.0f} t</span>
+                <div style="font-size:0.7rem; color:#38bdf8; font-weight:700; margin-top:2px;">Ver Destinos ▼</div>
+            </div>
+        </summary>
+        <div style="background-color:#070d18; padding:10px 14px; border-top:1px solid #1c2b42;">
+            {linhas_dest_html}
+        </div>
+    </details>
+    """
+
+html_patio += '</div></div></details>'
 st.markdown(html_patio, unsafe_allow_html=True)
 
 # ==============================================================================
