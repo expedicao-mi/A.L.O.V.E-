@@ -499,9 +499,6 @@ html_patio += f'''
     <div class="master-metric-sub" style="color: #38bdf8;">Carga Disponível: {vol_patio_disponivel:,.0f} t</div>
 </summary>
 <div class="master-content">
-    <div style="font-size:0.75rem; color:#94a3b8; font-weight:700; margin-bottom:10px;">
-        💡 Toque em qualquer status abaixo para ver os destinos:
-    </div>
     <div style="display:flex; flex-direction:column; gap:8px;">
 '''
 
@@ -521,7 +518,7 @@ for tit, chv, cor in blocos_patio:
     if lista_destinos:
         for item in lista_destinos:
             linhas_dest_html += f"""
-            <div style="display:flex; justify-content:space-between; align-items:center; padding:6px 0; border-bottom:1px dashed #1c2b42; font-size:0.8rem;">
+            <div style="display:flex; justify-content:space-between; align-items:center; padding:5px 0; border-bottom:1px dashed #1c2b42; font-size:0.8rem;">
                 <span style="color:#ffffff; font-weight:700;">{item['destino']}</span>
                 <span style="color:#38bdf8; font-weight:800;">{item['veic']} veíc. <span style="color:#94a3b8; font-weight:600;">({item['ton']:,.0f} t)</span></span>
             </div>
@@ -535,12 +532,11 @@ for tit, chv, cor in blocos_patio:
             <div>
                 <span style="color:{cor}; font-weight:800; font-size:0.85rem; text-transform:uppercase;">{tit}</span>
                 <div style="font-size:1.25rem; font-weight:900; color:#ffffff; margin-top:2px;">
-                    {v_qtd} <span style="font-size:0.75rem; color:#94a3b8; font-weight:600;">veíc.</span>
+                    {v_qtd} <span style="font-size:0.75rem; color:#94a3b8; font-weight:600;">veíc. / <span style="color:#cbd5e1;">{v_ton:,.0f} t</span></span>
                 </div>
             </div>
             <div style="text-align:right;">
-                <span style="font-size:0.95rem; font-weight:800; color:#cbd5e1;">{v_ton:,.0f} t</span>
-                <div style="font-size:0.7rem; color:#38bdf8; font-weight:700; margin-top:2px;">Ver Destinos ▼</div>
+                <div style="font-size:0.7rem; color:#38bdf8; font-weight:700;">Tocar para ver Destinos</div>
             </div>
         </summary>
         <div style="background-color:#070d18; padding:10px 14px; border-top:1px solid #1c2b42;">
@@ -551,7 +547,6 @@ for tit, chv, cor in blocos_patio:
 
 html_patio += '</div></div></details>'
 st.markdown(html_patio.replace('\n', ''), unsafe_allow_html=True)
-
 # ==============================================================================
 # 🏭 BLOCO 2: PRODUÇÃO DO DIA (MS1 / MS2)
 # ==============================================================================
