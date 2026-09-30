@@ -11,6 +11,9 @@ import ast
 # 1. 👈 IMPORTA O REFRESHER
 from streamlit_autorefresh import st_autorefresh
 
+# URL direta da logo no seu GitHub para funcionar como ícone da tela inicial
+LOGO_ALOVE_URL = "https://raw.githubusercontent.com/cris2026/A.L.O.V.E-/main/logo_alove.png"
+
 st.set_page_config(
     page_title="A.L.O.V.E. Mobile",
     page_icon="🚛",
@@ -22,15 +25,49 @@ st.set_page_config(
 st_autorefresh(interval=60000, limit=None, key="refresh_mobile")
 
 # ==============================================================================
-# 🎨 CSS AVANÇADO (CARDS NEON + EXPANDERS + GRÁFICOS VERTICAIS + FROTA TABS)
+# 📱 INJEÇÃO DE METATAGS (PWA / APP NATIVO / TELA CHEIA)
+# ==============================================================================
+st.markdown(f"""
+    <!-- Metatags para App Nativo / Tela Cheia Mobile -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="A.L.O.V.E.">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#0a101d">
+    <link rel="apple-touch-icon" href="{LOGO_ALOVE_URL}">
+    <link rel="icon" type="image/png" href="{LOGO_ALOVE_URL}">
+""", unsafe_allow_html=True)
+
+# ==============================================================================
+# 🎨 CSS AVANÇADO (CARDS NEON + OCULTAR ELEMENTOS DO STREAMLIT)
 # ==============================================================================
 st.markdown("""
     <style>
+        /* 1. Oculta barra de ferramentas do Streamlit (Fork, GitHub, menu) */
+        header[data-testid="stHeader"] {
+            display: none !important;
+            height: 0px !important;
+        }
+        
+        /* 2. Oculta rodapé nativo e botão de gerenciar app */
+        footer {
+            display: none !important;
+            height: 0px !important;
+        }
+        
+        .viewerBadge_container__1QSob,
+        [data-testid="manage-app-button"],
+        .stActionButton,
+        #MainMenu {
+            display: none !important;
+        }
+
+        /* 3. Ajuste de margem superior para tela cheia de celular */
         .block-container {
-            padding-top: 3.5rem;
-            padding-bottom: 2rem;
-            padding-left: 0.8rem;
-            padding-right: 0.8rem;
+            padding-top: 1.2rem !important;
+            padding-bottom: 2rem !important;
+            padding-left: 0.8rem !important;
+            padding-right: 0.8rem !important;
         }
         
         input[type="radio"] { display: none; }
