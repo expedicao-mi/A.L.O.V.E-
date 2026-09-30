@@ -211,65 +211,6 @@ def descobrir_letras_turnos(data_alvo):
         elif dia in [2, 3]: turnos["16_00"] = letra
     return turnos
 
-@st.cache_data(ttl=60)
-def buscar_dados_turnos_historico(data_alvo):
-    agora_br = datetime.utcnow() - timedelta(hours=3)
-    hoje_date = agora_br.date()
-    is_hoje = (data_alvo == hoje_date)
-    letras = descobrir_letras_turnos(data_alvo)
-    
-    ativo_key = None
-    if is_hoje:
-        if agora_br.hour < 8: ativo_key = "t1"
-        elif agora_br.hour < 16: ativo_key = "t2"
-        else: ativo_key = "t3"
-
-    try:
-        url_csv = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv&gid=0"
-        resp = requests.get(url_csv, timeout=10)
-        resp.encoding = 'utf-8'
-        linhas = list(csv.reader(StringIO(resp.text)))
-
-        corte_00, corte_08, corte_16, corte_fim = 0.0, 0.0, 0.0, 0.0
-        hora_00 = datetime.combine(data_alvo, datetime.min.time())
-        hora_08 = hora_00.replace(hour=8)
-        hora_16 = hora_00.replace(hour=16)
-        hora_fim = hora_00.replace(hour=23, minute=59, second=59)
-
-        for row in reversed(linhas[1:]):
-            if len(row) > 3:
-                try:
-                    dt_row = datetime.strptime(row[0].strip(), "%d/%m/%Y %H:%M:%S")
-                    vol_linha = safe_to_numeric(row[3])
-                    
-                    if dt_row.date() == data_alvo:
-                        if corte_fim == 0.0 and dt_row <= hora_fim: corte_fim = vol_linha
-                        if corte_16 == 0.0 and dt_row <= hora_16: corte_16 = vol_linha
-                        if corte_08 == 0.0 and dt_row <= hora_08: corte_08 = vol_linha
-                        if corte_00 == 0.0 and dt_row <= hora_00: corte_00 = vol_linha
-                except:
-                    continue
-
-        vol_t1 = forcar_par(max(0.0, corte_08 - corte_00)) if corte_08 > 0 else 0
-        if is_hoje:
-            vol_t2 = forcar_par(max(0.0, corte_16 - corte_08) if agora_br.hour >= 16 else (max(0.0, corte_fim - corte_08) if agora_br.hour >= 8 else 0.0))
-            vol_t3 = forcar_par(max(0.0, corte_fim - corte_16) if agora_br.hour >= 16 else 0.0)
-        else:
-            vol_t2 = forcar_par(max(0.0, corte_16 - corte_08) if corte_16 > 0 else 0.0)
-            vol_t3 = forcar_par(max(0.0, corte_fim - corte_16) if corte_fim > 0 else 0.0)
-
-        turnos_exibir = []
-        if vol_t1 > 0 or (is_hoje and agora_br.hour < 8 and vol_t1 > 0):
-            turnos_exibir.append({"key": "t1", "letra": f"Turno {letras['madrugada']}", "vol": vol_t1, "horario": "00h - 08h"})
-            
-        turnos_exibir.append({"key": "t2", "letra": f"Turno {letras['08_16']}", "vol": vol_t2, "horario": "08h - 16h"})
-        turnos_exibir.append({"key": "t3", "letra": f"Turno {letras['16_00']}", "vol": vol_t3, "horario": "16h - 00h"})
-        
-        total_dia = vol_t1 + vol_t2 + vol_t3
-        return {"ativo_key": ativo_key, "turnos": turnos_exibir, "total_dia": total_dia}
-    except Exception:
-        return None
-
 def build_vertical_chart(data, height=150):
     if not data: return ""
     max_v = max([d["value"] for d in data]) if max([d["value"] for d in data]) > 0 else 100
@@ -326,6 +267,42 @@ estoque_total = 0
 status_transbordo = "NORMAL"
 ritmo_torre = "NORMAL"
 
+dados_patio = {
+    "PR": {"veiculos": 0, "peso": 0},
+    "00": {"veiculos": 0, "peso": 0},
+    "01": {"veiculos": 0, "peso": 0},
+    "FC": {"veiculos": 0, "peso": 0},
+    "TR": {"veiculos": 0, "peso": 0}
+}
+
+if not df_dash.empty:
+    row_d = df_dash.iloc[0]
+    ultima_att = str(row_d.get("DATA_HORA", ultima_att))
+    vol_hoje = forcar_par(safe_to_numeric(row_d.get("EXPEDICAO_HOJE", 0)))
+    vol_ontem = forcar_par(safe_to_numeric(row_d.get("EXPEDICAO_ONTEM", 0)))
+    prev_carr = forcar_par(safe_to_numeric(row_d.get("PREV_EXPEDICAO", 0)))
+    prod_hoje_calc = forcar_par(safe_to_numeric(row_d.get("PRODUCAO_HOJE", 0)))
+    prev_prod = forcar_par(safe_to_numeric(row_d.get("PREV_PRODUCAO", 0)))
+    estoque_total = forcar_par(safe_to_numeric(row_d.get("ESTOQUE_TOTAL", 0)))
+    status_transbordo = str(row_d.get("STATUS_TRANSBORDO", "NORMAL"))
+    
+    ritmo_torre_bruto = str(row_d.get("RITMO_TORRE", "NORMAL")).upper()
+    if "OPERAÇÃO NO 12" in ritmo_torre_bruto or "ACELERADO" in ritmo_torre_bruto:
+        ritmo_torre = "RITMO DE ATUALIZAÇÃO: RÁPIDO"
+    else:
+        ritmo_torre = ritmo_torre_bruto
+    
+    dados_patio["PR"] = {"veiculos": int(safe_to_numeric(row_d.get("PR_VEIC", 0))), "peso": forcar_par(safe_to_numeric(row_d.get("PR_TON", 0)))}
+    dados_patio["00"] = {"veiculos": int(safe_to_numeric(row_d.get("00_VEIC", 0))), "peso": forcar_par(safe_to_numeric(row_d.get("00_TON", 0)))}
+    dados_patio["01"] = {"veiculos": int(safe_to_numeric(row_d.get("01_VEIC", 0))), "peso": forcar_par(safe_to_numeric(row_d.get("01_TON", 0)))}
+    dados_patio["FC"] = {"veiculos": int(safe_to_numeric(row_d.get("FC_VEIC", 0))), "peso": forcar_par(safe_to_numeric(row_d.get("FC_TON", 0)))}
+    dados_patio["TR"] = {"veiculos": int(safe_to_numeric(row_d.get("TR_VEIC", 0))), "peso": forcar_par(safe_to_numeric(row_d.get("TR_TON", 0)))}
+
+# ----------------- VARIÁVEIS GLOBAIS DE PÁTIO (CRÍTICO: NUNCA DEIXAR FALTAR) -----------------
+total_veiculos_fisicos = dados_patio["00"]["veiculos"] + dados_patio["01"]["veiculos"] + dados_patio["FC"]["veiculos"]
+vol_patio_disponivel = forcar_par(dados_patio["00"]["peso"] + dados_patio["01"]["peso"] + dados_patio["FC"]["peso"])
+
+# Agrupamento de Destinos por Status (Lendo da aba Patio_Destino_Status)
 destinos_por_status = {
     "PR": [],
     "00": [],
@@ -535,7 +512,6 @@ for tit, chv, cor in blocos_patio:
     v_ton = forcar_par(dados_patio.get(chv, {}).get("peso", 0))
     lista_destinos = destinos_por_status.get(chv, [])
 
-    # Monta a lista interna dos destinos daquele status
     linhas_dest_html = ""
     if lista_destinos:
         for item in lista_destinos:
@@ -695,19 +671,16 @@ def buscar_dados_turnos_historico(data_alvo):
                 except:
                     continue
 
-        # 🔥 REGRA DE RESET: Se o corte for menor que o anterior, significa que a planilha zerou à meia-noite.
         vol_t1 = forcar_par(corte_08) if corte_08 < corte_00 else forcar_par(max(0.0, corte_08 - corte_00))
         vol_t2 = forcar_par(corte_16) if corte_16 < corte_08 else forcar_par(max(0.0, corte_16 - corte_08))
         vol_t3 = forcar_par(corte_fim) if corte_fim < corte_16 else forcar_par(max(0.0, corte_fim - corte_16))
 
-        # Ajuste de turnos futuros se for hoje
         if is_hoje:
             if agora_br.hour < 8: vol_t2, vol_t3 = 0, 0
             elif agora_br.hour < 16: vol_t3 = 0
 
         turnos_exibir = []
         
-        # 🚀 REGRA DE FOLGA DO TURNO D (00h às 08h): Domingo (6) e Segunda (0)
         if data_alvo.weekday() in [6, 0]:
             str_vol_t1 = "Folga"
             vol_real_t1 = 0
