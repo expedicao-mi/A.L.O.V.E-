@@ -302,42 +302,59 @@ if not df_dash.empty:
 total_veiculos_fisicos = dados_patio["00"]["veiculos"] + dados_patio["01"]["veiculos"] + dados_patio["FC"]["veiculos"]
 vol_patio_disponivel = forcar_par(dados_patio["00"]["peso"] + dados_patio["01"]["peso"] + dados_patio["FC"]["peso"])
 
-# Agrupamento de Destinos por Status (Lendo da aba Patio_Destino_Status)
+# ==============================================================================
+# 1. CARREGAMENTO CORRETO DA ABA Patio_Destino_Status (Linha 3 = cabecalho=2)
+# ==============================================================================
+df_patio_dest = carregar_dados_nuvem("Patio_Destino_Status", cabecalho=2)
+
+# Dicionário para guardar a lista de destinos de cada status
 destinos_por_status = {
     "PR": [],
     "00": [],
     "01": [],
-    "FC": [],
-    "TR": []
+    "FC": []
 }
 
 if not df_patio_dest.empty:
     for _, r_p in df_patio_dest.iterrows():
-        dest_nome = str(r_p.get("DESTINO", "")).strip()
-        if dest_nome and dest_nome.upper() not in ["TOTAL", "TOTAL GERAL FÁBRICA", ""]:
-            # Status PR
-            pr_v = int(safe_to_numeric(r_p.get("PR_VEIC", 0)))
-            pr_t = forcar_par(safe_to_numeric(r_p.get("PR_TON", 0)))
-            if pr_v > 0 or pr_t > 0:
-                destinos_por_status["PR"].append({"destino": dest_nome, "veic": pr_v, "ton": pr_t})
+        # Busca o nome do destino na primeira coluna (ou coluna DESTINO)
+        dest_nome = str(r_p.get("DESTINO", r_p.iloc[0])).strip()
+        
+        # Ignora linhas de cabeçalho repetido ou totais
+        if not dest_nome or dest_nome.upper() in ["TOTAL", "TOTAL GERAL FÁBRICA", "DESTINO", "NAN", "NONE"]:
+            continue
 
-            # Status 00 (Checklist)
-            v00 = int(safe_to_numeric(r_p.get("00_VEIC", 0)))
-            t00 = forcar_par(safe_to_numeric(r_p.get("00_TON", 0)))
-            if v00 > 0 or t00 > 0:
-                destinos_por_status["00"].append({"destino": dest_nome, "veic": v00, "ton": t00})
+        # Helper para ler flexível por nome de coluna ou posição
+        def extrair_val(col_nome, col_idx):
+            if col_nome in r_p:
+                return safe_to_numeric(r_p[col_nome])
+            elif len(r_p) > col_idx:
+                return safe_to_numeric(r_p.iloc[col_idx])
+            return 0.0
 
-            # Status 01 (Apoio)
-            v01 = int(safe_to_numeric(r_p.get("01_VEIC", 0)))
-            t01 = forcar_par(safe_to_numeric(r_p.get("01_TON", 0)))
-            if v01 > 0 or t01 > 0:
-                destinos_por_status["01"].append({"destino": dest_nome, "veic": v01, "ton": t01})
+        # PR: Col B (1) Veic, Col C (2) Ton
+        pr_v = int(extrair_val("PR_VEIC", 1))
+        pr_t = forcar_par(extrair_val("PR_TON", 2))
+        if pr_v > 0 or pr_t > 0:
+            destinos_por_status["PR"].append({"destino": dest_nome, "veic": pr_v, "ton": pr_t})
 
-            # Status FC (Fila)
-            vfc = int(safe_to_numeric(r_p.get("FC_VEIC", 0)))
-            tfc = forcar_par(safe_to_numeric(r_p.get("FC_TON", 0)))
-            if vfc > 0 or tfc > 0:
-                destinos_por_status["FC"].append({"destino": dest_nome, "veic": vfc, "ton": tfc})
+        # 00: Col D (3) Veic, Col E (4) Ton
+        v00 = int(extrair_val("00_VEIC", 3))
+        t00 = forcar_par(extrair_val("00_TON", 4))
+        if v00 > 0 or t00 > 0:
+            destinos_por_status["00"].append({"destino": dest_nome, "veic": v00, "ton": t00})
+
+        # 01: Col F (5) Veic, Col G (6) Ton
+        v01 = int(extrair_val("01_VEIC", 5))
+        t01 = forcar_par(extrair_val("01_TON", 6))
+        if v01 > 0 or t01 > 0:
+            destinos_por_status["01"].append({"destino": dest_nome, "veic": v01, "ton": t01})
+
+        # FC: Col H (7) Veic, Col I (8) Ton
+        vfc = int(extrair_val("FC_VEIC", 7))
+        tfc = forcar_par(extrair_val("FC_TON", 8))
+        if vfc > 0 or tfc > 0:
+            destinos_por_status["FC"].append({"destino": dest_nome, "veic": vfc, "ton": tfc})
 
 dados_maquinas = {"MS1": {}, "MS2": {}}
 if not df_qual.empty:
@@ -512,11 +529,12 @@ for tit, chv, cor in blocos_patio:
     v_ton = forcar_par(dados_patio.get(chv, {}).get("peso", 0))
     lista_destinos = destinos_por_status.get(chv, [])
 
+    # Monta as linhas internas de destinos
     linhas_dest_html = ""
     if lista_destinos:
         for item in lista_destinos:
             linhas_dest_html += f"""
-            <div style="display:flex; justify-content:space-between; align-items:center; padding:5px 0; border-bottom:1px dashed #1c2b42; font-size:0.8rem;">
+            <div style="display:flex; justify-content:space-between; align-items:center; padding:6px 0; border-bottom:1px dashed #1c2b42; font-size:0.8rem;">
                 <span style="color:#ffffff; font-weight:700;">{item['destino']}</span>
                 <span style="color:#38bdf8; font-weight:800;">{item['veic']} veíc. <span style="color:#94a3b8; font-weight:600;">({item['ton']:,.0f} t)</span></span>
             </div>
