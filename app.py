@@ -8,12 +8,18 @@ import csv
 from io import StringIO
 import ast
 
+# 1. 👈 IMPORTA O REFRESHER
+from streamlit_autorefresh import st_autorefresh
+
 st.set_page_config(
     page_title="A.L.O.V.E. Mobile",
     page_icon="🚛",
     layout="centered",
     initial_sidebar_state="collapsed"
 )
+
+# 2. 👈 INICIA O CRONÔMETRO INVISÍVEL (60.000 milissegundos = 1 minuto)
+st_autorefresh(interval=60000, limit=None, key="refresh_mobile")
 
 # ==============================================================================
 # 🎨 CSS AVANÇADO (CARDS NEON + EXPANDERS + GRÁFICOS VERTICAIS + FROTA TABS)
