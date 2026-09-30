@@ -30,86 +30,29 @@ st.markdown("""
         input[type="radio"] { display: none; }
         
         /* ---------------- PREVISÕES ---------------- */
-        .prev-container {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 12px;
-            margin-bottom: 14px;
-        }
+        .prev-container { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px; }
+        .prev-card-prod { background-color: #05080f; border: 2px solid #00f3ff; border-radius: 12px; padding: 14px; box-shadow: 0 0 12px rgba(0, 243, 255, 0.25), inset 0 0 8px rgba(0, 243, 255, 0.1); }
+        .prev-card-prod .prev-title { color: #00f3ff; font-size: 0.78rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 4px; }
+        .prev-card-prod .prev-val { color: #00f3ff; font-size: 1.85rem; font-weight: 900; line-height: 1.1; margin-bottom: 2px; text-shadow: 0 0 10px rgba(0, 243, 255, 0.4); }
         
-        .prev-card-prod {
-            background-color: #05080f;
-            border: 2px solid #00f3ff;
-            border-radius: 12px;
-            padding: 14px;
-            box-shadow: 0 0 12px rgba(0, 243, 255, 0.25), inset 0 0 8px rgba(0, 243, 255, 0.1);
-        }
-        .prev-card-prod .prev-title {
-            color: #00f3ff;
-            font-size: 0.78rem;
-            font-weight: 800;
-            text-transform: uppercase;
-            letter-spacing: 0.8px;
-            margin-bottom: 4px;
-        }
-        .prev-card-prod .prev-val {
-            color: #00f3ff;
-            font-size: 1.85rem;
-            font-weight: 900;
-            line-height: 1.1;
-            margin-bottom: 2px;
-            text-shadow: 0 0 10px rgba(0, 243, 255, 0.4);
-        }
-        
-        .prev-card-carr {
-            background-color: #0d0600;
-            border: 2px solid #ff7700;
-            border-radius: 12px;
-            padding: 14px;
-            box-shadow: 0 0 12px rgba(255, 119, 0, 0.25), inset 0 0 8px rgba(255, 119, 0, 0.1);
-        }
-        .prev-card-carr .prev-title {
-            color: #ff7700;
-            font-size: 0.78rem;
-            font-weight: 800;
-            text-transform: uppercase;
-            letter-spacing: 0.8px;
-            margin-bottom: 4px;
-        }
-        .prev-card-carr .prev-val {
-            color: #ff7700;
-            font-size: 1.85rem;
-            font-weight: 900;
-            line-height: 1.1;
-            margin-bottom: 2px;
-            text-shadow: 0 0 10px rgba(255, 119, 0, 0.4);
-        }
+        .prev-card-carr { background-color: #0d0600; border: 2px solid #ff7700; border-radius: 12px; padding: 14px; box-shadow: 0 0 12px rgba(255, 119, 0, 0.25), inset 0 0 8px rgba(255, 119, 0, 0.1); }
+        .prev-card-carr .prev-title { color: #ff7700; font-size: 0.78rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 4px; }
+        .prev-card-carr .prev-val { color: #ff7700; font-size: 1.85rem; font-weight: 900; line-height: 1.1; margin-bottom: 2px; text-shadow: 0 0 10px rgba(255, 119, 0, 0.4); }
 
         /* ---------------- MASTER BOX ---------------- */
-        /* MATA A SETINHA PADRÃO DO NAVEGADOR EM TODOS OS SUMMARIES */
         summary { list-style: none; outline: none; }
         summary::-webkit-details-marker { display: none; }
 
         details.master-box {
-            background-color: #111c2e;
-            border-radius: 12px;
-            margin-bottom: 12px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
-            border-left: 6px solid;
-            overflow: hidden;
-            border-top: 1px solid #1c2b42;
-            border-right: 1px solid #1c2b42;
-            border-bottom: 1px solid #1c2b42;
+            background-color: #111c2e; border-radius: 12px; margin-bottom: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3); border-left: 6px solid;
+            overflow: hidden; border-top: 1px solid #1c2b42; border-right: 1px solid #1c2b42; border-bottom: 1px solid #1c2b42;
         }
-        details.master-box > summary {
-            cursor: pointer;
-            padding: 16px 20px;
-            position: relative;
-            -webkit-tap-highlight-color: transparent; 
-        }
+        details.master-box > summary { cursor: pointer; padding: 16px 20px; position: relative; -webkit-tap-highlight-color: transparent; }
+        
         /* MÃOZINHA QUE GIRA NO LUGAR DO TRIÂNGULO */
         details.master-box > summary::after {
-            content: '👇';
+            content: '👆';
             position: absolute; right: 20px; top: 50%; transform: translateY(-50%);
             font-size: 1.3rem; transition: transform 0.3s ease;
         }
@@ -129,11 +72,7 @@ st.markdown("""
         .card-patio-qtd { font-size: 1.4rem; font-weight: 900; color: #ffffff; }
         .card-patio-ton { font-size: 0.85rem; color: #94a3b8; font-weight: 600; }
 
-        .css-tabs-exp label {
-            display: inline-block; padding: 6px 16px; background-color: #162438; color: #94a3b8; 
-            border-radius: 6px; font-size: 0.85rem; font-weight: 800; margin: 0 4px; 
-            cursor: pointer; border: 1px solid #1c2b42; transition: 0.2s;
-        }
+        .css-tabs-exp label { display: inline-block; padding: 6px 16px; background-color: #162438; color: #94a3b8; border-radius: 6px; font-size: 0.85rem; font-weight: 800; margin: 0 4px; cursor: pointer; border: 1px solid #1c2b42; transition: 0.2s; }
         .css-tabs-exp input[type="radio"]#tab_ontem:checked + label.lbl-ontem { background-color: #38bdf8; color: #0a101d; border-color: #38bdf8; }
         .css-tabs-exp input[type="radio"]#tab_hoje:checked + label.lbl-hoje { background-color: #00D672; color: #0a101d; border-color: #00D672; }
         .tab-content-exp { display: none; animation: fadeIn 0.3s ease; }
