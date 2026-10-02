@@ -361,7 +361,8 @@ if not df_balanco_dest.empty:
         if dest_nome.upper() == "TOTAL EXPEDIÇÃO":
             total_expedicao_meta = meta_val
             total_expedicao_real = real_val
-        elif meta_val > 0 or real_val > 0:
+        # REMOVIDO: a condição `elif meta_val > 0 or real_val > 0` que escondia destinos.
+        else:
             balanco_destinos.append({
                 "destino": dest_nome, "meta": meta_val, "realizado": real_val,
                 "saldo": saldo_val, "atingimento": ating_val
