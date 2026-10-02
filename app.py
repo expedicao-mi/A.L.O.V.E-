@@ -1173,43 +1173,7 @@ html_glp += '</details>'
 st.markdown(html_glp, unsafe_allow_html=True)
 
 
-# ==============================================================================
-# 📊 BLOCO 7: COMPARATIVO PRODUÇÃO vs EXPEDIÇÃO (MOVIDO PARA O FINAL)
-# ==============================================================================
-html_meta_anual = f"""
-<details class="master-box" style="border-left-color: #007BFF;" open>
-    <summary>
-        <div class="header-layout">
-            <div class="icon-box" style="background-color: rgba(0, 123, 255, 0.15); color: #007BFF;">📊</div>
-            <div class="master-metric-title">Comparativo Produção vs Expedição</div>
-        </div>
-        <div class="value-layout">
-            <div class="master-metric-val">{carr_ano_atual:,.0f}</div>
-            <div class="master-metric-unit">t Expedidas</div>
-        </div>
-        <div class="master-metric-sub" style="color: #007BFF;">Meta Diária Necessária: {meta_diaria_carr:,.0f} t/dia</div>
-    </summary>
-    <div class="master-content" style="padding-top:16px;">
-        <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px;">
-            <div style="background-color:#0a101d; border:1px solid #1c2b42; border-radius:8px; padding:10px;">
-                <div style="font-size:0.75rem; color:#007BFF; font-weight:bold; text-transform:uppercase;">EXPEDIÇÃO ANUAL</div>
-                <div style="font-size:1.4rem; font-weight:bold; color:#fff; margin:4px 0;">{carr_ano_atual:,.0f} <span style="font-size:0.8rem; color:#64748b; font-weight:normal;">t</span></div>
-                <div style="font-size:0.7rem; color:#64748b;">Proj. 31/12: <span style="color:#007BFF;">{proj_carr_fechamento:,.0f} t</span></div>
-            </div>
-            <div style="background-color:#0a101d; border:1px solid #1c2b42; border-radius:8px; padding:10px;">
-                <div style="font-size:0.75rem; color:#00D672; font-weight:bold; text-transform:uppercase;">PRODUÇÃO ANUAL</div>
-                <div style="font-size:1.4rem; font-weight:bold; color:#fff; margin:4px 0;">{prod_ano_atual:,.0f} <span style="font-size:0.8rem; color:#64748b; font-weight:normal;">t</span></div>
-                <div style="font-size:0.7rem; color:#64748b;">Proj. 31/12: <span style="color:#00D672;">{proj_prod_fechamento:,.0f} t</span></div>
-            </div>
-        </div>
-        <div style="background-color:#0a101d; border:1px solid #1c2b42; border-radius:8px; padding:12px; font-size:0.82rem; color:#cbd5e1; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;">
-            <span>Variação Produção vs Expedição: <span style="color:{cor_variacao}; font-size:0.9rem; font-weight:bold;">{txt_variacao}</span></span>
-            <span>Estoque de Virada 25/26: <span style="color:#38bdf8; font-size:0.9rem; font-weight:bold;">3.468 t</span></span>
-        </div>
-    </div>
-</details>
-"""
-st.markdown(html_meta_anual.replace('\n', ''), unsafe_allow_html=True)
+
 
 
 st.markdown("<br><center><span style='color:#64748b; font-size: 0.75rem; font-weight: normal; letter-spacing: 0.5px;'>A.L.O.V.E - Mobile / Developed by Cristiano Ciriaco</span></center>", unsafe_allow_html=True)
