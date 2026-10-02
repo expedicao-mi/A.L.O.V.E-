@@ -733,6 +733,68 @@ def buscar_dados_turnos_historico(data_alvo):
     except Exception:
         return None
 
+def obter_metas_plano_dinamico(data_base_sap):
+    """Lê a aba Plano_Expedicao_Vigente e extrai as metas específicas para a data atual."""
+    metas_dinamicas = {
+        "MI / LATAM": 0.0, "1680": 0.0, "1440": 0.0, "1630": 0.0,
+        "1720": 0.0, "1730": 0.0, "1740": 0.0, "1520": 0.0
+    }
+    try:
+        import gspread
+        from oauth2client.service_account import ServiceAccountCredentials
+        import os
+        
+        pasta_core = os.path.dirname(os.path.abspath(__file__))
+        creds = ServiceAccountCredentials.from_json_keyfile_name(os.path.join(pasta_core, "credentials.json"), ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"])
+        planilha = gspread.authorize(creds).open_by_key("10FluiIwlynIlPDA74QI8mpHSIrAc-62H1hZNRBsvfCA")
+        dados = planilha.worksheet("Plano_Expedicao_Vigente").get_all_values()
+        
+        if not dados: return metas_dinamicas
+
+        # Formata data_base_sap (20261001 -> 01/10/2026)
+        data_str = f"{data_base_sap[6:8]}/{data_base_sap[4:6]}/{data_base_sap[0:4]}" if len(data_base_sap) == 8 else data_base_sap
+
+        idx_coluna = -1
+        # Procura a coluna da data nas primeiras 10 linhas
+        for linha in dados[:10]:
+            for i_col, valor in enumerate(linha):
+                if data_str in str(valor).strip():
+                    idx_coluna = i_col
+                    break
+            if idx_coluna != -1: break
+
+        if idx_coluna == -1:
+            print(f"[PLANO NUVEM] ⚠️ Data {data_str} não encontrada no Excel. Metas zeradas.")
+            return metas_dinamicas
+
+        # Lê os destinos e metas dessa coluna
+        for linha in dados:
+            if len(linha) > idx_coluna:
+                destino_cru = str(linha[0]).strip().upper()
+                try:
+                    valor_num = float(str(linha[idx_coluna]).strip().replace(".", "").replace(",", "."))
+                except ValueError:
+                    continue
+
+                d_macro = None
+                if "MI" in destino_cru or "LATAM" in destino_cru: d_macro = "MI / LATAM"
+                elif "1680" in destino_cru or "EBLOG" in destino_cru: d_macro = "1680"
+                elif "1440" in destino_cru or "ITAPOA" in destino_cru: d_macro = "1440"
+                elif "1630" in destino_cru or "MAERSK" in destino_cru: d_macro = "1630"
+                elif "1720" in destino_cru or "ITAJAÍ" in destino_cru: d_macro = "1720"
+                elif "1730" in destino_cru or "ZIRAN" in destino_cru: d_macro = "1730"
+                elif "1740" in destino_cru or "DEEP" in destino_cru: d_macro = "1740"
+                elif "1520" in destino_cru or "TIJU" in destino_cru: d_macro = "1520"
+                
+                if d_macro:
+                    metas_dinamicas[d_macro] = metas_dinamicas.get(d_macro, 0.0) + valor_num
+
+        print(f"[PLANO NUVEM] ✅ Metas extraídas com sucesso para o dia {data_str}!")
+        return metas_dinamicas
+    except Exception as e:
+        print(f"[PLANO NUVEM] ❌ Erro ao ler metas da nuvem: {e}")
+        return metas_dinamicas
+
 # ==============================================================================
 # 🚚 BLOCO 3: EXPEDIÇÃO DO DIA & TURNOS E DESTINOS
 # ==============================================================================
@@ -813,8 +875,8 @@ html_destinos = f"""
 if balanco_destinos:
     def regra_ordenacao(d):
         nome = str(d.get('destino', '')).upper()
-        if "MI / LATAM" in nome or "MI/LATAM" in nome: return 999999
-        try: return int(nome.split('-')[0].strip())
+        if "MI" in nome or "LATAM" in nome: return 999999
+        try: return int(re.search(r'\d+', nome).group())
         except: return 0
             
     balanco_destinos_ordenado = sorted(balanco_destinos, key=regra_ordenacao, reverse=True)
@@ -844,10 +906,16 @@ if balanco_destinos:
             saldo_str = f"{d['saldo']:,.0f}"
             cor_saldo = "#E5B800"
 
-        dest_parts = d['destino'].split('-')
-        dest_nome = f"{dest_parts[0].strip()}"
-        if len(dest_parts) > 1:
-            dest_nome += f" - {dest_parts[1].strip()}"
+        # Mapeamento do nome de exibição mais robusto
+        nome_cru = str(d['destino']).upper()
+        if "MI" in nome_cru or "LATAM" in nome_cru:
+            dest_nome = "MI / LATAM"
+        else:
+            parts = nome_cru.split('-')
+            if len(parts) >= 2:
+                dest_nome = f"{parts[0].strip()} - {parts[1].strip()}"
+            else:
+                dest_nome = nome_cru
 
         html_destinos += f"""
             <tr style="border-bottom: 1px dashed #1c2b42; font-weight: normal;">
