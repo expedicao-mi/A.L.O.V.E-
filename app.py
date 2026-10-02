@@ -39,7 +39,7 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 # ==============================================================================
-# 🎨 CSS AVANÇADO (CARDS NEON + OCULTAR ELEMENTOS DO STREAMLIT)
+# 🎨 CSS AVANÇADO (NOVO LAYOUT DOS CARDS)
 # ==============================================================================
 st.markdown("""
     <style>
@@ -74,36 +74,47 @@ st.markdown("""
         
         /* ---------------- PREVISÕES ---------------- */
         .prev-container { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px; }
-        .prev-card-prod { background-color: #05080f; border: 2px solid #00f3ff; border-radius: 12px; padding: 14px; box-shadow: 0 0 12px rgba(0, 243, 255, 0.25), inset 0 0 8px rgba(0, 243, 255, 0.1); }
-        .prev-card-prod .prev-title { color: #00f3ff; font-size: 0.78rem; font-weight: normal; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 4px; }
-        .prev-card-prod .prev-val { color: #00f3ff; font-size: 1.85rem; font-weight: normal; line-height: 1.1; margin-bottom: 2px; text-shadow: 0 0 10px rgba(0, 243, 255, 0.4); }
+        .prev-card-prod { background-color: #05080f; border: 2px solid #00f3ff; border-radius: 8px; padding: 10px; box-shadow: 0 0 8px rgba(0, 243, 255, 0.15); }
+        .prev-card-prod .prev-title { color: #00f3ff; font-size: 0.75rem; font-weight: bold; text-transform: uppercase; margin-bottom: 4px; }
+        .prev-card-prod .prev-val { color: #ffffff; font-size: 1.4rem; font-weight: bold; line-height: 1.1; margin-bottom: 2px; }
         
-        .prev-card-carr { background-color: #0d0600; border: 2px solid #ff7700; border-radius: 12px; padding: 14px; box-shadow: 0 0 12px rgba(255, 119, 0, 0.25), inset 0 0 8px rgba(255, 119, 0, 0.1); }
-        .prev-card-carr .prev-title { color: #ff7700; font-size: 0.78rem; font-weight: normal; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 4px; }
-        .prev-card-carr .prev-val { color: #ff7700; font-size: 1.85rem; font-weight: normal; line-height: 1.1; margin-bottom: 2px; text-shadow: 0 0 10px rgba(255, 119, 0, 0.4); }
+        .prev-card-carr { background-color: #05080f; border: 2px solid #ff7700; border-radius: 8px; padding: 10px; box-shadow: 0 0 8px rgba(255, 119, 0, 0.15); }
+        .prev-card-carr .prev-title { color: #ff7700; font-size: 0.75rem; font-weight: bold; text-transform: uppercase; margin-bottom: 4px; }
+        .prev-card-carr .prev-val { color: #ffffff; font-size: 1.4rem; font-weight: bold; line-height: 1.1; margin-bottom: 2px; }
 
-        /* ---------------- MASTER BOX ---------------- */
+        /* ---------------- MASTER BOX (NOVO DESIGN) ---------------- */
         summary { list-style: none; outline: none; }
         summary::-webkit-details-marker { display: none; }
 
         details.master-box {
-            background-color: #111c2e; border-radius: 12px; margin-bottom: 12px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3); border-left: 6px solid;
-            overflow: hidden; border-top: 1px solid #1c2b42; border-right: 1px solid #1c2b42; border-bottom: 1px solid #1c2b42;
+            background-color: #0a101d; border-radius: 8px; margin-bottom: 12px;
+            border: 1px solid #1c2b42; border-left: 6px solid;
+            overflow: hidden;
         }
-        details.master-box > summary { cursor: pointer; padding: 16px 20px; position: relative; -webkit-tap-highlight-color: transparent; }
+        details.master-box > summary { 
+            cursor: pointer; padding: 14px 16px; position: relative; -webkit-tap-highlight-color: transparent; 
+        }
         
         details.master-box > summary::after {
-            content: '👆';
-            position: absolute; right: 20px; top: 50%; transform: translateY(-50%);
-            font-size: 1.3rem; transition: transform 0.3s ease;
+            content: '▼';
+            position: absolute; right: 16px; top: 16px;
+            font-size: 0.8rem; color: #64748b; transition: transform 0.3s ease;
         }
-        details.master-box[open] > summary::after { transform: translateY(-50%) rotate(180deg); }
+        details.master-box[open] > summary::after { transform: rotate(180deg); }
         
-        .master-metric-title { color: #94a3b8; font-size: 1.1rem; font-weight: normal; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; padding-right: 20px;}
-        .master-metric-val { color: #ffffff; font-size: 2.4rem; font-weight: normal; line-height: 1.1; margin-bottom: 6px; }
-        .master-metric-sub { font-size: 0.95rem; font-weight: normal; }
-        .master-content { background-color: #0a101d; padding: 16px; border-top: 1px dashed #1c2b42; }
+        .header-layout { display: flex; align-items: center; margin-bottom: 8px; gap: 8px; }
+        .icon-box { 
+            width: 28px; height: 28px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 1.1rem;
+        }
+        .master-metric-title { color: #ffffff; font-size: 0.85rem; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px; }
+        
+        .value-layout { display: flex; align-items: baseline; gap: 6px; margin-bottom: 4px; }
+        .master-metric-val { color: #ffffff; font-size: 2.2rem; font-weight: bold; line-height: 1; }
+        .master-metric-unit { color: #64748b; font-size: 0.9rem; font-weight: normal; }
+        
+        .master-metric-sub { font-size: 0.85rem; font-weight: normal; margin-top: 4px; }
+        
+        .master-content { background-color: #0a101d; padding: 0 16px 16px 16px; }
 
         /* ---------------- EXPEDIÇÃO MAIN VIEWS E DESTINOS ---------------- */
         .css-tabs-view label { display: inline-block; padding: 8px 20px; background-color: #162438; color: #94a3b8; border-radius: 8px; font-size: 0.9rem; font-weight: normal; margin: 0 4px 14px 4px; cursor: pointer; border: 1px solid #1c2b42; transition: 0.2s; }
@@ -407,11 +418,11 @@ html_previsoes = f"""
 <div class="prev-container">
     <div class="prev-card-prod">
         <div class="prev-title">📈 Prev. Produção</div>
-        <div class="prev-val">{prev_prod:,.0f} <span style="font-size:0.9rem;">t</span></div>
+        <div class="prev-val">{prev_prod:,.0f} <span style="font-size:0.9rem; color:#64748b;">t</span></div>
     </div>
     <div class="prev-card-carr">
         <div class="prev-title">🎯 Prev. Expedição</div>
-        <div class="prev-val">{prev_carr:,.0f} <span style="font-size:0.9rem;">t</span></div>
+        <div class="prev-val">{prev_carr:,.0f} <span style="font-size:0.9rem; color:#64748b;">t</span></div>
     </div>
 </div>
 """
@@ -439,66 +450,6 @@ if not df_alertas.empty:
             </div>
         """, unsafe_allow_html=True)
 
-# ==============================================================================
-# 🎯 BLOCO 0: COMPARATIVO PRODUÇÃO vs EXPEDIÇÃO
-# ==============================================================================
-hoje_dt = date.today()
-fim_ano = date(hoje_dt.year, 12, 31)
-dias_restantes = max(1, (fim_ano - hoje_dt).days)
-meta_teto_estoque = 3468.0
-
-carr_base_ano = 1362558.0 
-prod_base_ano = 1362676.0 
-ritmo_esperado_dia = 5200.0
-
-carr_ano_atual = forcar_par(carr_base_ano + vol_hoje)
-prod_ano_atual = forcar_par(prod_base_ano + prod_hoje_calc)
-
-diff_prod_carr = forcar_par(abs(prod_ano_atual - carr_ano_atual))
-
-if carr_ano_atual >= prod_ano_atual:
-    txt_variacao = f"+{diff_prod_carr:,.0f} t (Expedição Superando)"
-    cor_variacao = "#00D672"
-else:
-    txt_variacao = f"+{diff_prod_carr:,.0f} t (Produção Superando)"
-    cor_variacao = "#FF9F1C"
-
-excesso_estoque = max(0.0, estoque_total - meta_teto_estoque)
-ritmo_extra_dia = excesso_estoque / dias_restantes
-meta_diaria_carr = forcar_par(ritmo_esperado_dia + ritmo_extra_dia)
-
-proj_prod_fechamento = forcar_par(prod_ano_atual + (dias_restantes * ritmo_esperado_dia))
-carr_futuro_nec = (estoque_total + (dias_restantes * ritmo_esperado_dia)) - meta_teto_estoque
-proj_carr_fechamento = forcar_par(carr_ano_atual + carr_futuro_nec)
-
-html_meta_anual = f"""
-<details class="master-box" style="border-left-color: #007BFF;" open>
-    <summary>
-        <div class="master-metric-title">📊 COMPARATIVO PRODUÇÃO vs EXPEDIÇÃO ({dias_restantes} DIAS ATÉ 31/12)</div>
-        <div class="master-metric-val">{carr_ano_atual:,.0f} <span style="font-size:1.2rem; color:#94a3b8;">t Expedidas</span></div>
-        <div class="master-metric-sub" style="color: #007BFF;">Meta Diária Necessária: {meta_diaria_carr:,.0f} t/dia</div>
-    </summary>
-    <div class="master-content">
-        <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px;">
-            <div style="background-color:#111c2e; border:1px solid #1c2b42; border-radius:8px; padding:10px;">
-                <div style="font-size:0.75rem; color:#007BFF; font-weight:normal;">EXPEDIÇÃO ANUAL</div>
-                <div style="font-size:1.3rem; font-weight:normal; color:#fff;">{carr_ano_atual:,.0f} t</div>
-                <div style="font-size:0.7rem; color:#94a3b8;">Proj. 31/12: <span style="color:#007BFF;">{proj_carr_fechamento:,.0f} t</span></div>
-            </div>
-            <div style="background-color:#111c2e; border:1px solid #1c2b42; border-radius:8px; padding:10px;">
-                <div style="font-size:0.75rem; color:#00D672; font-weight:normal;">PRODUÇÃO ANUAL</div>
-                <div style="font-size:1.3rem; font-weight:normal; color:#fff;">{prod_ano_atual:,.0f} t</div>
-                <div style="font-size:0.7rem; color:#94a3b8;">Proj. 31/12: <span style="color:#00D672;">{proj_prod_fechamento:,.0f} t</span></div>
-            </div>
-        </div>
-        <div style="background-color:#111c2e; border:1px solid #1c2b42; border-radius:8px; padding:12px; font-size:0.82rem; color:#cbd5e1; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;">
-            <span>Variação Produção vs Expedição: <span style="color:{cor_variacao}; font-size:0.9rem;">{txt_variacao}</span></span>
-            <span>Estoque de Virada 25/26: <span style="color:#38bdf8; font-size:0.9rem;">3.468 t</span></span>
-        </div>
-    </div>
-</details>
-"""
-st.markdown(html_meta_anual.replace('\n', ''), unsafe_allow_html=True)
 
 # ==============================================================================
 # 📦 BLOCO 1: PÁTIO DE VEÍCULOS (EXPANSÍVEL POR DESTINOS)
@@ -506,12 +457,18 @@ st.markdown(html_meta_anual.replace('\n', ''), unsafe_allow_html=True)
 html_patio = '<details class="master-box" style="border-left-color: #38bdf8;" open>'
 html_patio += f'''
 <summary>
-    <div class="master-metric-title">🚛 Pátio da Fábrica (Tempo Real)</div>
-    <div class="master-metric-val">{total_veiculos_fisicos} <span style="font-size:1.1rem; color:#94a3b8;">Veículos Físicos</span></div>
+    <div class="header-layout">
+        <div class="icon-box" style="background-color: rgba(56, 189, 248, 0.15); color: #38bdf8;">🚛</div>
+        <div class="master-metric-title">Pátio da Fábrica (Tempo Real)</div>
+    </div>
+    <div class="value-layout">
+        <div class="master-metric-val">{total_veiculos_fisicos}</div>
+        <div class="master-metric-unit">Veículos Físicos</div>
+    </div>
     <div class="master-metric-sub" style="color: #38bdf8;">Carga Disponível: {vol_patio_disponivel:,.0f} t</div>
 </summary>
 <div class="master-content">
-    <div style="display:flex; flex-direction:column; gap:8px;">
+    <div style="display:flex; flex-direction:column; gap:8px; padding-top:16px;">
 '''
 
 blocos_patio = [
@@ -532,19 +489,19 @@ for tit, chv, cor in blocos_patio:
             linhas_dest_html += f"""
             <div style="display:flex; justify-content:space-between; align-items:center; padding:5px 0; border-bottom:1px dashed #1c2b42; font-size:0.8rem;">
                 <span style="color:#ffffff; font-weight:normal;">{item['destino']}</span>
-                <span style="color:#38bdf8; font-weight:normal;">{item['veic']} veíc. <span style="color:#94a3b8; font-weight:normal;">({item['ton']:,.0f} t)</span></span>
+                <span style="color:#38bdf8; font-weight:normal;">{item['veic']} veíc. <span style="color:#64748b; font-weight:normal;">({item['ton']:,.0f} t)</span></span>
             </div>
             """
     else:
         linhas_dest_html = '<div style="color:#64748b; font-size:0.75rem; padding:4px 0;">Nenhum veículo alocado neste status.</div>'
 
     html_patio += f"""
-    <details style="background-color:#111c2e; border:1px solid #1c2b42; border-left:4px solid {cor}; border-radius:8px; overflow:hidden;">
+    <details style="background-color:#0a101d; border:1px solid #1c2b42; border-left:4px solid {cor}; border-radius:8px; overflow:hidden;">
         <summary style="padding:10px 14px; cursor:pointer; list-style:none; display:flex; justify-content:space-between; align-items:center; -webkit-tap-highlight-color:transparent;">
             <div>
                 <span style="color:{cor}; font-weight:normal; font-size:0.85rem; text-transform:uppercase;">{tit}</span>
                 <div style="font-size:1.25rem; font-weight:normal; color:#ffffff; margin-top:2px;">
-                    {v_qtd} <span style="font-size:0.75rem; color:#94a3b8; font-weight:normal;">veíc. / <span style="color:#cbd5e1;">{v_ton:,.0f} t</span></span>
+                    {v_qtd} <span style="font-size:0.75rem; color:#64748b; font-weight:normal;">veíc. / <span style="color:#cbd5e1;">{v_ton:,.0f} t</span></span>
                 </div>
             </div>
             <div style="text-align:right;">
@@ -561,11 +518,11 @@ v_qtd_tr = int(dados_patio.get("TR", {}).get("veiculos", 0))
 v_ton_tr = forcar_par(dados_patio.get("TR", {}).get("peso", 0))
 
 html_patio += f"""
-<div style="background-color:#111c2e; border:1px solid #1c2b42; border-left:4px solid #95A5A6; border-radius:8px; padding:10px 14px; display:flex; justify-content:space-between; align-items:center;">
+<div style="background-color:#0a101d; border:1px solid #1c2b42; border-left:4px solid #95A5A6; border-radius:8px; padding:10px 14px; display:flex; justify-content:space-between; align-items:center;">
     <div>
         <span style="color:#95A5A6; font-weight:normal; font-size:0.85rem; text-transform:uppercase;">📄 Termo SAP</span>
         <div style="font-size:1.25rem; font-weight:normal; color:#ffffff; margin-top:2px;">
-            {v_qtd_tr} <span style="font-size:0.75rem; color:#94a3b8; font-weight:normal;">veíc. / <span style="color:#cbd5e1;">{v_ton_tr:,.0f} t</span></span>
+            {v_qtd_tr} <span style="font-size:0.75rem; color:#64748b; font-weight:normal;">veíc. / <span style="color:#cbd5e1;">{v_ton_tr:,.0f} t</span></span>
         </div>
     </div>
     <div style="text-align:right;">
@@ -625,7 +582,7 @@ for maq in ["MS1", "MS2"]:
             html_virada = f"""
             <div style='background-color: #070d18; border: 1px solid #1c2b42; border-left: 4px solid {cor_alerta}; padding: 10px; margin-top: 14px; border-radius: 6px;'>
                 <div style='display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;'>
-                    <span style='font-size:0.75rem; color:#94a3b8; font-weight:normal; text-transform:uppercase;'>Saldo a Produzir ({mat_maq})</span>
+                    <span style='font-size:0.75rem; color:#64748b; font-weight:normal; text-transform:uppercase;'>Saldo a Produzir ({mat_maq})</span>
                     <span style='font-size:1.1rem; font-weight:normal; color:#ffffff;'>{s_rest:,.0f} t</span>
                 </div>
                 <div style='display:flex; justify-content:space-between; align-items:center; font-size:0.75rem;'>
@@ -636,38 +593,38 @@ for maq in ["MS1", "MS2"]:
             """
 
         html_prod_content += f"""
-        <div style='background-color: #111c2e; border: 1.5px solid {cor_card_borda}; border-radius: 8px; padding: 16px; margin-bottom: 12px;'>
+        <div style='background-color: #0a101d; border: 1.5px solid {cor_card_borda}; border-radius: 8px; padding: 16px; margin-bottom: 12px;'>
             <div style='display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;'>
-                <span style='color:#ffffff; font-weight:normal; font-size:1.25rem;'>⚙️ {maq}</span>
-                <span style='color:#FF9F1C; font-weight:normal; font-size:1.35rem;'>📦 MAT: {mat_maq}</span>
-                <span style='color:#38bdf8; font-weight:normal; font-size:1.4rem;'>{p_maq:,.0f} t</span>
+                <span style='color:#ffffff; font-weight:bold; font-size:1.1rem;'>⚙️ {maq}</span>
+                <span style='color:#FF9F1C; font-weight:normal; font-size:1.1rem;'>📦 MAT: {mat_maq}</span>
+                <span style='color:#38bdf8; font-weight:bold; font-size:1.2rem;'>{p_maq:,.0f} t</span>
             </div>
             
-            <div style='display:flex; justify-content:flex-end; gap: 16px; margin-bottom: 12px; font-size: 0.85rem; color: #94a3b8; font-weight: normal;'>
+            <div style='display:flex; justify-content:flex-end; gap: 16px; margin-bottom: 12px; font-size: 0.85rem; color: #64748b; font-weight: normal;'>
                 <span>{lbl_l1}: <span style='color:#ffffff;'>{l1:,.0f} t</span></span>
                 <span>{lbl_l2}: <span style='color:#ffffff;'>{l2:,.0f} t</span></span>
             </div>
             
             <div style='display: flex; justify-content: space-between; text-align: center; border-top: 1px dashed #1c2b42; padding-top: 14px;'>
                 <div>
-                    <div style='font-size:0.75rem; color:#94a3b8; font-weight:normal; text-transform:uppercase;'>ALVURA</div>
-                    <div style='font-size:1.35rem; font-weight:normal; color:{c_alv}; margin: 4px 0;'>{q_alvura:.2f}%</div>
-                    <div style='font-size:0.7rem; color:#64748b; font-weight:normal;'>(Mín: 88,5)</div>
+                    <div style='font-size:0.7rem; color:#64748b; font-weight:bold; text-transform:uppercase;'>ALVURA</div>
+                    <div style='font-size:1.2rem; font-weight:normal; color:{c_alv}; margin: 4px 0;'>{q_alvura:.2f}%</div>
+                    <div style='font-size:0.65rem; color:#475569; font-weight:normal;'>(Mín: 88,5)</div>
                 </div>
                 <div>
-                    <div style='font-size:0.75rem; color:#94a3b8; font-weight:normal; text-transform:uppercase;'>SUJIDADE</div>
-                    <div style='font-size:1.35rem; font-weight:normal; color:{c_suj}; margin: 4px 0;'>{q_suj:.2f}</div>
-                    <div style='font-size:0.7rem; color:#64748b; font-weight:normal;'>(Máx: 2,5)</div>
+                    <div style='font-size:0.7rem; color:#64748b; font-weight:bold; text-transform:uppercase;'>SUJIDADE</div>
+                    <div style='font-size:1.2rem; font-weight:normal; color:{c_suj}; margin: 4px 0;'>{q_suj:.2f}</div>
+                    <div style='font-size:0.65rem; color:#475569; font-weight:normal;'>(Máx: 2,5)</div>
                 </div>
                 <div>
-                    <div style='font-size:0.75rem; color:#94a3b8; font-weight:normal; text-transform:uppercase;'>VISCOSID.</div>
-                    <div style='font-size:1.35rem; font-weight:normal; color:{c_vis}; margin: 4px 0;'>{q_visc:,.0f}</div>
-                    <div style='font-size:0.7rem; color:#64748b; font-weight:normal;'>(Mín: 650)</div>
+                    <div style='font-size:0.7rem; color:#64748b; font-weight:bold; text-transform:uppercase;'>VISCOSID.</div>
+                    <div style='font-size:1.2rem; font-weight:normal; color:{c_vis}; margin: 4px 0;'>{q_visc:,.0f}</div>
+                    <div style='font-size:0.65rem; color:#475569; font-weight:normal;'>(Mín: 650)</div>
                 </div>
                 <div>
-                    <div style='font-size:0.75rem; color:#94a3b8; font-weight:normal; text-transform:uppercase;'>pH</div>
-                    <div style='font-size:1.35rem; font-weight:normal; color:{c_ph}; margin: 4px 0;'>{q_ph:.1f}</div>
-                    <div style='font-size:0.7rem; color:#64748b; font-weight:normal;'>(5,5 - 8,5)</div>
+                    <div style='font-size:0.7rem; color:#64748b; font-weight:bold; text-transform:uppercase;'>pH</div>
+                    <div style='font-size:1.2rem; font-weight:normal; color:{c_ph}; margin: 4px 0;'>{q_ph:.1f}</div>
+                    <div style='font-size:0.65rem; color:#475569; font-weight:normal;'>(5,5 - 8,5)</div>
                 </div>
             </div>
             {html_virada}
@@ -679,11 +636,17 @@ for maq in ["MS1", "MS2"]:
 html_prod_completo = f"""
 <details class="master-box" style="border-left-color: #E5B800;">
     <summary>
-        <div class="master-metric-title">🏭 Produção de Celulose</div>
-        <div class="master-metric-val">{prod_hoje_calc:,.0f} <span style="font-size:1.1rem; color:#94a3b8;">TON</span></div>
+        <div class="header-layout">
+            <div class="icon-box" style="background-color: rgba(229, 184, 0, 0.15); color: #E5B800;">🏭</div>
+            <div class="master-metric-title">Produção de Celulose</div>
+        </div>
+        <div class="value-layout">
+            <div class="master-metric-val">{prod_hoje_calc:,.0f}</div>
+            <div class="master-metric-unit">TON</div>
+        </div>
         <div class="master-metric-sub" style="color: #E5B800;">MS1: {dados_maquinas['MS1'].get('producao', 0):,.0f} t | MS2: {dados_maquinas['MS2'].get('producao', 0):,.0f} t</div>
     </summary>
-    <div class="master-content">
+    <div class="master-content" style="padding-top:16px;">
         {html_prod_content}
     </div>
 </details>
@@ -794,7 +757,7 @@ if dados_exp_hoje and "turnos" in dados_exp_hoje:
             html_val = f"<div style='font-size:1.1rem; font-weight:normal; color:#ffffff;'>{v_str}</div>"
             c_text = v_str
             
-        html_hoje += f"<div style='flex:1; background-color:#111c2e; border:1.5px solid {cor_b}; border-radius:8px; padding:8px; text-align:center;'><div style='font-size:0.75rem; font-weight:normal; color:{cor_txt};'>{t['letra']}</div>{html_val}<div style='font-size:0.65rem; color:#94a3b8;'>{sub_txt}</div></div>"
+        html_hoje += f"<div style='flex:1; background-color:#0a101d; border:1px solid {cor_b}; border-radius:8px; padding:8px; text-align:center;'><div style='font-size:0.75rem; font-weight:bold; color:{cor_txt};'>{t['letra']}</div>{html_val}<div style='font-size:0.65rem; color:#64748b;'>{sub_txt}</div></div>"
         chart_data_hoje.append({"label": t['letra'], "value": t['vol'], "text": c_text, "color": "#FF9F1C" if is_atv else "#00D672"})
     html_hoje += "</div>"
     html_hoje += build_vertical_chart(chart_data_hoje)
@@ -814,7 +777,7 @@ if dados_exp_ontem and "turnos" in dados_exp_ontem:
             html_val_o = f"<div style='font-size:1.1rem; font-weight:normal; color:#ffffff;'>{v_str_o}</div>"
             c_text_o = v_str_o
             
-        html_ontem += f"<div style='flex:1; background-color:#111c2e; border:1.5px solid #1c2b42; border-radius:8px; padding:8px; text-align:center;'><div style='font-size:0.75rem; font-weight:normal; color:#38bdf8;'>{t['letra']}</div>{html_val_o}<div style='font-size:0.65rem; color:#94a3b8;'>{t['horario']}</div></div>"
+        html_ontem += f"<div style='flex:1; background-color:#0a101d; border:1px solid #1c2b42; border-radius:8px; padding:8px; text-align:center;'><div style='font-size:0.75rem; font-weight:bold; color:#38bdf8;'>{t['letra']}</div>{html_val_o}<div style='font-size:0.65rem; color:#64748b;'>{t['horario']}</div></div>"
         chart_data_ontem.append({"label": t['letra'], "value": t['vol'], "text": c_text_o, "color": "#38bdf8"})
     html_ontem += "</div>"
     html_ontem += build_vertical_chart(chart_data_ontem)
@@ -825,37 +788,32 @@ else:
 # 🎯 MONTAGEM DO HTML DE DESTINOS (TABELA COMPACTA NO LUGAR DOS CARDS)
 # ==============================================================================
 html_destinos = f"""
-<div style="display:flex; justify-content:space-around; background-color:#111c2e; border:1px solid #1c2b42; border-radius:8px; padding:12px; margin-bottom:14px; text-align:center;">
+<div style="display:flex; justify-content:space-around; background-color:#0a101d; border:1px solid #1c2b42; border-radius:8px; padding:12px; margin-bottom:14px; text-align:center;">
     <div>
-        <div style="font-size:0.75rem; color:#94a3b8; font-weight:normal; text-transform:uppercase;">Plano Total Diário</div>
-        <div style="font-size:1.4rem; color:#ffffff; font-weight:normal;">{total_expedicao_meta:,.0f} <span style="font-size:0.8rem;">t</span></div>
+        <div style="font-size:0.75rem; color:#64748b; font-weight:bold; text-transform:uppercase;">Plano Total Diário</div>
+        <div style="font-size:1.4rem; color:#ffffff; font-weight:bold;">{total_expedicao_meta:,.0f} <span style="font-size:0.8rem; color:#64748b; font-weight:normal;">t</span></div>
     </div>
     <div style="border-left:1px solid #1c2b42; padding-left:20px;">
-        <div style="font-size:0.75rem; color:#38bdf8; font-weight:normal; text-transform:uppercase;">Total Carregado</div>
-        <div style="font-size:1.4rem; color:#38bdf8; font-weight:normal;">{total_expedicao_real:,.0f} <span style="font-size:0.8rem;">t</span></div>
+        <div style="font-size:0.75rem; color:#38bdf8; font-weight:bold; text-transform:uppercase;">Total Carregado</div>
+        <div style="font-size:1.4rem; color:#38bdf8; font-weight:bold;">{total_expedicao_real:,.0f} <span style="font-size:0.8rem; font-weight:normal;">t</span></div>
     </div>
 </div>
 """
 
 if balanco_destinos:
-    # --- LÓGICA DE ORDENAÇÃO CUSTOMIZADA ---
     def regra_ordenacao(d):
         nome = str(d.get('destino', '')).upper()
-        if "MI / LATAM" in nome or "MI/LATAM" in nome:
-            return 999999
-        try:
-            return int(nome.split('-')[0].strip())
-        except:
-            return 0
+        if "MI / LATAM" in nome or "MI/LATAM" in nome: return 999999
+        try: return int(nome.split('-')[0].strip())
+        except: return 0
             
     balanco_destinos_ordenado = sorted(balanco_destinos, key=regra_ordenacao, reverse=True)
-    # ---------------------------------------
 
     html_destinos += """
-    <div style="background-color: #111c2e; border: 1px solid #1c2b42; border-radius: 8px; padding: 10px; overflow-x: auto;">
+    <div style="background-color: #0a101d; border: 1px solid #1c2b42; border-radius: 8px; padding: 10px; overflow-x: auto;">
         <table style="width: 100%; border-collapse: collapse; font-size: 0.75rem; text-align: center; color: #ffffff; font-weight: normal;">
             <thead>
-                <tr style="border-bottom: 1px solid #1c2b42; color: #94a3b8; font-weight: normal;">
+                <tr style="border-bottom: 1px solid #1c2b42; color: #64748b; font-weight: normal;">
                     <th style="text-align: left; padding: 8px 4px; font-weight: normal;">Destino</th>
                     <th style="text-align: center; padding: 8px 4px; color: #38bdf8; font-weight: normal;">Plano</th>
                     <th style="text-align: center; padding: 8px 4px; color: #00D672; font-weight: normal;">Carr.</th>
@@ -867,7 +825,7 @@ if balanco_destinos:
     """
     for d in balanco_destinos_ordenado:
         ating = d['atingimento']
-        cor_ating = "#00D672" if ating >= 100 else ("#38bdf8" if ating > 0 else "#94a3b8")
+        cor_ating = "#00D672" if ating >= 100 else ("#38bdf8" if ating > 0 else "#64748b")
         
         if d['saldo'] <= 0 and d['realizado'] > 0:
             saldo_str = "0"
@@ -901,11 +859,17 @@ else:
 html_exp_completo = f"""
 <details class="master-box" style="border-left-color: #00D672;" open>
     <summary>
-        <div class="master-metric-title">🚛 Expedição Realizada</div>
-        <div class="master-metric-val">{vol_exp_hoje:,.0f} <span style="font-size:1.1rem; color:#94a3b8;">TON</span></div>
+        <div class="header-layout">
+            <div class="icon-box" style="background-color: rgba(0, 214, 114, 0.15); color: #00D672;">🚚</div>
+            <div class="master-metric-title">Expedição Realizada</div>
+        </div>
+        <div class="value-layout">
+            <div class="master-metric-val">{vol_exp_hoje:,.0f}</div>
+            <div class="master-metric-unit">TON</div>
+        </div>
         <div class="master-metric-sub" style="color: #00D672;">Consolidado Ontem (D-1): {vol_exp_ontem:,.0f} t</div>
     </summary>
-    <div class="master-content css-tabs-view">
+    <div class="master-content css-tabs-view" style="padding-top:16px;">
         <div style="text-align: center; margin-bottom: 16px;">
             <input type="radio" name="exp_main_view" id="view_turnos" checked>
             <label for="view_turnos" class="lbl-v-turnos">⏰ Turnos</label>
@@ -948,8 +912,20 @@ st.markdown(html_exp_completo.replace('\n', ''), unsafe_allow_html=True)
 # 📦 BLOCO 4: ESTOQUE TOTAL E MATERIAIS
 # ==============================================================================
 html_est = '<details class="master-box" style="border-left-color: #9b59b6;">'
-html_est += f'<summary><div class="master-metric-title">📦 Estoque Físico no Armazém</div><div class="master-metric-val">{estoque_total:,.0f} <span style="font-size:1.1rem; color:#94a3b8;">TON</span></div><div class="master-metric-sub" style="color: #9b59b6;">Status do Armazém: {status_transbordo}</div></summary>'
-html_est += '<div class="master-content">'
+html_est += f'''
+<summary>
+    <div class="header-layout">
+        <div class="icon-box" style="background-color: rgba(155, 89, 182, 0.15); color: #9b59b6;">📦</div>
+        <div class="master-metric-title">Estoque Físico no Armazém</div>
+    </div>
+    <div class="value-layout">
+        <div class="master-metric-val">{estoque_total:,.0f}</div>
+        <div class="master-metric-unit">TON</div>
+    </div>
+    <div class="master-metric-sub" style="color: #9b59b6;">Status do Armazém: {status_transbordo}</div>
+</summary>
+<div class="master-content" style="padding-top:16px;">
+'''
 
 if dados_segregados:
     df_seg = pd.DataFrame(list(dados_segregados.items()), columns=["Material", "Toneladas"]).sort_values(by="Toneladas", ascending=False)
@@ -1053,11 +1029,17 @@ def render_tags(dict_equip):
 html_frota = f"""
 <details class="master-box" style="border-left-color: #E67E22;">
     <summary>
-        <div class="master-metric-title">🚜 Frota / Equipamentos</div>
-        <div class="master-metric-val">{equip_em_uso_hoje} <span style="font-size:1.1rem; color:#94a3b8;">Veículos Logados Hoje</span></div>
+        <div class="header-layout">
+            <div class="icon-box" style="background-color: rgba(230, 126, 34, 0.15); color: #E67E22;">🚜</div>
+            <div class="master-metric-title">Frota / Equipamentos</div>
+        </div>
+        <div class="value-layout">
+            <div class="master-metric-val">{equip_em_uso_hoje}</div>
+            <div class="master-metric-unit">Veículos Logados Hoje</div>
+        </div>
         <div class="master-metric-sub" style="color: #E67E22;">Empilhadeiras e Talhas Elétricas</div>
     </summary>
-    <div class="master-content" style="text-align: center;">
+    <div class="master-content" style="text-align: center; padding-top:16px;">
         <input type="radio" name="frota_day" id="frota_dia_ontem" class="f-rad-main">
         <input type="radio" name="frota_day" id="frota_dia_hoje" class="f-rad-main" checked>
         
@@ -1123,7 +1105,7 @@ html_frota = f"""
 st.markdown(html_frota.replace('\n', ''), unsafe_allow_html=True)
 
 # ==============================================================================
-# ⛽ BLOCO 6: CONSUMO GLP MENSAL
+# ⛽ BLOCO 6: CONSUMO GLP MENSAL E COMPARATIVO ANUAL NO FINAL
 # ==============================================================================
 df_glp = carregar_dados_nuvem("Abastecimentos_GLP", cabecalho=None)
 html_glp = '<details class="master-box" style="border-left-color: #fd7e14;">'
@@ -1145,8 +1127,20 @@ if not df_glp.empty and len(df_glp.columns) >= 8:
             df_mes_recente = df_g[df_g["MES_ANO"] == mes_recente]
             total_glp_recente = forcar_par(df_mes_recente["KG_NUM"].sum())
 
-            html_glp += f'<summary><div class="master-metric-title">⛽ Consumo de GLP da Frota</div><div class="master-metric-val">{total_glp_recente:,.0f} <span style="font-size:1.1rem; color:#94a3b8;">KG</span></div><div class="master-metric-sub" style="color: #fd7e14;">Acumulado do Mês Atual ({mes_recente})</div></summary>'
-            html_glp += '<div class="master-content">'
+            html_glp += f'''
+            <summary>
+                <div class="header-layout">
+                    <div class="icon-box" style="background-color: rgba(253, 126, 20, 0.15); color: #fd7e14;">⛽</div>
+                    <div class="master-metric-title">Consumo de GLP da Frota</div>
+                </div>
+                <div class="value-layout">
+                    <div class="master-metric-val">{total_glp_recente:,.0f}</div>
+                    <div class="master-metric-unit">KG</div>
+                </div>
+                <div class="master-metric-sub" style="color: #fd7e14;">Acumulado do Mês Atual ({mes_recente})</div>
+            </summary>
+            '''
+            html_glp += '<div class="master-content" style="padding-top:16px;">'
             
             df_maq = df_mes_recente.groupby("MAQUINA")["KG_NUM"].sum().reset_index().sort_values(by="KG_NUM", ascending=False)
             
@@ -1165,9 +1159,57 @@ if not df_glp.empty and len(df_glp.columns) >= 8:
                 html_glp += '<div style="color:gray; text-align:center;">Sem consumo registrado.</div>'
             html_glp += '</div>'
 else:
-    html_glp += '<summary><div class="master-metric-title">⛽ Consumo de GLP</div></summary><div class="master-content"><div style="color:gray;">Planilha indisponível.</div></div>'
+    html_glp += '''
+    <summary>
+        <div class="header-layout">
+            <div class="icon-box" style="background-color: rgba(253, 126, 20, 0.15); color: #fd7e14;">⛽</div>
+            <div class="master-metric-title">Consumo de GLP</div>
+        </div>
+    </summary>
+    <div class="master-content"><div style="color:gray; padding-top:16px;">Planilha indisponível.</div></div>
+    '''
 
 html_glp += '</details>'
 st.markdown(html_glp, unsafe_allow_html=True)
 
-st.markdown("<br><center><span style='color:#94a3b8; font-size: 0.80rem; font-weight: normal; letter-spacing: 0.5px;'>A.L.O.V.E - Mobile / Developed by Cristiano Ciriaco</span></center>", unsafe_allow_html=True)
+
+# ==============================================================================
+# 📊 BLOCO 7: COMPARATIVO PRODUÇÃO vs EXPEDIÇÃO (MOVIDO PARA O FINAL)
+# ==============================================================================
+html_meta_anual = f"""
+<details class="master-box" style="border-left-color: #007BFF;" open>
+    <summary>
+        <div class="header-layout">
+            <div class="icon-box" style="background-color: rgba(0, 123, 255, 0.15); color: #007BFF;">📊</div>
+            <div class="master-metric-title">Comparativo Produção vs Expedição</div>
+        </div>
+        <div class="value-layout">
+            <div class="master-metric-val">{carr_ano_atual:,.0f}</div>
+            <div class="master-metric-unit">t Expedidas</div>
+        </div>
+        <div class="master-metric-sub" style="color: #007BFF;">Meta Diária Necessária: {meta_diaria_carr:,.0f} t/dia</div>
+    </summary>
+    <div class="master-content" style="padding-top:16px;">
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px;">
+            <div style="background-color:#0a101d; border:1px solid #1c2b42; border-radius:8px; padding:10px;">
+                <div style="font-size:0.75rem; color:#007BFF; font-weight:bold; text-transform:uppercase;">EXPEDIÇÃO ANUAL</div>
+                <div style="font-size:1.4rem; font-weight:bold; color:#fff; margin:4px 0;">{carr_ano_atual:,.0f} <span style="font-size:0.8rem; color:#64748b; font-weight:normal;">t</span></div>
+                <div style="font-size:0.7rem; color:#64748b;">Proj. 31/12: <span style="color:#007BFF;">{proj_carr_fechamento:,.0f} t</span></div>
+            </div>
+            <div style="background-color:#0a101d; border:1px solid #1c2b42; border-radius:8px; padding:10px;">
+                <div style="font-size:0.75rem; color:#00D672; font-weight:bold; text-transform:uppercase;">PRODUÇÃO ANUAL</div>
+                <div style="font-size:1.4rem; font-weight:bold; color:#fff; margin:4px 0;">{prod_ano_atual:,.0f} <span style="font-size:0.8rem; color:#64748b; font-weight:normal;">t</span></div>
+                <div style="font-size:0.7rem; color:#64748b;">Proj. 31/12: <span style="color:#00D672;">{proj_prod_fechamento:,.0f} t</span></div>
+            </div>
+        </div>
+        <div style="background-color:#0a101d; border:1px solid #1c2b42; border-radius:8px; padding:12px; font-size:0.82rem; color:#cbd5e1; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;">
+            <span>Variação Produção vs Expedição: <span style="color:{cor_variacao}; font-size:0.9rem; font-weight:bold;">{txt_variacao}</span></span>
+            <span>Estoque de Virada 25/26: <span style="color:#38bdf8; font-size:0.9rem; font-weight:bold;">3.468 t</span></span>
+        </div>
+    </div>
+</details>
+"""
+st.markdown(html_meta_anual.replace('\n', ''), unsafe_allow_html=True)
+
+
+st.markdown("<br><center><span style='color:#64748b; font-size: 0.75rem; font-weight: normal; letter-spacing: 0.5px;'>A.L.O.V.E - Mobile / Developed by Cristiano Ciriaco</span></center>", unsafe_allow_html=True)
