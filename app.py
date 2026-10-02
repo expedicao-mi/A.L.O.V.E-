@@ -479,9 +479,18 @@ blocos_patio = [
 ]
 
 for tit, chv, cor in blocos_patio:
-    v_qtd = int(dados_patio.get(chv, {}).get("veiculos", 0))
-    v_ton = forcar_par(dados_patio.get(chv, {}).get("peso", 0))
     lista_destinos = destinos_por_status.get(chv, [])
+    
+    # -------------------------------------------------------------
+    # 🎯 CORREÇÃO CRÍTICA: Os totais do card agora são a soma exata 
+    # da lista de destinos para evitar qualquer divergência visual.
+    # -------------------------------------------------------------
+    if lista_destinos:
+        v_qtd = sum([int(item['veic']) for item in lista_destinos])
+        v_ton = forcar_par(sum([float(item['ton']) for item in lista_destinos]))
+    else:
+        v_qtd = 0
+        v_ton = 0.0
 
     linhas_dest_html = ""
     if lista_destinos:
@@ -514,6 +523,7 @@ for tit, chv, cor in blocos_patio:
     </details>
     """
 
+# Ajuste do card do Termo SAP
 v_qtd_tr = int(dados_patio.get("TR", {}).get("veiculos", 0))
 v_ton_tr = forcar_par(dados_patio.get("TR", {}).get("peso", 0))
 
