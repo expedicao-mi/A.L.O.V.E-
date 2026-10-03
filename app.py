@@ -26,6 +26,14 @@ st.set_page_config(
 st_autorefresh(interval=60000, limit=None, key="refresh_mobile")
 
 # ==============================================================================
+# 🔑 CONTROLE DE ACESSO - BAFÔMETRO
+# ==============================================================================
+SENHA_BAFOMETRO = "alove2026"  # 👈 Altere para a senha que preferir
+
+if "bafometro_autenticado" not in st.session_state:
+    st.session_state.bafometro_autenticado = False
+
+# ==============================================================================
 # 📱 INJEÇÃO DE METATAGS (PWA / APP NATIVO / TELA CHEIA)
 # ==============================================================================
 st.markdown(f"""
@@ -208,6 +216,9 @@ df_cache = carregar_dados_nuvem("Cache_Painel", cabecalho=0)
 df_patio_dest = carregar_dados_nuvem("Patio_Destino_Status", cabecalho=2)
 df_status_virada = carregar_dados_nuvem("Status_Virada_Turnos", cabecalho=0)
 df_balanco_dest = carregar_dados_nuvem("Balanco_Expedicao_Destino", cabecalho=2)
+df_bafometro = carregar_dados_nuvem("Bafometro_Status", cabecalho=0)
+if df_bafometro.empty:
+    df_bafometro = carregar_dados_nuvem("Auditoria_Bafometro", cabecalho=0)
 
 cache_dict = {str(row.iloc[0]).strip(): str(row.iloc[1]).strip() for _, row in df_cache.iterrows()} if not df_cache.empty else {}
 dados_segregados = parse_robusto(cache_dict.get("dados_segregados", "{}"))
@@ -255,7 +266,6 @@ dados_patio = {
 }
 
 if not df_patio_dest.empty:
-    # Helper que acha as colunas não importando se estão mescladas no header
     def get_col_idx(nome_procurado):
         for i, col in enumerate(df_patio_dest.columns):
             if nome_procurado in str(col).upper():
@@ -274,7 +284,6 @@ if not df_patio_dest.empty:
     idx_fc_v = get_col_idx("FC_VEIC")
     idx_fc_t = get_col_idx("FC_TON")
 
-    # Fallbacks absolutos caso o Sheets mande uma exportação truncada
     if idx_pr_v == -1: idx_pr_v = 1
     if idx_pr_t == -1: idx_pr_t = 2
     if idx_00_v == -1: idx_00_v = 3
@@ -292,7 +301,6 @@ if not df_patio_dest.empty:
             if not dest_nome or dest_nome.upper() in ["NAN", "NONE", "DESTINO", "TOTAL", ""]:
                 continue
                 
-            # 1. SE FOR A LINHA DE TOTAL GERAL: CAPTURA OS VALORES EXATOS
             if "TOTAL GERAL FÁBRICA" in dest_nome.upper():
                 dados_patio["PR"]["veiculos"] = int(safe_to_numeric(linha.iloc[idx_pr_v]))
                 dados_patio["PR"]["peso"] = forcar_par(safe_to_numeric(linha.iloc[idx_pr_t]))
@@ -304,7 +312,6 @@ if not df_patio_dest.empty:
                 dados_patio["FC"]["peso"] = forcar_par(safe_to_numeric(linha.iloc[idx_fc_t]))
                 continue
             
-            # 2. SE FOR DESTINO NORMAL: POPULA AS LISTAS
             pr_v = int(safe_to_numeric(linha.iloc[idx_pr_v]))
             pr_t = forcar_par(safe_to_numeric(linha.iloc[idx_pr_t]))
             if pr_v > 0 or pr_t > 0:
@@ -489,9 +496,6 @@ blocos_patio = [
 for tit, chv, cor in blocos_patio:
     lista_destinos = destinos_por_status.get(chv, [])
     
-    # -------------------------------------------------------------
-    # Usa os valores exatos retirados da linha de "Total Geral Fábrica"
-    # -------------------------------------------------------------
     v_qtd = dados_patio.get(chv, {}).get("veiculos", 0)
     v_ton = dados_patio.get(chv, {}).get("peso", 0)
 
@@ -526,7 +530,6 @@ for tit, chv, cor in blocos_patio:
     </details>
     """
 
-# O Termo SAP agora já vem capturado de forma garantida lá em cima!
 v_qtd_tr = dados_patio.get("TR", {}).get("veiculos", 0)
 v_ton_tr = dados_patio.get("TR", {}).get("peso", 0)
 
@@ -847,7 +850,6 @@ if balanco_destinos:
             saldo_str = f"{d['saldo']:,.0f}"
             cor_saldo = "#E5B800"
 
-        # Mapeamento do nome de exibição mais robusto
         nome_cru = str(d['destino']).upper()
         if "MI" in nome_cru or "LATAM" in nome_cru:
             dest_nome = "MI / LATAM"
@@ -896,7 +898,6 @@ html_exp_completo = f"""
             <input type="radio" name="exp_main_view" id="view_destinos">
             <label for="view_destinos" class="lbl-v-destinos">📍 Destinos</label>
             
-            <!-- CONTEUDO: VISÃO TURNOS -->
             <div class="view-content-exp" id="content_view_turnos" style="margin-top: 14px;">
                 <div class="css-tabs-exp">
                     <div style="text-align: center;">
@@ -917,7 +918,6 @@ html_exp_completo = f"""
                 </div>
             </div>
 
-            <!-- CONTEUDO: VISÃO DESTINOS -->
             <div class="view-content-exp" id="content_view_destinos" style="margin-top: 14px; text-align: left;">
                 {html_destinos}
             </div>
@@ -1067,7 +1067,6 @@ html_frota = f"""
             <label for="frota_dia_hoje" class="lbl-f-hoje">📅 Hoje</label>
         </div>
 
-        <!-- CONTEUDO HOJE -->
         <div id="frota_box_hoje" class="f-content-dia">
             <input type="radio" name="frota_h_shift" id="frota_h_00" class="f-rad-sub" {ch_h_00}>
             <input type="radio" name="frota_h_shift" id="frota_h_08" class="f-rad-sub" {ch_h_08}>
@@ -1093,7 +1092,6 @@ html_frota = f"""
             </div>
         </div>
 
-        <!-- CONTEUDO ONTEM -->
         <div id="frota_box_ontem" class="f-content-dia">
             <input type="radio" name="frota_o_shift" id="frota_o_00" class="f-rad-sub">
             <input type="radio" name="frota_o_shift" id="frota_o_08" class="f-rad-sub" checked>
@@ -1124,7 +1122,7 @@ html_frota = f"""
 st.markdown(html_frota.replace('\n', ''), unsafe_allow_html=True)
 
 # ==============================================================================
-# ⛽ BLOCO 6: CONSUMO GLP MENSAL E COMPARATIVO ANUAL NO FINAL
+# ⛽ BLOCO 6: CONSUMO GLP MENSAL
 # ==============================================================================
 df_glp = carregar_dados_nuvem("Abastecimentos_GLP", cabecalho=None)
 html_glp = '<details class="master-box" style="border-left-color: #fd7e14;">'
@@ -1191,9 +1189,121 @@ else:
 html_glp += '</details>'
 st.markdown(html_glp, unsafe_allow_html=True)
 
+# ==============================================================================
+# 🩺 BLOCO 7: AUDITORIA BAFÔMETRO (PROTEGIDO COM BOTÃO E SENHA)
+# ==============================================================================
+st.markdown("""
+<div style="margin: 14px 0 8px 0; text-align: center;">
+""", unsafe_allow_html=True)
+
+col_baf_btn, col_baf_lock = st.columns([3, 1], vertical_alignment="center")
+
+with col_baf_btn:
+    if not st.session_state.bafometro_autenticado:
+        btn_abrir_modal = st.button("🔒 Acessar Auditoria de Bafômetro", use_container_width=True)
+    else:
+        st.markdown("<div style='color:#00D672; font-size:0.85rem; font-weight:bold; text-align:left;'>🔓 Acesso ao Bafômetro Liberado</div>", unsafe_allow_html=True)
+
+with col_baf_lock:
+    if st.session_state.bafometro_autenticado:
+        if st.button("Bloquear", use_container_width=True):
+            st.session_state.bafometro_autenticado = False
+            st.rerun()
+
+st.markdown("</div>", unsafe_allow_html=True)
+
+# Modal nativo para digitar a senha
+@st.dialog("Segurança Operacional - Acesso Restrito")
+def modal_senha_bafometro():
+    st.markdown("<p style='font-size:0.85rem; color:#94a3b8;'>Digite a senha de gestor para visualizar os dados de bafômetro dos motoristas:</p>", unsafe_allow_html=True)
+    senha_digitada = st.text_input("Senha", type="password", key="input_senha_baf")
+    
+    col_confirmar, col_fechar = st.columns(2)
+    with col_confirmar:
+        if st.button("Confirmar", use_container_width=True, type="primary"):
+            if senha_digitada == SENHA_BAFOMETRO:
+                st.session_state.bafometro_autenticado = True
+                st.success("Acesso autorizado com sucesso!")
+                st.rerun()
+            else:
+                st.error("Senha incorreta. Tente novamente.")
+    with col_fechar:
+        if st.button("Cancelar", use_container_width=True):
+            st.rerun()
+
+if not st.session_state.bafometro_autenticado and 'btn_abrir_modal' in locals() and btn_abrir_modal:
+    modal_senha_bafometro()
+
+# Renderização do Master Box de Bafômetro somente quando autenticado
+if st.session_state.bafometro_autenticado:
+    total_testes = len(df_bafometro) if not df_bafometro.empty else 0
+    
+    col_res = None
+    for c in df_bafometro.columns:
+        if any(termo in str(c).upper() for termo in ["RESULTADO", "STATUS", "PARECER"]):
+            col_res = c
+            break
+
+    aprovados = 0
+    pendentes_reprovados = 0
+    if not df_bafometro.empty and col_res:
+        aprovados = int((df_bafometro[col_res].astype(str).str.upper().str.contains("APROV|0.00|0,00|OK|NEGATIVO")).sum())
+        pendentes_reprovados = max(0, total_testes - aprovados)
+
+    cor_baf_borda = "#00D672" if pendentes_reprovados == 0 else "#E74C3C"
+
+    html_baf = f"""
+    <details class="master-box" style="border-left-color: {cor_baf_borda};" open>
+        <summary>
+            <div class="header-layout">
+                <div class="icon-box" style="background-color: rgba(0, 214, 114, 0.15); color: {cor_baf_borda};">🩺</div>
+                <div class="master-metric-title">Auditoria de Bafômetro (H&S)</div>
+            </div>
+            <div class="value-layout">
+                <div class="master-metric-val">{total_testes}</div>
+                <div class="master-metric-unit">Testes Registrados Hoje</div>
+            </div>
+            <div class="master-metric-sub" style="color: {cor_baf_borda};">
+                Aprovados: {aprovados} | Pendentes / Reprovados: {pendentes_reprovados}
+            </div>
+        </summary>
+        <div class="master-content" style="padding-top:16px;">
+    """
+
+    if not df_bafometro.empty:
+        html_baf += """
+            <div style="overflow-x:auto;">
+                <table style="width:100%; border-collapse:collapse; font-size:0.75rem; text-align:left; color:#ffffff;">
+                    <thead>
+                        <tr style="border-bottom:1px solid #1c2b42; color:#94a3b8;">
+        """
+        cols_para_exibir = list(df_bafometro.columns[:5])
+        for c in cols_para_exibir:
+            html_baf += f"<th style='padding:6px;'>{str(c).upper()}</th>"
+        html_baf += "</tr></thead><tbody>"
+
+        for _, row_b in df_bafometro.head(15).iterrows():
+            html_baf += "<tr style='border-bottom:1px dashed #1c2b42;'>"
+            for c in cols_para_exibir:
+                val_cel = str(row_b.get(c, ""))
+                cor_cel = "#ffffff"
+                if any(x in val_cel.upper() for x in ["APROV", "OK", "0,00", "0.00"]):
+                    cor_cel = "#00D672"
+                elif any(x in val_cel.upper() for x in ["REPROV", "POSITIV", "RECUS"]):
+                    cor_cel = "#E74C3C"
+                elif any(x in val_cel.upper() for x in ["PEND", "AGUARD"]):
+                    cor_cel = "#FF9F1C"
+                html_baf += f"<td style='padding:6px; color:{cor_cel};'>{val_cel}</td>"
+            html_baf += "</tr>"
+        html_baf += "</tbody></table></div>"
+    else:
+        html_baf += "<div style='color:gray; text-align:center;'>Nenhum registro de teste encontrado na aba Bafometro_Status.</div>"
+
+    html_baf += "</div></details>"
+    st.markdown(html_baf, unsafe_allow_html=True)
 
 # ==============================================================================
-# 📊 BLOCO 7: COMPARATIVO PRODUÇÃO vs EXPEDIÇÃO (MOVIDO PARA O FINAL)
+# 📊 BLOCO 8: COMPARATIVO PRODUÇÃO vs EXPEDIÇÃO (NO FINAL)
 # ==============================================================================
 hoje_dt = date.today()
 fim_ano = date(hoje_dt.year, 12, 31)
@@ -1258,6 +1368,5 @@ html_meta_anual = f"""
 </details>
 """
 st.markdown(html_meta_anual.replace('\n', ''), unsafe_allow_html=True)
-
 
 st.markdown("<br><center><span style='color:#64748b; font-size: 0.75rem; font-weight: normal; letter-spacing: 0.5px;'>A.L.O.V.E - Mobile / Developed by Cristiano Ciriaco</span></center>", unsafe_allow_html=True)
