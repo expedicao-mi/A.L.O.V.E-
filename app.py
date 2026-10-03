@@ -130,12 +130,24 @@ def forcar_par(valor):
 @st.cache_data(ttl=20)
 def carregar_dados_nuvem(worksheet_name: str, cabecalho=0):
     sheet_encoded = urllib.parse.quote(worksheet_name)
-    url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet={sheet_encoded}&headers=1"
+    url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet={sheet_encoded}"
+    
     try:
-        df = pd.read_csv(url, header=cabecalho)
+        # Puxa o CSV bruto primeiro sem forçar cabeçalho
+        resp = requests.get(url, timeout=10)
+        resp.encoding = 'utf-8'
+        
+        # Lê o CSV pulando as linhas necessárias (skiprows)
+        # Se for a aba Patio_Destino_Status, pula as 2 primeiras linhas problemáticas
+        skip = 2 if worksheet_name in ["Patio_Destino_Status", "Balanco_Expedicao_Destino"] else cabecalho
+        
+        df = pd.read_csv(StringIO(resp.text), skiprows=skip)
+        
+        # Limpa colunas e linhas que sejam 100% vazias (NaN)
         df = df.dropna(how="all", axis=1).dropna(how="all", axis=0)
         return df
-    except Exception:
+    except Exception as e:
+        print(f"Erro ao carregar {worksheet_name}: {e}")
         return pd.DataFrame()
 
 def safe_to_numeric(val):
