@@ -290,8 +290,8 @@ if not df_dash.empty:
     else:
         ritmo_torre = ritmo_torre_bruto
 
-# ==============================================================================
-# 🎯 CORREÇÃO DEFINITIVA: Agrupamento de Destinos por Status (Patio)
+# # ==============================================================================
+# 🎯 CORREÇÃO V3: Agrupamento de Destinos e Leitura Exata da Linha de Totais
 # ==============================================================================
 destinos_por_status = {
     "PR": [], "00": [], "01": [], "FC": [], "TR": []
@@ -306,53 +306,69 @@ dados_patio = {
 }
 
 if not df_patio_dest.empty:
-    # Como o df_patio_dest vem com header=2, a coluna 0 é o Destino
-    # As posições fixas criadas pelo Core são:
+    # A estrutura visual do Sheets garante que as colunas são:
     # 0=Destino, 1=PR_V, 2=PR_T, 3=00_V, 4=00_T, 5=01_V, 6=01_T, 7=FC_V, 8=FC_T
+    # As colunas J e K (9 e 10) são ignoradas conforme sua instrução.
     
     for idx in range(len(df_patio_dest)):
         linha = df_patio_dest.iloc[idx]
         dest_nome = str(linha.iloc[0]).strip()
         
-        if not dest_nome or dest_nome.upper() in ["TOTAL", "TOTAL GERAL FÁBRICA", "DESTINO", "NAN", "NONE"]:
+        if not dest_nome or dest_nome.upper() in ["NAN", "NONE", "DESTINO", "TOTAL", ""]:
             continue
             
         try:
-            # PR
+            # ---------------------------------------------------------
+            # 1. SE FOR A LINHA DE TOTAL GERAL: CAPTURA OS VALORES DELA
+            # ---------------------------------------------------------
+            if "TOTAL GERAL FÁBRICA" in dest_nome.upper():
+                dados_patio["PR"]["veiculos"] = int(safe_to_numeric(linha.iloc[1]))
+                dados_patio["PR"]["peso"] = forcar_par(safe_to_numeric(linha.iloc[2]))
+                
+                dados_patio["00"]["veiculos"] = int(safe_to_numeric(linha.iloc[3]))
+                dados_patio["00"]["peso"] = forcar_par(safe_to_numeric(linha.iloc[4]))
+                
+                dados_patio["01"]["veiculos"] = int(safe_to_numeric(linha.iloc[5]))
+                dados_patio["01"]["peso"] = forcar_par(safe_to_numeric(linha.iloc[6]))
+                
+                dados_patio["FC"]["veiculos"] = int(safe_to_numeric(linha.iloc[7]))
+                dados_patio["FC"]["peso"] = forcar_par(safe_to_numeric(linha.iloc[8]))
+                
+                # Interrompe a execução desta linha para não cadastrar o total como destino
+                continue
+            
+            # ---------------------------------------------------------
+            # 2. SE FOR DESTINO NORMAL: POPULA AS LISTAS DE DETALHES
+            # ---------------------------------------------------------
             pr_v = int(safe_to_numeric(linha.iloc[1]))
             pr_t = forcar_par(safe_to_numeric(linha.iloc[2]))
             if pr_v > 0 or pr_t > 0:
                 destinos_por_status["PR"].append({"destino": dest_nome, "veic": pr_v, "ton": pr_t})
-                dados_patio["PR"]["veiculos"] += pr_v
-                dados_patio["PR"]["peso"] += pr_t
 
-            # 00
             v00 = int(safe_to_numeric(linha.iloc[3]))
             t00 = forcar_par(safe_to_numeric(linha.iloc[4]))
             if v00 > 0 or t00 > 0:
                 destinos_por_status["00"].append({"destino": dest_nome, "veic": v00, "ton": t00})
-                dados_patio["00"]["veiculos"] += v00
-                dados_patio["00"]["peso"] += t00
 
-            # 01
             v01 = int(safe_to_numeric(linha.iloc[5]))
             t01 = forcar_par(safe_to_numeric(linha.iloc[6]))
             if v01 > 0 or t01 > 0:
                 destinos_por_status["01"].append({"destino": dest_nome, "veic": v01, "ton": t01})
-                dados_patio["01"]["veiculos"] += v01
-                dados_patio["01"]["peso"] += t01
 
-            # FC (Agora puxando direto das colunas H e I pelo index 7 e 8)
             vfc = int(safe_to_numeric(linha.iloc[7]))
             tfc = forcar_par(safe_to_numeric(linha.iloc[8]))
             if vfc > 0 or tfc > 0:
                 destinos_por_status["FC"].append({"destino": dest_nome, "veic": vfc, "ton": tfc})
-                dados_patio["FC"]["veiculos"] += vfc
-                dados_patio["FC"]["peso"] += tfc
-                
+
         except Exception as e:
-            # Ignora erros de linha vazia no meio da planilha
+            # Ignora eventuais quebras em células vazias
             continue
+
+# O Termo SAP continua sendo lido do Dashboard (já fizemos lá em cima, mas garantimos os principais aqui)
+v_qtd_tr = int(df_dash.iloc[0].get("TR_VEIC", 0)) if not df_dash.empty else 0
+v_ton_tr = forcar_par(df_dash.iloc[0].get("TR_TON", 0)) if not df_dash.empty else 0
+dados_patio["TR"]["veiculos"] = v_qtd_tr
+dados_patio["TR"]["peso"] = v_ton_tr
 
 total_veiculos_fisicos = dados_patio["00"]["veiculos"] + dados_patio["01"]["veiculos"] + dados_patio["FC"]["veiculos"]
 vol_patio_disponivel = forcar_par(dados_patio["00"]["peso"] + dados_patio["01"]["peso"] + dados_patio["FC"]["peso"])
