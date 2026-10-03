@@ -474,7 +474,7 @@ html_patio += f'''
 <summary>
     <div class="header-layout">
         <div class="icon-box" style="background-color: rgba(56, 189, 248, 0.15); color: #38bdf8;">🚛</div>
-        <div class="master-metric-title">Pátio da Fábrica (Tempo Real)</div>
+        <div class="master-metric-title">Visão Veiculos Fabrica (Tempo Real)</div>
     </div>
     <div class="value-layout">
         <div class="master-metric-val">{total_veiculos_fisicos}</div>
@@ -935,7 +935,7 @@ html_est += f'''
 <summary>
     <div class="header-layout">
         <div class="icon-box" style="background-color: rgba(155, 89, 182, 0.15); color: #9b59b6;">📦</div>
-        <div class="master-metric-title">Estoque Físico no Armazém</div>
+        <div class="master-metric-title">Visão Estoque Armazém</div>
     </div>
     <div class="value-layout">
         <div class="master-metric-val">{estoque_total:,.0f}</div>
