@@ -291,56 +291,68 @@ if not df_dash.empty:
         ritmo_torre = ritmo_torre_bruto
 
 # ==============================================================================
-# 🎯 CORREÇÃO: Agrupamento de Destinos por Status (Patio) direto da aba detalhada
+# 🎯 CORREÇÃO DEFINITIVA: Agrupamento de Destinos por Status (Patio)
 # ==============================================================================
 destinos_por_status = {
     "PR": [], "00": [], "01": [], "FC": [], "TR": []
 }
 
-if not df_patio_dest.empty:
-    for _, r_p in df_patio_dest.iterrows():
-        dest_nome = str(r_p.get("DESTINO", r_p.iloc[0])).strip()
-        if dest_nome and dest_nome.upper() not in ["TOTAL", "TOTAL GERAL FÁBRICA", "DESTINO", "NAN", "NONE"]:
-            def extrair_val(col_nome, col_idx):
-                if col_nome in r_p: return safe_to_numeric(r_p[col_nome])
-                elif len(r_p) > col_idx: return safe_to_numeric(r_p.iloc[col_idx])
-                return 0.0
+dados_patio = {
+    "PR": {"veiculos": 0, "peso": 0},
+    "00": {"veiculos": 0, "peso": 0},
+    "01": {"veiculos": 0, "peso": 0},
+    "FC": {"veiculos": 0, "peso": 0},
+    "TR": {"veiculos": 0, "peso": 0}
+}
 
-            pr_v = int(extrair_val("PR_VEIC", 1))
-            pr_t = forcar_par(extrair_val("PR_TON", 2))
-            if pr_v > 0 or pr_t > 0: 
+if not df_patio_dest.empty:
+    # Como o df_patio_dest vem com header=2, a coluna 0 é o Destino
+    # As posições fixas criadas pelo Core são:
+    # 0=Destino, 1=PR_V, 2=PR_T, 3=00_V, 4=00_T, 5=01_V, 6=01_T, 7=FC_V, 8=FC_T
+    
+    for idx in range(len(df_patio_dest)):
+        linha = df_patio_dest.iloc[idx]
+        dest_nome = str(linha.iloc[0]).strip()
+        
+        if not dest_nome or dest_nome.upper() in ["TOTAL", "TOTAL GERAL FÁBRICA", "DESTINO", "NAN", "NONE"]:
+            continue
+            
+        try:
+            # PR
+            pr_v = int(safe_to_numeric(linha.iloc[1]))
+            pr_t = forcar_par(safe_to_numeric(linha.iloc[2]))
+            if pr_v > 0 or pr_t > 0:
                 destinos_por_status["PR"].append({"destino": dest_nome, "veic": pr_v, "ton": pr_t})
                 dados_patio["PR"]["veiculos"] += pr_v
                 dados_patio["PR"]["peso"] += pr_t
 
-            v00 = int(extrair_val("00_VEIC", 3))
-            t00 = forcar_par(extrair_val("00_TON", 4))
-            if v00 > 0 or t00 > 0: 
+            # 00
+            v00 = int(safe_to_numeric(linha.iloc[3]))
+            t00 = forcar_par(safe_to_numeric(linha.iloc[4]))
+            if v00 > 0 or t00 > 0:
                 destinos_por_status["00"].append({"destino": dest_nome, "veic": v00, "ton": t00})
                 dados_patio["00"]["veiculos"] += v00
                 dados_patio["00"]["peso"] += t00
 
-            v01 = int(extrair_val("01_VEIC", 5))
-            t01 = forcar_par(extrair_val("01_TON", 6))
-            if v01 > 0 or t01 > 0: 
+            # 01
+            v01 = int(safe_to_numeric(linha.iloc[5]))
+            t01 = forcar_par(safe_to_numeric(linha.iloc[6]))
+            if v01 > 0 or t01 > 0:
                 destinos_por_status["01"].append({"destino": dest_nome, "veic": v01, "ton": t01})
                 dados_patio["01"]["veiculos"] += v01
                 dados_patio["01"]["peso"] += t01
 
-            vfc = int(extrair_val("FC_VEIC", 7))
-            tfc = forcar_par(extrair_val("FC_TON", 8))
-            if vfc > 0 or tfc > 0: 
+            # FC (Agora puxando direto das colunas H e I pelo index 7 e 8)
+            vfc = int(safe_to_numeric(linha.iloc[7]))
+            tfc = forcar_par(safe_to_numeric(linha.iloc[8]))
+            if vfc > 0 or tfc > 0:
                 destinos_por_status["FC"].append({"destino": dest_nome, "veic": vfc, "ton": tfc})
                 dados_patio["FC"]["veiculos"] += vfc
                 dados_patio["FC"]["peso"] += tfc
                 
-            # Tratamento para TR caso exista nas colunas futuras
-            vtr = int(extrair_val("TR_VEIC", 9))
-            ttr = forcar_par(extrair_val("TR_TON", 10))
-            if vtr > 0 or ttr > 0:
-                destinos_por_status["TR"].append({"destino": dest_nome, "veic": vtr, "ton": ttr})
-                dados_patio["TR"]["veiculos"] += vtr
-                dados_patio["TR"]["peso"] += ttr
+        except Exception as e:
+            # Ignora erros de linha vazia no meio da planilha
+            continue
 
 total_veiculos_fisicos = dados_patio["00"]["veiculos"] + dados_patio["01"]["veiculos"] + dados_patio["FC"]["veiculos"]
 vol_patio_disponivel = forcar_par(dados_patio["00"]["peso"] + dados_patio["01"]["peso"] + dados_patio["FC"]["peso"])
