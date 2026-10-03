@@ -893,7 +893,7 @@ html_exp_completo = f"""
     <div class="master-content css-tabs-view" style="padding-top:16px;">
         <div style="text-align: center; margin-bottom: 16px;">
             <input type="radio" name="exp_main_view" id="view_turnos" checked>
-            <label for="view_turnos" class="lbl-v-turnos">⏰ Turnos</label>
+            <label for="view_turnos" class="lbl-v-turnos">Expedição p/ Turno</label>
             
             <input type="radio" name="exp_main_view" id="view_destinos">
             <label for="view_destinos" class="lbl-v-destinos">📍 Destinos</label>
