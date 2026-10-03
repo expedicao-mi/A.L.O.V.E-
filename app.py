@@ -896,7 +896,7 @@ html_exp_completo = f"""
             <label for="view_turnos" class="lbl-v-turnos">Expedição p/ Turno</label>
             
             <input type="radio" name="exp_main_view" id="view_destinos">
-            <label for="view_destinos" class="lbl-v-destinos">📍 Destinos</label>
+            <label for="view_destinos" class="lbl-v-destinos">Plano vs Expedido</label>
             
             <div class="view-content-exp" id="content_view_turnos" style="margin-top: 14px;">
                 <div class="css-tabs-exp">
