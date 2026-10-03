@@ -130,20 +130,10 @@ def forcar_par(valor):
 @st.cache_data(ttl=20)
 def carregar_dados_nuvem(worksheet_name: str, cabecalho=0):
     sheet_encoded = urllib.parse.quote(worksheet_name)
-    url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet={sheet_encoded}"
+    url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet={sheet_encoded}&headers=1"
     try:
-        resp = requests.get(url, timeout=10)
-        resp.encoding = 'utf-8'
-        
-        # Pula as duas primeiras linhas de lixo (ATUALIZADO_EM e a linha vazia) do Patio e Balanço
-        skip = 2 if worksheet_name in ["Patio_Destino_Status", "Balanco_Expedicao_Destino"] else cabecalho
-        
-        df = pd.read_csv(StringIO(resp.text), skiprows=skip)
-        # Dropa apenas as colunas que estão 100% vazias
+        df = pd.read_csv(url, header=cabecalho)
         df = df.dropna(how="all", axis=1).dropna(how="all", axis=0)
-        
-        # Restaura os índices das colunas para um número limpo (0, 1, 2, 3...)
-        df.columns = range(df.shape[1])
         return df
     except Exception:
         return pd.DataFrame()
@@ -250,7 +240,7 @@ if not df_dash.empty:
         ritmo_torre = ritmo_torre_bruto
 
 # ==============================================================================
-# 🎯 CORREÇÃO V6: Agrupamento de Destinos (Índice Cego Pós-Limpeza)
+# 🎯 CORREÇÃO V6: MAPEAMENTO SEGURO DE COLUNAS E TOTAIS (PÁTIO)
 # ==============================================================================
 destinos_por_status = {
     "PR": [], "00": [], "01": [], "FC": [], "TR": []
@@ -265,55 +255,75 @@ dados_patio = {
 }
 
 if not df_patio_dest.empty:
-    for _, linha in df_patio_dest.iterrows():
-        dest_nome = str(linha.iloc[0]).strip()
-        
-        if not dest_nome or dest_nome.upper() in ["NAN", "NONE", "DESTINO", "TOTAL", ""]:
-            continue
-            
+    # Helper que acha as colunas não importando se estão mescladas no header
+    def get_col_idx(nome_procurado):
+        for i, col in enumerate(df_patio_dest.columns):
+            if nome_procurado in str(col).upper():
+                return i
+        for i, val in enumerate(df_patio_dest.iloc[0]):
+            if nome_procurado in str(val).upper():
+                return i
+        return -1
+
+    idx_pr_v = get_col_idx("PR_VEIC")
+    idx_pr_t = get_col_idx("PR_TON")
+    idx_00_v = get_col_idx("00_VEIC")
+    idx_00_t = get_col_idx("00_TON")
+    idx_01_v = get_col_idx("01_VEIC")
+    idx_01_t = get_col_idx("01_TON")
+    idx_fc_v = get_col_idx("FC_VEIC")
+    idx_fc_t = get_col_idx("FC_TON")
+
+    # Fallbacks absolutos caso o Sheets mande uma exportação truncada
+    if idx_pr_v == -1: idx_pr_v = 1
+    if idx_pr_t == -1: idx_pr_t = 2
+    if idx_00_v == -1: idx_00_v = 3
+    if idx_00_t == -1: idx_00_t = 4
+    if idx_01_v == -1: idx_01_v = 5
+    if idx_01_t == -1: idx_01_t = 6
+    if idx_fc_v == -1: idx_fc_v = 7
+    if idx_fc_t == -1: idx_fc_t = 8
+
+    for idx in range(len(df_patio_dest)):
         try:
-            # Ao resetar os nomes das colunas com range(df.shape[1]), nós GARANTIMOS
-            # que as colunas serão sempre:
-            # 0=Destino, 1=PR_V, 2=PR_T, 3=00_V, 4=00_T, 5=01_V, 6=01_T, 7=FC_V, 8=FC_T
+            linha = df_patio_dest.iloc[idx]
+            dest_nome = str(linha.iloc[0]).strip()
             
+            if not dest_nome or dest_nome.upper() in ["NAN", "NONE", "DESTINO", "TOTAL", ""]:
+                continue
+                
             # 1. SE FOR A LINHA DE TOTAL GERAL: CAPTURA OS VALORES EXATOS
             if "TOTAL GERAL FÁBRICA" in dest_nome.upper():
-                dados_patio["PR"]["veiculos"] = int(safe_to_numeric(linha.iloc[1]))
-                dados_patio["PR"]["peso"] = forcar_par(safe_to_numeric(linha.iloc[2]))
-                
-                dados_patio["00"]["veiculos"] = int(safe_to_numeric(linha.iloc[3]))
-                dados_patio["00"]["peso"] = forcar_par(safe_to_numeric(linha.iloc[4]))
-                
-                dados_patio["01"]["veiculos"] = int(safe_to_numeric(linha.iloc[5]))
-                dados_patio["01"]["peso"] = forcar_par(safe_to_numeric(linha.iloc[6]))
-                
-                # Captura de Fila de Carregamento (FC) -> Índices 7 e 8
-                if len(linha) > 8:
-                    dados_patio["FC"]["veiculos"] = int(safe_to_numeric(linha.iloc[7]))
-                    dados_patio["FC"]["peso"] = forcar_par(safe_to_numeric(linha.iloc[8]))
+                dados_patio["PR"]["veiculos"] = int(safe_to_numeric(linha.iloc[idx_pr_v]))
+                dados_patio["PR"]["peso"] = forcar_par(safe_to_numeric(linha.iloc[idx_pr_t]))
+                dados_patio["00"]["veiculos"] = int(safe_to_numeric(linha.iloc[idx_00_v]))
+                dados_patio["00"]["peso"] = forcar_par(safe_to_numeric(linha.iloc[idx_00_t]))
+                dados_patio["01"]["veiculos"] = int(safe_to_numeric(linha.iloc[idx_01_v]))
+                dados_patio["01"]["peso"] = forcar_par(safe_to_numeric(linha.iloc[idx_01_t]))
+                dados_patio["FC"]["veiculos"] = int(safe_to_numeric(linha.iloc[idx_fc_v]))
+                dados_patio["FC"]["peso"] = forcar_par(safe_to_numeric(linha.iloc[idx_fc_t]))
                 continue
             
             # 2. SE FOR DESTINO NORMAL: POPULA AS LISTAS
-            pr_v = int(safe_to_numeric(linha.iloc[1]))
-            pr_t = forcar_par(safe_to_numeric(linha.iloc[2]))
+            pr_v = int(safe_to_numeric(linha.iloc[idx_pr_v]))
+            pr_t = forcar_par(safe_to_numeric(linha.iloc[idx_pr_t]))
             if pr_v > 0 or pr_t > 0:
                 destinos_por_status["PR"].append({"destino": dest_nome, "veic": pr_v, "ton": pr_t})
 
-            v00 = int(safe_to_numeric(linha.iloc[3]))
-            t00 = forcar_par(safe_to_numeric(linha.iloc[4]))
+            v00 = int(safe_to_numeric(linha.iloc[idx_00_v]))
+            t00 = forcar_par(safe_to_numeric(linha.iloc[idx_00_t]))
             if v00 > 0 or t00 > 0:
                 destinos_por_status["00"].append({"destino": dest_nome, "veic": v00, "ton": t00})
 
-            v01 = int(safe_to_numeric(linha.iloc[5]))
-            t01 = forcar_par(safe_to_numeric(linha.iloc[6]))
+            v01 = int(safe_to_numeric(linha.iloc[idx_01_v]))
+            t01 = forcar_par(safe_to_numeric(linha.iloc[idx_01_t]))
             if v01 > 0 or t01 > 0:
                 destinos_por_status["01"].append({"destino": dest_nome, "veic": v01, "ton": t01})
 
-            if len(linha) > 8:
-                vfc = int(safe_to_numeric(linha.iloc[7]))
-                tfc = forcar_par(safe_to_numeric(linha.iloc[8]))
-                if vfc > 0 or tfc > 0:
-                    destinos_por_status["FC"].append({"destino": dest_nome, "veic": vfc, "ton": tfc})
+            vfc = int(safe_to_numeric(linha.iloc[idx_fc_v]))
+            tfc = forcar_par(safe_to_numeric(linha.iloc[idx_fc_t]))
+            if vfc > 0 or tfc > 0:
+                destinos_por_status["FC"].append({"destino": dest_nome, "veic": vfc, "ton": tfc})
 
         except Exception as e:
             continue
