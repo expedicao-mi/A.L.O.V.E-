@@ -44,36 +44,12 @@ st.markdown(f"""
 # ==============================================================================
 st.markdown("""
     <style>
-        /* 1. Oculta barra de ferramentas do Streamlit (Fork, GitHub, menu) */
-        header[data-testid="stHeader"] {
-            display: none !important;
-            height: 0px !important;
-        }
-        
-        /* 2. Oculta rodapé nativo e botão de gerenciar app */
-        footer {
-            display: none !important;
-            height: 0px !important;
-        }
-        
-        .viewerBadge_container__1QSob,
-        [data-testid="manage-app-button"],
-        .stActionButton,
-        #MainMenu {
-            display: none !important;
-        }
-
-        /* 3. Ajuste de margem superior para tela cheia de celular */
-        .block-container {
-            padding-top: 1.2rem !important;
-            padding-bottom: 2rem !important;
-            padding-left: 0.8rem !important;
-            padding-right: 0.8rem !important;
-        }
-        
+        header[data-testid="stHeader"] { display: none !important; height: 0px !important; }
+        footer { display: none !important; height: 0px !important; }
+        .viewerBadge_container__1QSob, [data-testid="manage-app-button"], .stActionButton, #MainMenu { display: none !important; }
+        .block-container { padding-top: 1.2rem !important; padding-bottom: 2rem !important; padding-left: 0.8rem !important; padding-right: 0.8rem !important; }
         input[type="radio"] { display: none; }
         
-        /* ---------------- PREVISÕES ---------------- */
         .prev-container { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px; }
         .prev-card-prod { background-color: #05080f; border: 2px solid #00f3ff; border-radius: 8px; padding: 10px; box-shadow: 0 0 8px rgba(0, 243, 255, 0.15); }
         .prev-card-prod .prev-title { color: #00f3ff; font-size: 0.75rem; font-weight: bold; text-transform: uppercase; margin-bottom: 4px; }
@@ -83,41 +59,23 @@ st.markdown("""
         .prev-card-carr .prev-title { color: #ff7700; font-size: 0.75rem; font-weight: bold; text-transform: uppercase; margin-bottom: 4px; }
         .prev-card-carr .prev-val { color: #ffffff; font-size: 1.4rem; font-weight: bold; line-height: 1.1; margin-bottom: 2px; }
 
-        /* ---------------- MASTER BOX (NOVO DESIGN) ---------------- */
         summary { list-style: none; outline: none; }
         summary::-webkit-details-marker { display: none; }
 
-        details.master-box {
-            background-color: #0a101d; border-radius: 8px; margin-bottom: 12px;
-            border: 1px solid #1c2b42; border-left: 6px solid;
-            overflow: hidden;
-        }
-        details.master-box > summary { 
-            cursor: pointer; padding: 14px 16px; position: relative; -webkit-tap-highlight-color: transparent; 
-        }
-        
-        details.master-box > summary::after {
-            content: '▼';
-            position: absolute; right: 16px; top: 16px;
-            font-size: 0.8rem; color: #64748b; transition: transform 0.3s ease;
-        }
+        details.master-box { background-color: #0a101d; border-radius: 8px; margin-bottom: 12px; border: 1px solid #1c2b42; border-left: 6px solid; overflow: hidden; }
+        details.master-box > summary { cursor: pointer; padding: 14px 16px; position: relative; -webkit-tap-highlight-color: transparent; }
+        details.master-box > summary::after { content: '▼'; position: absolute; right: 16px; top: 16px; font-size: 0.8rem; color: #64748b; transition: transform 0.3s ease; }
         details.master-box[open] > summary::after { transform: rotate(180deg); }
         
         .header-layout { display: flex; align-items: center; margin-bottom: 8px; gap: 8px; }
-        .icon-box { 
-            width: 28px; height: 28px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 1.1rem;
-        }
+        .icon-box { width: 28px; height: 28px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; }
         .master-metric-title { color: #ffffff; font-size: 0.85rem; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px; }
-        
         .value-layout { display: flex; align-items: baseline; gap: 6px; margin-bottom: 4px; }
         .master-metric-val { color: #ffffff; font-size: 2.2rem; font-weight: bold; line-height: 1; }
         .master-metric-unit { color: #64748b; font-size: 0.9rem; font-weight: normal; }
-        
         .master-metric-sub { font-size: 0.85rem; font-weight: normal; margin-top: 4px; }
-        
         .master-content { background-color: #0a101d; padding: 0 16px 16px 16px; }
 
-        /* ---------------- EXPEDIÇÃO MAIN VIEWS E DESTINOS ---------------- */
         .css-tabs-view label { display: inline-block; padding: 8px 20px; background-color: #162438; color: #94a3b8; border-radius: 8px; font-size: 0.9rem; font-weight: normal; margin: 0 4px 14px 4px; cursor: pointer; border: 1px solid #1c2b42; transition: 0.2s; }
         .css-tabs-view input[type="radio"]#view_turnos:checked + label.lbl-v-turnos { background-color: #00D672; color: #0a101d; border-color: #00D672; }
         .css-tabs-view input[type="radio"]#view_destinos:checked + label.lbl-v-destinos { background-color: #38bdf8; color: #0a101d; border-color: #38bdf8; }
@@ -125,7 +83,6 @@ st.markdown("""
         #view_turnos:checked ~ #content_view_turnos { display: block; }
         #view_destinos:checked ~ #content_view_destinos { display: block; }
 
-        /* ---------------- PÁTIO E EXPEDIÇÃO TURNOS ---------------- */
         .css-tabs-exp label { display: inline-block; padding: 6px 16px; background-color: #162438; color: #94a3b8; border-radius: 6px; font-size: 0.85rem; font-weight: normal; margin: 0 4px; cursor: pointer; border: 1px solid #1c2b42; transition: 0.2s; }
         .css-tabs-exp input[type="radio"]#tab_ontem:checked + label.lbl-ontem { background-color: #38bdf8; color: #0a101d; border-color: #38bdf8; }
         .css-tabs-exp input[type="radio"]#tab_hoje:checked + label.lbl-hoje { background-color: #00D672; color: #0a101d; border-color: #00D672; }
@@ -133,7 +90,6 @@ st.markdown("""
         #tab_ontem:checked ~ #content_ontem { display: block; }
         #tab_hoje:checked ~ #content_hoje { display: block; }
 
-        /* ---------------- FROTA (DKRO) ---------------- */
         .frota-tabs-main { display: flex; gap: 8px; justify-content: center; margin-bottom: 16px; }
         .frota-tabs-main label { padding: 8px 16px; background-color: #162438; color: #94a3b8; border-radius: 6px; cursor: pointer; border: 1px solid #1c2b42; font-weight: normal; font-size: 0.9rem; transition: 0.2s; }
         .frota-tabs-sub { display: flex; gap: 6px; justify-content: center; margin-bottom: 14px; }
@@ -284,7 +240,7 @@ if not df_dash.empty:
         ritmo_torre = ritmo_torre_bruto
 
 # ==============================================================================
-# 🎯 CORREÇÃO V4: Agrupamento de Destinos (Acesso Seguro por NOME de Coluna)
+# 🎯 CORREÇÃO DEFINITIVA V5: MAPEAMENTO SEGURO DE COLUNAS E TOTAIS
 # ==============================================================================
 destinos_por_status = {
     "PR": [], "00": [], "01": [], "FC": [], "TR": []
@@ -299,66 +255,82 @@ dados_patio = {
 }
 
 if not df_patio_dest.empty:
-    for _, linha in df_patio_dest.iterrows():
+    # 1. Função para encontrar o índice real da coluna, não importa o que o Pandas faça
+    def achar_coluna(nome_procurado, fallback_idx):
+        for i, col in enumerate(df_patio_dest.columns):
+            if nome_procurado in str(col).upper():
+                return i
+        for i, val in enumerate(df_patio_dest.iloc[0]):
+            if nome_procurado in str(val).upper():
+                return i
+        return fallback_idx
+
+    # Mapeia as posições reais de cada métrica
+    i_pr_v = achar_coluna("PR_VEIC", 1)
+    i_pr_t = achar_coluna("PR_TON", 2)
+    i_00_v = achar_coluna("00_VEIC", 3)
+    i_00_t = achar_coluna("00_TON", 4)
+    i_01_v = achar_coluna("01_VEIC", 5)
+    i_01_t = achar_coluna("01_TON", 6)
+    i_fc_v = achar_coluna("FC_VEIC", 7)
+    i_fc_t = achar_coluna("FC_TON", 8)
+
+    for idx in range(len(df_patio_dest)):
+        linha = df_patio_dest.iloc[idx]
         dest_nome = str(linha.iloc[0]).strip()
         
         if not dest_nome or dest_nome.upper() in ["NAN", "NONE", "DESTINO", "TOTAL", ""]:
             continue
             
         try:
-            def pegar_val(nome_coluna):
-                for col in df_patio_dest.columns:
-                    if nome_coluna in str(col).upper():
-                        return safe_to_numeric(linha.get(col, 0))
-                return 0.0
-
-            # 1. SE FOR A LINHA DE TOTAL GERAL: CAPTURA OS VALORES DELA
+            # 2. SE FOR A LINHA DE TOTAL GERAL: CAPTURA OS VALORES EXATOS DELA PARA OS CARDS
             if "TOTAL GERAL FÁBRICA" in dest_nome.upper():
-                dados_patio["PR"]["veiculos"] = int(pegar_val("PR_VEIC"))
-                dados_patio["PR"]["peso"] = forcar_par(pegar_val("PR_TON"))
+                dados_patio["PR"]["veiculos"] = int(safe_to_numeric(linha.iloc[i_pr_v]))
+                dados_patio["PR"]["peso"] = forcar_par(safe_to_numeric(linha.iloc[i_pr_t]))
                 
-                dados_patio["00"]["veiculos"] = int(pegar_val("00_VEIC"))
-                dados_patio["00"]["peso"] = forcar_par(pegar_val("00_TON"))
+                dados_patio["00"]["veiculos"] = int(safe_to_numeric(linha.iloc[i_00_v]))
+                dados_patio["00"]["peso"] = forcar_par(safe_to_numeric(linha.iloc[i_00_t]))
                 
-                dados_patio["01"]["veiculos"] = int(pegar_val("01_VEIC"))
-                dados_patio["01"]["peso"] = forcar_par(pegar_val("01_TON"))
+                dados_patio["01"]["veiculos"] = int(safe_to_numeric(linha.iloc[i_01_v]))
+                dados_patio["01"]["peso"] = forcar_par(safe_to_numeric(linha.iloc[i_01_t]))
                 
-                dados_patio["FC"]["veiculos"] = int(pegar_val("FC_VEIC"))
-                dados_patio["FC"]["peso"] = forcar_par(pegar_val("FC_TON"))
-                continue
+                dados_patio["FC"]["veiculos"] = int(safe_to_numeric(linha.iloc[i_fc_v]))
+                dados_patio["FC"]["peso"] = forcar_par(safe_to_numeric(linha.iloc[i_fc_t]))
+                continue # Não cadastra "TOTAL GERAL FÁBRICA" como se fosse um destino
             
-            # 2. SE FOR DESTINO NORMAL: POPULA AS LISTAS DE DETALHES
-            pr_v = int(pegar_val("PR_VEIC"))
-            pr_t = forcar_par(pegar_val("PR_TON"))
+            # 3. SE FOR DESTINO NORMAL: POPULA AS LISTAS PARA O BOTÃO "TOCAR PARA VER DESTINOS"
+            pr_v = int(safe_to_numeric(linha.iloc[i_pr_v]))
+            pr_t = forcar_par(safe_to_numeric(linha.iloc[i_pr_t]))
             if pr_v > 0 or pr_t > 0:
                 destinos_por_status["PR"].append({"destino": dest_nome, "veic": pr_v, "ton": pr_t})
 
-            v00 = int(pegar_val("00_VEIC"))
-            t00 = forcar_par(pegar_val("00_TON"))
+            v00 = int(safe_to_numeric(linha.iloc[i_00_v]))
+            t00 = forcar_par(safe_to_numeric(linha.iloc[i_00_t]))
             if v00 > 0 or t00 > 0:
                 destinos_por_status["00"].append({"destino": dest_nome, "veic": v00, "ton": t00})
 
-            v01 = int(pegar_val("01_VEIC"))
-            t01 = forcar_par(pegar_val("01_TON"))
+            v01 = int(safe_to_numeric(linha.iloc[i_01_v]))
+            t01 = forcar_par(safe_to_numeric(linha.iloc[i_01_t]))
             if v01 > 0 or t01 > 0:
                 destinos_por_status["01"].append({"destino": dest_nome, "veic": v01, "ton": t01})
 
-            vfc = int(pegar_val("FC_VEIC"))
-            tfc = forcar_par(pegar_val("FC_TON"))
+            vfc = int(safe_to_numeric(linha.iloc[i_fc_v]))
+            tfc = forcar_par(safe_to_numeric(linha.iloc[i_fc_t]))
             if vfc > 0 or tfc > 0:
                 destinos_por_status["FC"].append({"destino": dest_nome, "veic": vfc, "ton": tfc})
 
         except Exception as e:
             continue
 
-# O Termo SAP continua sendo lido do Dashboard
-v_qtd_tr = int(df_dash.iloc[0].get("TR_VEIC", 0)) if not df_dash.empty else 0
-v_ton_tr = forcar_par(df_dash.iloc[0].get("TR_TON", 0)) if not df_dash.empty else 0
+# O Termo SAP é o único que vem do Dashboard (df_dash) conforme sua instrução
+v_qtd_tr = int(safe_to_numeric(df_dash.iloc[0].get("TR_VEIC", 0))) if not df_dash.empty else 0
+v_ton_tr = forcar_par(safe_to_numeric(df_dash.iloc[0].get("TR_TON", 0))) if not df_dash.empty else 0
 dados_patio["TR"]["veiculos"] = v_qtd_tr
 dados_patio["TR"]["peso"] = v_ton_tr
 
 total_veiculos_fisicos = dados_patio["00"]["veiculos"] + dados_patio["01"]["veiculos"] + dados_patio["FC"]["veiculos"]
 vol_patio_disponivel = forcar_par(dados_patio["00"]["peso"] + dados_patio["01"]["peso"] + dados_patio["FC"]["peso"])
+
 
 # Mapeamento do Status Virada de Linha
 viradas_info = {}
@@ -512,12 +484,11 @@ blocos_patio = [
 for tit, chv, cor in blocos_patio:
     lista_destinos = destinos_por_status.get(chv, [])
     
-    if lista_destinos:
-        v_qtd = sum([int(item['veic']) for item in lista_destinos])
-        v_ton = forcar_par(sum([float(item['ton']) for item in lista_destinos]))
-    else:
-        v_qtd = 0
-        v_ton = 0.0
+    # -------------------------------------------------------------
+    # Usa os valores exatos retirados da linha de "Total Geral Fábrica"
+    # -------------------------------------------------------------
+    v_qtd = dados_patio.get(chv, {}).get("veiculos", 0)
+    v_ton = dados_patio.get(chv, {}).get("peso", 0)
 
     linhas_dest_html = ""
     if lista_destinos:
@@ -1285,4 +1256,3 @@ st.markdown(html_meta_anual.replace('\n', ''), unsafe_allow_html=True)
 
 
 st.markdown("<br><center><span style='color:#64748b; font-size: 0.75rem; font-weight: normal; letter-spacing: 0.5px;'>A.L.O.V.E - Mobile / Developed by Cristiano Ciriaco</span></center>", unsafe_allow_html=True)
-
