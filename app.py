@@ -9,9 +9,10 @@ from io import StringIO
 import ast
 import re
 
-# 1. IMPORTA O REFRESHER
+# 1. 👈 IMPORTA O REFRESHER
 from streamlit_autorefresh import st_autorefresh
 
+# URL direta da logo no seu GitHub para funcionar como ícone da tela inicial
 LOGO_ALOVE_URL = "https://raw.githubusercontent.com/cris2026/A.L.O.V.E-/main/logo_alove.png"
 
 st.set_page_config(
@@ -21,22 +22,22 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# 2. INICIA O CRONÔMETRO INVISÍVEL
+# 2. 👈 INICIA O CRONÔMETRO INVISÍVEL (60.000 milissegundos = 1 minuto)
 st_autorefresh(interval=60000, limit=None, key="refresh_mobile")
 
 # ==============================================================================
-# 📱 ESTADOS DE NAVEGAÇÃO E AUTENTICAÇÃO
+# 🔑 CONTROLE DE ACESSO - BAFÔMETRO & NAVEGAÇÃO
 # ==============================================================================
-if "tela_ativa" not in st.session_state:
-    st.session_state.tela_ativa = "home"
-    
+SENHA_BAFOMETRO = "alove2026"  
+
 if "bafometro_autenticado" not in st.session_state:
     st.session_state.bafometro_autenticado = False
 
-SENHA_BAFOMETRO = "alove2026"
+if "tela_ativa" not in st.session_state:
+    st.session_state.tela_ativa = "home"
 
 # ==============================================================================
-# 📱 INJEÇÃO DE METATAGS
+# 📱 INJEÇÃO DE METATAGS E CSS AVANÇADO
 # ==============================================================================
 st.markdown(f"""
     <!-- Metatags para App Nativo / Tela Cheia Mobile -->
@@ -49,9 +50,6 @@ st.markdown(f"""
     <link rel="icon" type="image/png" href="{LOGO_ALOVE_URL}">
 """, unsafe_allow_html=True)
 
-# ==============================================================================
-# 🎨 CSS AVANÇADO GLOBAL E TELA INICIAL
-# ==============================================================================
 st.markdown("""
     <style>
         header[data-testid="stHeader"] { display: none !important; height: 0px !important; }
@@ -60,18 +58,33 @@ st.markdown("""
         .block-container { padding-top: 1.2rem !important; padding-bottom: 2rem !important; padding-left: 0.8rem !important; padding-right: 0.8rem !important; }
         input[type="radio"] { display: none; }
         
-        /* ---------------- TELA INICIAL (GRID 2x2) ---------------- */
-        .home-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+        /* ---------------- HACK: TRANSFORMA BOTÕES EM CARDS ---------------- */
+        /* Remove o visual padrão dos botões do Streamlit no Grid */
+        div[data-testid="column"] button {
+            height: 100% !important;
+            width: 100% !important;
+            min-height: 160px;
+            background-color: transparent !important;
+            border: none !important;
+            padding: 0 !important;
+        }
         
+        /* O conteúdo do botão será o nosso card HTML */
+        div[data-testid="column"] button p {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+        }
+
         .home-card { 
             background-color: #05080f; border-radius: 12px; padding: 14px; position: relative;
             box-shadow: 0 4px 6px rgba(0,0,0,0.3); text-align: left;
-            display: flex; flex-direction: column; justify-content: space-between; min-height: 160px;
+            display: flex; flex-direction: column; justify-content: space-between; height: 100%;
         }
         .home-card .title { font-size: 0.75rem; font-weight: bold; text-transform: uppercase; margin-bottom: 8px; }
         .home-card .icon { font-size: 1.8rem; margin: 4px 0; }
         .home-card .main-val { font-size: 1.8rem; font-weight: bold; color: #ffffff; line-height: 1; margin-bottom: 4px;}
-        .home-card .sub-val { font-size: 0.75rem; color: #cbd5e1; margin-top: 4px; }
+        .home-card .sub-val { font-size: 0.75rem; color: #cbd5e1; margin-top: 4px; font-weight:normal; }
         
         .card-cyan { border: 2px solid #00f3ff; box-shadow: 0 0 10px rgba(0, 243, 255, 0.15); }
         .card-cyan .title { color: #00f3ff; }
@@ -85,10 +98,7 @@ st.markdown("""
         
         .card-purple { border: 2px solid #9b59b6; box-shadow: 0 0 10px rgba(155, 89, 182, 0.15); }
         .card-purple .title { color: #9b59b6; }
-        
-        /* Botões invisíveis sobrepostos aos cards para navegação */
-        .btn-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; z-index: 10; }
-        
+
         /* ---------------- ELEMENTOS DE DETALHE (MASTER BOX) ---------------- */
         summary { list-style: none; outline: none; }
         summary::-webkit-details-marker { display: none; }
@@ -96,6 +106,7 @@ st.markdown("""
         details.master-box > summary { cursor: pointer; padding: 14px 16px; position: relative; -webkit-tap-highlight-color: transparent; }
         details.master-box > summary::after { content: '▼'; position: absolute; right: 16px; top: 16px; font-size: 0.8rem; color: #64748b; transition: transform 0.3s ease; }
         details.master-box[open] > summary::after { transform: rotate(180deg); }
+        
         .header-layout { display: flex; align-items: center; margin-bottom: 8px; gap: 8px; }
         .icon-box { width: 28px; height: 28px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; }
         .master-metric-title { color: #ffffff; font-size: 0.85rem; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px; }
@@ -124,14 +135,18 @@ st.markdown("""
         .frota-tabs-main label { padding: 8px 16px; background-color: #162438; color: #94a3b8; border-radius: 6px; cursor: pointer; border: 1px solid #1c2b42; font-weight: normal; font-size: 0.9rem; transition: 0.2s; }
         .frota-tabs-sub { display: flex; gap: 6px; justify-content: center; margin-bottom: 14px; }
         .frota-tabs-sub label { padding: 6px 12px; background-color: #111c2e; color: #64748b; border-radius: 6px; cursor: pointer; border: 1px solid #1c2b42; font-weight: normal; font-size: 0.8rem; transition: 0.2s; }
+
         .f-rad-main, .f-rad-sub { display: none; }
         .f-content-dia { display: none; animation: fadeIn 0.3s ease; }
+        
         #frota_dia_ontem:checked ~ .frota-tabs-main .lbl-f-ontem { background-color: #38bdf8; color: #0a101d; border-color: #38bdf8; }
         #frota_dia_hoje:checked ~ .frota-tabs-main .lbl-f-hoje { background-color: #E67E22; color: #0a101d; border-color: #E67E22; }
         #frota_dia_ontem:checked ~ #frota_box_ontem { display: block; }
         #frota_dia_hoje:checked ~ #frota_box_hoje { display: block; }
+
         .f-content-turno-hoje, .f-content-turno-ontem { display: none; background-color: #05080f; padding: 14px; border-radius: 8px; border: 1px solid #1c2b42; text-align: left; }
         #frota_h_00:checked ~ .frota-tabs-sub .lbl-h-00, #frota_h_08:checked ~ .frota-tabs-sub .lbl-h-08, #frota_h_16:checked ~ .frota-tabs-sub .lbl-h-16, #frota_o_00:checked ~ .frota-tabs-sub .lbl-o-00, #frota_o_08:checked ~ .frota-tabs-sub .lbl-o-08, #frota_o_16:checked ~ .frota-tabs-sub .lbl-o-16 { background-color: #0d2417; color: #00D672; border-color: #00D672; }
+        
         #frota_h_00:checked ~ #frota_h_content_00, #frota_h_08:checked ~ #frota_h_content_08, #frota_h_16:checked ~ #frota_h_content_16, #frota_o_00:checked ~ #frota_o_content_00, #frota_o_08:checked ~ #frota_o_content_08, #frota_o_16:checked ~ #frota_o_content_16 { display: block; }
 
         .f-tag-ok { background-color: #00D672; color: #0a101d; }
@@ -503,7 +518,7 @@ if st.session_state.tela_ativa == "home":
     col1, col2 = st.columns(2)
     
     with col1:
-        st.markdown(f"""
+        if st.button(f"""
         <div class="home-card card-cyan">
             <div class="title">PREVISÕES E TURNO.</div>
             <div class="sub-val">DATA: {hoje_date.strftime('%d/%m/%Y')}</div>
@@ -513,12 +528,11 @@ if st.session_state.tela_ativa == "home":
             <div class="sub-val">PREV. EXPEDIÇÃO:</div>
             <div class="main-val" style="color:#ff7700;">{prev_carr:,.0f} <span style="font-size:0.8rem;">t</span></div>
         </div>
-        """, unsafe_allow_html=True)
-        if st.button("ABRIR", key="b1", use_container_width=True):
+        """, key="b1", use_container_width=True):
             st.session_state.tela_ativa = "expedicao"
             st.rerun()
 
-        st.markdown(f"""
+        if st.button(f"""
         <div class="home-card card-orange" style="margin-top:12px;">
             <div class="title">PRODUÇÃO.</div>
             <div class="icon">🏭</div>
@@ -526,13 +540,12 @@ if st.session_state.tela_ativa == "home":
             <div class="sub-val">TOTAL PRODUZIDO</div>
             <div class="sub-val" style="margin-top:6px;">MS1: {p_ms1:,.0f} t | MS2: {p_ms2:,.0f} t</div>
         </div>
-        """, unsafe_allow_html=True)
-        if st.button("ABRIR", key="b2", use_container_width=True):
+        """, key="b2", use_container_width=True):
             st.session_state.tela_ativa = "producao"
             st.rerun()
 
     with col2:
-        st.markdown(f"""
+        if st.button(f"""
         <div class="home-card card-green">
             <div class="title">VEÍCULOS FÁBRICA.</div>
             <div class="icon">🚛</div>
@@ -540,12 +553,11 @@ if st.session_state.tela_ativa == "home":
             <div class="sub-val">VEÍCULOS NO PÁTIO</div>
             <div class="sub-val" style="margin-top:16px;">CARGA DISPONÍVEL: {vol_patio_disponivel:,.0f} t</div>
         </div>
-        """, unsafe_allow_html=True)
-        if st.button("ABRIR", key="b3", use_container_width=True):
+        """, key="b3", use_container_width=True):
             st.session_state.tela_ativa = "patio"
             st.rerun()
 
-        st.markdown(f"""
+        if st.button(f"""
         <div class="home-card card-purple" style="margin-top:12px;">
             <div class="title">STATUS ARMAZÉM.</div>
             <div class="icon">📦</div>
@@ -553,8 +565,7 @@ if st.session_state.tela_ativa == "home":
             <div class="main-val">{estoque_total:,.0f} <span style="font-size:0.8rem;">t</span></div>
             <div class="sub-val" style="margin-top:8px;">STATUS: {status_transbordo}</div>
         </div>
-        """, unsafe_allow_html=True)
-        if st.button("ABRIR", key="b4", use_container_width=True):
+        """, key="b4", use_container_width=True):
             st.session_state.tela_ativa = "estoque"
             st.rerun()
 
