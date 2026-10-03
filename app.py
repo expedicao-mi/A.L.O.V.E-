@@ -290,8 +290,8 @@ if not df_dash.empty:
     else:
         ritmo_torre = ritmo_torre_bruto
 
-# # ==============================================================================
-# 🎯 CORREÇÃO V3: Agrupamento de Destinos e Leitura Exata da Linha de Totais
+# ==============================================================================
+# 🎯 CORREÇÃO V4: Agrupamento de Destinos (Acesso Seguro por NOME de Coluna)
 # ==============================================================================
 destinos_por_status = {
     "PR": [], "00": [], "01": [], "FC": [], "TR": []
@@ -306,65 +306,69 @@ dados_patio = {
 }
 
 if not df_patio_dest.empty:
-    # A estrutura visual do Sheets garante que as colunas são:
-    # 0=Destino, 1=PR_V, 2=PR_T, 3=00_V, 4=00_T, 5=01_V, 6=01_T, 7=FC_V, 8=FC_T
-    # As colunas J e K (9 e 10) são ignoradas conforme sua instrução.
-    
-    for idx in range(len(df_patio_dest)):
-        linha = df_patio_dest.iloc[idx]
+    # Acessamos por nome para evitar problemas de índices deslocados pelo Pandas.
+    for _, linha in df_patio_dest.iterrows():
+        # Pega a primeira coluna (geralmente "DESTINO" ou o próprio nome do destino)
         dest_nome = str(linha.iloc[0]).strip()
         
         if not dest_nome or dest_nome.upper() in ["NAN", "NONE", "DESTINO", "TOTAL", ""]:
             continue
             
         try:
+            # Função auxiliar segura para pegar por nome
+            def pegar_val(nome_coluna):
+                # Procura a coluna exata ou uma que contenha o nome (ex: "FC_VEIC.1")
+                for col in df_patio_dest.columns:
+                    if nome_coluna in str(col).upper():
+                        return safe_to_numeric(linha.get(col, 0))
+                return 0.0
+
             # ---------------------------------------------------------
             # 1. SE FOR A LINHA DE TOTAL GERAL: CAPTURA OS VALORES DELA
             # ---------------------------------------------------------
             if "TOTAL GERAL FÁBRICA" in dest_nome.upper():
-                dados_patio["PR"]["veiculos"] = int(safe_to_numeric(linha.iloc[1]))
-                dados_patio["PR"]["peso"] = forcar_par(safe_to_numeric(linha.iloc[2]))
+                dados_patio["PR"]["veiculos"] = int(pegar_val("PR_VEIC"))
+                dados_patio["PR"]["peso"] = forcar_par(pegar_val("PR_TON"))
                 
-                dados_patio["00"]["veiculos"] = int(safe_to_numeric(linha.iloc[3]))
-                dados_patio["00"]["peso"] = forcar_par(safe_to_numeric(linha.iloc[4]))
+                dados_patio["00"]["veiculos"] = int(pegar_val("00_VEIC"))
+                dados_patio["00"]["peso"] = forcar_par(pegar_val("00_TON"))
                 
-                dados_patio["01"]["veiculos"] = int(safe_to_numeric(linha.iloc[5]))
-                dados_patio["01"]["peso"] = forcar_par(safe_to_numeric(linha.iloc[6]))
+                dados_patio["01"]["veiculos"] = int(pegar_val("01_VEIC"))
+                dados_patio["01"]["peso"] = forcar_par(pegar_val("01_TON"))
                 
-                dados_patio["FC"]["veiculos"] = int(safe_to_numeric(linha.iloc[7]))
-                dados_patio["FC"]["peso"] = forcar_par(safe_to_numeric(linha.iloc[8]))
+                dados_patio["FC"]["veiculos"] = int(pegar_val("FC_VEIC"))
+                dados_patio["FC"]["peso"] = forcar_par(pegar_val("FC_TON"))
                 
-                # Interrompe a execução desta linha para não cadastrar o total como destino
+                # Ignora a inserção na lista de destinos
                 continue
             
             # ---------------------------------------------------------
             # 2. SE FOR DESTINO NORMAL: POPULA AS LISTAS DE DETALHES
             # ---------------------------------------------------------
-            pr_v = int(safe_to_numeric(linha.iloc[1]))
-            pr_t = forcar_par(safe_to_numeric(linha.iloc[2]))
+            pr_v = int(pegar_val("PR_VEIC"))
+            pr_t = forcar_par(pegar_val("PR_TON"))
             if pr_v > 0 or pr_t > 0:
                 destinos_por_status["PR"].append({"destino": dest_nome, "veic": pr_v, "ton": pr_t})
 
-            v00 = int(safe_to_numeric(linha.iloc[3]))
-            t00 = forcar_par(safe_to_numeric(linha.iloc[4]))
+            v00 = int(pegar_val("00_VEIC"))
+            t00 = forcar_par(pegar_val("00_TON"))
             if v00 > 0 or t00 > 0:
                 destinos_por_status["00"].append({"destino": dest_nome, "veic": v00, "ton": t00})
 
-            v01 = int(safe_to_numeric(linha.iloc[5]))
-            t01 = forcar_par(safe_to_numeric(linha.iloc[6]))
+            v01 = int(pegar_val("01_VEIC"))
+            t01 = forcar_par(pegar_val("01_TON"))
             if v01 > 0 or t01 > 0:
                 destinos_por_status["01"].append({"destino": dest_nome, "veic": v01, "ton": t01})
 
-            vfc = int(safe_to_numeric(linha.iloc[7]))
-            tfc = forcar_par(safe_to_numeric(linha.iloc[8]))
+            vfc = int(pegar_val("FC_VEIC"))
+            tfc = forcar_par(pegar_val("FC_TON"))
             if vfc > 0 or tfc > 0:
                 destinos_por_status["FC"].append({"destino": dest_nome, "veic": vfc, "ton": tfc})
 
         except Exception as e:
-            # Ignora eventuais quebras em células vazias
             continue
 
-# O Termo SAP continua sendo lido do Dashboard (já fizemos lá em cima, mas garantimos os principais aqui)
+# O Termo SAP continua sendo lido do Dashboard
 v_qtd_tr = int(df_dash.iloc[0].get("TR_VEIC", 0)) if not df_dash.empty else 0
 v_ton_tr = forcar_par(df_dash.iloc[0].get("TR_TON", 0)) if not df_dash.empty else 0
 dados_patio["TR"]["veiculos"] = v_qtd_tr
@@ -372,6 +376,7 @@ dados_patio["TR"]["peso"] = v_ton_tr
 
 total_veiculos_fisicos = dados_patio["00"]["veiculos"] + dados_patio["01"]["veiculos"] + dados_patio["FC"]["veiculos"]
 vol_patio_disponivel = forcar_par(dados_patio["00"]["peso"] + dados_patio["01"]["peso"] + dados_patio["FC"]["peso"])
+
 
 # Mapeamento do Status Virada de Linha
 viradas_info = {}
