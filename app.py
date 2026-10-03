@@ -1285,3 +1285,4 @@ st.markdown(html_meta_anual.replace('\n', ''), unsafe_allow_html=True)
 
 
 st.markdown("<br><center><span style='color:#64748b; font-size: 0.75rem; font-weight: normal; letter-spacing: 0.5px;'>A.L.O.V.E - Mobile / Developed by Cristiano Ciriaco</span></center>", unsafe_allow_html=True)
+
