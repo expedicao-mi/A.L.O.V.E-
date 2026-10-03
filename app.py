@@ -289,29 +289,10 @@ if not df_dash.empty:
         ritmo_torre = "RITMO DE ATUALIZAÇÃO: RÁPIDO"
     else:
         ritmo_torre = ritmo_torre_bruto
-    
-    dados_patio["PR"] = {"veiculos": int(safe_to_numeric(row_d.get("PR_VEIC", 0))), "peso": forcar_par(safe_to_numeric(row_d.get("PR_TON", 0)))}
-    dados_patio["00"] = {"veiculos": int(safe_to_numeric(row_d.get("00_VEIC", 0))), "peso": forcar_par(safe_to_numeric(row_d.get("00_TON", 0)))}
-    dados_patio["01"] = {"veiculos": int(safe_to_numeric(row_d.get("01_VEIC", 0))), "peso": forcar_par(safe_to_numeric(row_d.get("01_TON", 0)))}
-    dados_patio["FC"] = {"veiculos": int(safe_to_numeric(row_d.get("FC_VEIC", 0))), "peso": forcar_par(safe_to_numeric(row_d.get("FC_TON", 0)))}
-    dados_patio["TR"] = {"veiculos": int(safe_to_numeric(row_d.get("TR_VEIC", 0))), "peso": forcar_par(safe_to_numeric(row_d.get("TR_TON", 0)))}
 
-total_veiculos_fisicos = dados_patio["00"]["veiculos"] + dados_patio["01"]["veiculos"] + dados_patio["FC"]["veiculos"]
-vol_patio_disponivel = forcar_par(dados_patio["00"]["peso"] + dados_patio["01"]["peso"] + dados_patio["FC"]["peso"])
-
-# Mapeamento do Status Virada de Linha
-viradas_info = {}
-if not df_status_virada.empty:
-    for _, row_st in df_status_virada.iterrows():
-        linha = str(row_st.get("LINHA", "")).strip().upper()
-        viradas_info[linha] = {
-            "prox_mat": str(row_st.get("PROXIMO_MATERIAL", "--")),
-            "prev_virada": str(row_st.get("PREVISAO_VIRADA", "--")),
-            "saldo_rest": forcar_par(safe_to_numeric(row_st.get("SALDO_RESTANTE_T", 0))),
-            "status_email": str(row_st.get("STATUS_EMAIL_TROCA", "N/D"))
-        }
-
-# Agrupamento de Destinos por Status (Patio)
+# ==============================================================================
+# 🎯 CORREÇÃO: Agrupamento de Destinos por Status (Patio) direto da aba detalhada
+# ==============================================================================
 destinos_por_status = {
     "PR": [], "00": [], "01": [], "FC": [], "TR": []
 }
@@ -327,19 +308,54 @@ if not df_patio_dest.empty:
 
             pr_v = int(extrair_val("PR_VEIC", 1))
             pr_t = forcar_par(extrair_val("PR_TON", 2))
-            if pr_v > 0 or pr_t > 0: destinos_por_status["PR"].append({"destino": dest_nome, "veic": pr_v, "ton": pr_t})
+            if pr_v > 0 or pr_t > 0: 
+                destinos_por_status["PR"].append({"destino": dest_nome, "veic": pr_v, "ton": pr_t})
+                dados_patio["PR"]["veiculos"] += pr_v
+                dados_patio["PR"]["peso"] += pr_t
 
             v00 = int(extrair_val("00_VEIC", 3))
             t00 = forcar_par(extrair_val("00_TON", 4))
-            if v00 > 0 or t00 > 0: destinos_por_status["00"].append({"destino": dest_nome, "veic": v00, "ton": t00})
+            if v00 > 0 or t00 > 0: 
+                destinos_por_status["00"].append({"destino": dest_nome, "veic": v00, "ton": t00})
+                dados_patio["00"]["veiculos"] += v00
+                dados_patio["00"]["peso"] += t00
 
             v01 = int(extrair_val("01_VEIC", 5))
             t01 = forcar_par(extrair_val("01_TON", 6))
-            if v01 > 0 or t01 > 0: destinos_por_status["01"].append({"destino": dest_nome, "veic": v01, "ton": t01})
+            if v01 > 0 or t01 > 0: 
+                destinos_por_status["01"].append({"destino": dest_nome, "veic": v01, "ton": t01})
+                dados_patio["01"]["veiculos"] += v01
+                dados_patio["01"]["peso"] += t01
 
             vfc = int(extrair_val("FC_VEIC", 7))
             tfc = forcar_par(extrair_val("FC_TON", 8))
-            if vfc > 0 or tfc > 0: destinos_por_status["FC"].append({"destino": dest_nome, "veic": vfc, "ton": tfc})
+            if vfc > 0 or tfc > 0: 
+                destinos_por_status["FC"].append({"destino": dest_nome, "veic": vfc, "ton": tfc})
+                dados_patio["FC"]["veiculos"] += vfc
+                dados_patio["FC"]["peso"] += tfc
+                
+            # Tratamento para TR caso exista nas colunas futuras
+            vtr = int(extrair_val("TR_VEIC", 9))
+            ttr = forcar_par(extrair_val("TR_TON", 10))
+            if vtr > 0 or ttr > 0:
+                destinos_por_status["TR"].append({"destino": dest_nome, "veic": vtr, "ton": ttr})
+                dados_patio["TR"]["veiculos"] += vtr
+                dados_patio["TR"]["peso"] += ttr
+
+total_veiculos_fisicos = dados_patio["00"]["veiculos"] + dados_patio["01"]["veiculos"] + dados_patio["FC"]["veiculos"]
+vol_patio_disponivel = forcar_par(dados_patio["00"]["peso"] + dados_patio["01"]["peso"] + dados_patio["FC"]["peso"])
+
+# Mapeamento do Status Virada de Linha
+viradas_info = {}
+if not df_status_virada.empty:
+    for _, row_st in df_status_virada.iterrows():
+        linha = str(row_st.get("LINHA", "")).strip().upper()
+        viradas_info[linha] = {
+            "prox_mat": str(row_st.get("PROXIMO_MATERIAL", "--")),
+            "prev_virada": str(row_st.get("PREVISAO_VIRADA", "--")),
+            "saldo_rest": forcar_par(safe_to_numeric(row_st.get("SALDO_RESTANTE_T", 0))),
+            "status_email": str(row_st.get("STATUS_EMAIL_TROCA", "N/D"))
+        }
 
 # Extração do Balanço de Expedição por Destino
 balanco_destinos = []
@@ -361,7 +377,6 @@ if not df_balanco_dest.empty:
         if dest_nome.upper() == "TOTAL EXPEDIÇÃO":
             total_expedicao_meta = meta_val
             total_expedicao_real = real_val
-        # REMOVIDO: a condição `elif meta_val > 0 or real_val > 0` que escondia destinos.
         else:
             balanco_destinos.append({
                 "destino": dest_nome, "meta": meta_val, "realizado": real_val,
@@ -482,10 +497,6 @@ blocos_patio = [
 for tit, chv, cor in blocos_patio:
     lista_destinos = destinos_por_status.get(chv, [])
     
-    # -------------------------------------------------------------
-    # 🎯 CORREÇÃO CRÍTICA: Os totais do card agora são a soma exata 
-    # da lista de destinos para evitar qualquer divergência visual.
-    # -------------------------------------------------------------
     if lista_destinos:
         v_qtd = sum([int(item['veic']) for item in lista_destinos])
         v_ton = forcar_par(sum([float(item['ton']) for item in lista_destinos]))
@@ -733,68 +744,6 @@ def buscar_dados_turnos_historico(data_alvo):
         return {"ativo_key": ativo_key, "turnos": turnos_exibir, "total_dia": total_dia}
     except Exception:
         return None
-
-def obter_metas_plano_dinamico(data_base_sap):
-    """Lê a aba Plano_Expedicao_Vigente e extrai as metas específicas para a data atual."""
-    metas_dinamicas = {
-        "MI / LATAM": 0.0, "1680": 0.0, "1440": 0.0, "1630": 0.0,
-        "1720": 0.0, "1730": 0.0, "1740": 0.0, "1520": 0.0
-    }
-    try:
-        import gspread
-        from oauth2client.service_account import ServiceAccountCredentials
-        import os
-        
-        pasta_core = os.path.dirname(os.path.abspath(__file__))
-        creds = ServiceAccountCredentials.from_json_keyfile_name(os.path.join(pasta_core, "credentials.json"), ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"])
-        planilha = gspread.authorize(creds).open_by_key("10FluiIwlynIlPDA74QI8mpHSIrAc-62H1hZNRBsvfCA")
-        dados = planilha.worksheet("Plano_Expedicao_Vigente").get_all_values()
-        
-        if not dados: return metas_dinamicas
-
-        # Formata data_base_sap (20261001 -> 01/10/2026)
-        data_str = f"{data_base_sap[6:8]}/{data_base_sap[4:6]}/{data_base_sap[0:4]}" if len(data_base_sap) == 8 else data_base_sap
-
-        idx_coluna = -1
-        # Procura a coluna da data nas primeiras 10 linhas
-        for linha in dados[:10]:
-            for i_col, valor in enumerate(linha):
-                if data_str in str(valor).strip():
-                    idx_coluna = i_col
-                    break
-            if idx_coluna != -1: break
-
-        if idx_coluna == -1:
-            print(f"[PLANO NUVEM] ⚠️ Data {data_str} não encontrada no Excel. Metas zeradas.")
-            return metas_dinamicas
-
-        # Lê os destinos e metas dessa coluna
-        for linha in dados:
-            if len(linha) > idx_coluna:
-                destino_cru = str(linha[0]).strip().upper()
-                try:
-                    valor_num = float(str(linha[idx_coluna]).strip().replace(".", "").replace(",", "."))
-                except ValueError:
-                    continue
-
-                d_macro = None
-                if "MI" in destino_cru or "LATAM" in destino_cru: d_macro = "MI / LATAM"
-                elif "1680" in destino_cru or "EBLOG" in destino_cru: d_macro = "1680"
-                elif "1440" in destino_cru or "ITAPOA" in destino_cru: d_macro = "1440"
-                elif "1630" in destino_cru or "MAERSK" in destino_cru: d_macro = "1630"
-                elif "1720" in destino_cru or "ITAJAÍ" in destino_cru: d_macro = "1720"
-                elif "1730" in destino_cru or "ZIRAN" in destino_cru: d_macro = "1730"
-                elif "1740" in destino_cru or "DEEP" in destino_cru: d_macro = "1740"
-                elif "1520" in destino_cru or "TIJU" in destino_cru: d_macro = "1520"
-                
-                if d_macro:
-                    metas_dinamicas[d_macro] = metas_dinamicas.get(d_macro, 0.0) + valor_num
-
-        print(f"[PLANO NUVEM] ✅ Metas extraídas com sucesso para o dia {data_str}!")
-        return metas_dinamicas
-    except Exception as e:
-        print(f"[PLANO NUVEM] ❌ Erro ao ler metas da nuvem: {e}")
-        return metas_dinamicas
 
 # ==============================================================================
 # 🚚 BLOCO 3: EXPEDIÇÃO DO DIA & TURNOS E DESTINOS
@@ -1252,7 +1201,72 @@ html_glp += '</details>'
 st.markdown(html_glp, unsafe_allow_html=True)
 
 
+# ==============================================================================
+# 📊 BLOCO 7: COMPARATIVO PRODUÇÃO vs EXPEDIÇÃO (MOVIDO PARA O FINAL)
+# ==============================================================================
+hoje_dt = date.today()
+fim_ano = date(hoje_dt.year, 12, 31)
+dias_restantes = max(1, (fim_ano - hoje_dt).days)
+meta_teto_estoque = 3468.0
 
+carr_base_ano = 1362558.0 
+prod_base_ano = 1362676.0 
+ritmo_esperado_dia = 5200.0
+
+carr_ano_atual = forcar_par(carr_base_ano + vol_hoje)
+prod_ano_atual = forcar_par(prod_base_ano + prod_hoje_calc)
+
+diff_prod_carr = forcar_par(abs(prod_ano_atual - carr_ano_atual))
+
+if carr_ano_atual >= prod_ano_atual:
+    txt_variacao = f"+{diff_prod_carr:,.0f} t (Expedição Superando)"
+    cor_variacao = "#00D672"
+else:
+    txt_variacao = f"+{diff_prod_carr:,.0f} t (Produção Superando)"
+    cor_variacao = "#FF9F1C"
+
+excesso_estoque = max(0.0, estoque_total - meta_teto_estoque)
+ritmo_extra_dia = excesso_estoque / dias_restantes
+meta_diaria_carr = forcar_par(ritmo_esperado_dia + ritmo_extra_dia)
+
+proj_prod_fechamento = forcar_par(prod_ano_atual + (dias_restantes * ritmo_esperado_dia))
+carr_futuro_nec = (estoque_total + (dias_restantes * ritmo_esperado_dia)) - meta_teto_estoque
+proj_carr_fechamento = forcar_par(carr_ano_atual + carr_futuro_nec)
+
+html_meta_anual = f"""
+<details class="master-box" style="border-left-color: #007BFF;" open>
+    <summary>
+        <div class="header-layout">
+            <div class="icon-box" style="background-color: rgba(0, 123, 255, 0.15); color: #007BFF;">📊</div>
+            <div class="master-metric-title">Comparativo Produção vs Expedição</div>
+        </div>
+        <div class="value-layout">
+            <div class="master-metric-val">{carr_ano_atual:,.0f}</div>
+            <div class="master-metric-unit">t Expedidas</div>
+        </div>
+        <div class="master-metric-sub" style="color: #007BFF;">Meta Diária Necessária: {meta_diaria_carr:,.0f} t/dia</div>
+    </summary>
+    <div class="master-content" style="padding-top:16px;">
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px;">
+            <div style="background-color:#0a101d; border:1px solid #1c2b42; border-radius:8px; padding:10px;">
+                <div style="font-size:0.75rem; color:#007BFF; font-weight:bold; text-transform:uppercase;">EXPEDIÇÃO ANUAL</div>
+                <div style="font-size:1.4rem; font-weight:bold; color:#fff; margin:4px 0;">{carr_ano_atual:,.0f} <span style="font-size:0.8rem; color:#64748b; font-weight:normal;">t</span></div>
+                <div style="font-size:0.7rem; color:#64748b;">Proj. 31/12: <span style="color:#007BFF;">{proj_carr_fechamento:,.0f} t</span></div>
+            </div>
+            <div style="background-color:#0a101d; border:1px solid #1c2b42; border-radius:8px; padding:10px;">
+                <div style="font-size:0.75rem; color:#00D672; font-weight:bold; text-transform:uppercase;">PRODUÇÃO ANUAL</div>
+                <div style="font-size:1.4rem; font-weight:bold; color:#fff; margin:4px 0;">{prod_ano_atual:,.0f} <span style="font-size:0.8rem; color:#64748b; font-weight:normal;">t</span></div>
+                <div style="font-size:0.7rem; color:#64748b;">Proj. 31/12: <span style="color:#00D672;">{proj_prod_fechamento:,.0f} t</span></div>
+            </div>
+        </div>
+        <div style="background-color:#0a101d; border:1px solid #1c2b42; border-radius:8px; padding:12px; font-size:0.82rem; color:#cbd5e1; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;">
+            <span>Variação Produção vs Expedição: <span style="color:{cor_variacao}; font-size:0.9rem; font-weight:bold;">{txt_variacao}</span></span>
+            <span>Estoque de Virada 25/26: <span style="color:#38bdf8; font-size:0.9rem; font-weight:bold;">3.468 t</span></span>
+        </div>
+    </div>
+</details>
+"""
+st.markdown(html_meta_anual.replace('\n', ''), unsafe_allow_html=True)
 
 
 st.markdown("<br><center><span style='color:#64748b; font-size: 0.75rem; font-weight: normal; letter-spacing: 0.5px;'>A.L.O.V.E - Mobile / Developed by Cristiano Ciriaco</span></center>", unsafe_allow_html=True)
