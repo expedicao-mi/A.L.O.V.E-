@@ -7,6 +7,7 @@ import requests
 import csv
 from io import StringIO
 import ast
+import re
 
 # 1. 👈 IMPORTA O REFRESHER
 from streamlit_autorefresh import st_autorefresh
@@ -265,14 +266,6 @@ estoque_total = 0
 status_transbordo = "NORMAL"
 ritmo_torre = "NORMAL"
 
-dados_patio = {
-    "PR": {"veiculos": 0, "peso": 0},
-    "00": {"veiculos": 0, "peso": 0},
-    "01": {"veiculos": 0, "peso": 0},
-    "FC": {"veiculos": 0, "peso": 0},
-    "TR": {"veiculos": 0, "peso": 0}
-}
-
 if not df_dash.empty:
     row_d = df_dash.iloc[0]
     ultima_att = str(row_d.get("DATA_HORA", ultima_att))
@@ -306,26 +299,20 @@ dados_patio = {
 }
 
 if not df_patio_dest.empty:
-    # Acessamos por nome para evitar problemas de índices deslocados pelo Pandas.
     for _, linha in df_patio_dest.iterrows():
-        # Pega a primeira coluna (geralmente "DESTINO" ou o próprio nome do destino)
         dest_nome = str(linha.iloc[0]).strip()
         
         if not dest_nome or dest_nome.upper() in ["NAN", "NONE", "DESTINO", "TOTAL", ""]:
             continue
             
         try:
-            # Função auxiliar segura para pegar por nome
             def pegar_val(nome_coluna):
-                # Procura a coluna exata ou uma que contenha o nome (ex: "FC_VEIC.1")
                 for col in df_patio_dest.columns:
                     if nome_coluna in str(col).upper():
                         return safe_to_numeric(linha.get(col, 0))
                 return 0.0
 
-            # ---------------------------------------------------------
             # 1. SE FOR A LINHA DE TOTAL GERAL: CAPTURA OS VALORES DELA
-            # ---------------------------------------------------------
             if "TOTAL GERAL FÁBRICA" in dest_nome.upper():
                 dados_patio["PR"]["veiculos"] = int(pegar_val("PR_VEIC"))
                 dados_patio["PR"]["peso"] = forcar_par(pegar_val("PR_TON"))
@@ -338,13 +325,9 @@ if not df_patio_dest.empty:
                 
                 dados_patio["FC"]["veiculos"] = int(pegar_val("FC_VEIC"))
                 dados_patio["FC"]["peso"] = forcar_par(pegar_val("FC_TON"))
-                
-                # Ignora a inserção na lista de destinos
                 continue
             
-            # ---------------------------------------------------------
             # 2. SE FOR DESTINO NORMAL: POPULA AS LISTAS DE DETALHES
-            # ---------------------------------------------------------
             pr_v = int(pegar_val("PR_VEIC"))
             pr_t = forcar_par(pegar_val("PR_TON"))
             if pr_v > 0 or pr_t > 0:
@@ -376,7 +359,6 @@ dados_patio["TR"]["peso"] = v_ton_tr
 
 total_veiculos_fisicos = dados_patio["00"]["veiculos"] + dados_patio["01"]["veiculos"] + dados_patio["FC"]["veiculos"]
 vol_patio_disponivel = forcar_par(dados_patio["00"]["peso"] + dados_patio["01"]["peso"] + dados_patio["FC"]["peso"])
-
 
 # Mapeamento do Status Virada de Linha
 viradas_info = {}
