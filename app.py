@@ -322,7 +322,7 @@ if not df_patio_dest.empty:
         except Exception as e:
             continue
 
-# O Termo SAP é o único que vem do Dashboard (df_dash) conforme sua instrução
+# O Termo SAP continua sendo lido do Dashboard (df_dash) conforme sua instrução
 v_qtd_tr = int(safe_to_numeric(df_dash.iloc[0].get("TR_VEIC", 0))) if not df_dash.empty else 0
 v_ton_tr = forcar_par(safe_to_numeric(df_dash.iloc[0].get("TR_TON", 0))) if not df_dash.empty else 0
 dados_patio["TR"]["veiculos"] = v_qtd_tr
@@ -330,7 +330,6 @@ dados_patio["TR"]["peso"] = v_ton_tr
 
 total_veiculos_fisicos = dados_patio["00"]["veiculos"] + dados_patio["01"]["veiculos"] + dados_patio["FC"]["veiculos"]
 vol_patio_disponivel = forcar_par(dados_patio["00"]["peso"] + dados_patio["01"]["peso"] + dados_patio["FC"]["peso"])
-
 
 # Mapeamento do Status Virada de Linha
 viradas_info = {}
@@ -521,9 +520,9 @@ for tit, chv, cor in blocos_patio:
     </details>
     """
 
-# Ajuste do card do Termo SAP
-v_qtd_tr = int(dados_patio.get("TR", {}).get("veiculos", 0))
-v_ton_tr = forcar_par(dados_patio.get("TR", {}).get("peso", 0))
+# O Termo SAP agora já vem capturado de forma garantida lá em cima!
+v_qtd_tr = dados_patio.get("TR", {}).get("veiculos", 0)
+v_ton_tr = dados_patio.get("TR", {}).get("peso", 0)
 
 html_patio += f"""
 <div style="background-color:#0a101d; border:1px solid #1c2b42; border-left:4px solid #95A5A6; border-radius:8px; padding:10px 14px; display:flex; justify-content:space-between; align-items:center;">
