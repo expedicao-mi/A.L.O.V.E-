@@ -131,23 +131,21 @@ def forcar_par(valor):
 def carregar_dados_nuvem(worksheet_name: str, cabecalho=0):
     sheet_encoded = urllib.parse.quote(worksheet_name)
     url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet={sheet_encoded}"
-    
     try:
-        # Puxa o CSV bruto primeiro sem forçar cabeçalho
         resp = requests.get(url, timeout=10)
         resp.encoding = 'utf-8'
         
-        # Lê o CSV pulando as linhas necessárias (skiprows)
-        # Se for a aba Patio_Destino_Status, pula as 2 primeiras linhas problemáticas
+        # Pula as duas primeiras linhas de lixo (ATUALIZADO_EM e a linha vazia) do Patio e Balanço
         skip = 2 if worksheet_name in ["Patio_Destino_Status", "Balanco_Expedicao_Destino"] else cabecalho
         
         df = pd.read_csv(StringIO(resp.text), skiprows=skip)
-        
-        # Limpa colunas e linhas que sejam 100% vazias (NaN)
+        # Dropa apenas as colunas que estão 100% vazias
         df = df.dropna(how="all", axis=1).dropna(how="all", axis=0)
+        
+        # Restaura os índices das colunas para um número limpo (0, 1, 2, 3...)
+        df.columns = range(df.shape[1])
         return df
-    except Exception as e:
-        print(f"Erro ao carregar {worksheet_name}: {e}")
+    except Exception:
         return pd.DataFrame()
 
 def safe_to_numeric(val):
@@ -252,7 +250,7 @@ if not df_dash.empty:
         ritmo_torre = ritmo_torre_bruto
 
 # ==============================================================================
-# 🎯 CORREÇÃO DEFINITIVA V5: MAPEAMENTO SEGURO DE COLUNAS E TOTAIS
+# 🎯 CORREÇÃO V6: Agrupamento de Destinos (Índice Cego Pós-Limpeza)
 # ==============================================================================
 destinos_por_status = {
     "PR": [], "00": [], "01": [], "FC": [], "TR": []
@@ -267,74 +265,60 @@ dados_patio = {
 }
 
 if not df_patio_dest.empty:
-    # 1. Função para encontrar o índice real da coluna, não importa o que o Pandas faça
-    def achar_coluna(nome_procurado, fallback_idx):
-        for i, col in enumerate(df_patio_dest.columns):
-            if nome_procurado in str(col).upper():
-                return i
-        for i, val in enumerate(df_patio_dest.iloc[0]):
-            if nome_procurado in str(val).upper():
-                return i
-        return fallback_idx
-
-    # Mapeia as posições reais de cada métrica
-    i_pr_v = achar_coluna("PR_VEIC", 1)
-    i_pr_t = achar_coluna("PR_TON", 2)
-    i_00_v = achar_coluna("00_VEIC", 3)
-    i_00_t = achar_coluna("00_TON", 4)
-    i_01_v = achar_coluna("01_VEIC", 5)
-    i_01_t = achar_coluna("01_TON", 6)
-    i_fc_v = achar_coluna("FC_VEIC", 7)
-    i_fc_t = achar_coluna("FC_TON", 8)
-
-    for idx in range(len(df_patio_dest)):
-        linha = df_patio_dest.iloc[idx]
+    for _, linha in df_patio_dest.iterrows():
         dest_nome = str(linha.iloc[0]).strip()
         
         if not dest_nome or dest_nome.upper() in ["NAN", "NONE", "DESTINO", "TOTAL", ""]:
             continue
             
         try:
-            # 2. SE FOR A LINHA DE TOTAL GERAL: CAPTURA OS VALORES EXATOS DELA PARA OS CARDS
-            if "TOTAL GERAL FÁBRICA" in dest_nome.upper():
-                dados_patio["PR"]["veiculos"] = int(safe_to_numeric(linha.iloc[i_pr_v]))
-                dados_patio["PR"]["peso"] = forcar_par(safe_to_numeric(linha.iloc[i_pr_t]))
-                
-                dados_patio["00"]["veiculos"] = int(safe_to_numeric(linha.iloc[i_00_v]))
-                dados_patio["00"]["peso"] = forcar_par(safe_to_numeric(linha.iloc[i_00_t]))
-                
-                dados_patio["01"]["veiculos"] = int(safe_to_numeric(linha.iloc[i_01_v]))
-                dados_patio["01"]["peso"] = forcar_par(safe_to_numeric(linha.iloc[i_01_t]))
-                
-                dados_patio["FC"]["veiculos"] = int(safe_to_numeric(linha.iloc[i_fc_v]))
-                dados_patio["FC"]["peso"] = forcar_par(safe_to_numeric(linha.iloc[i_fc_t]))
-                continue # Não cadastra "TOTAL GERAL FÁBRICA" como se fosse um destino
+            # Ao resetar os nomes das colunas com range(df.shape[1]), nós GARANTIMOS
+            # que as colunas serão sempre:
+            # 0=Destino, 1=PR_V, 2=PR_T, 3=00_V, 4=00_T, 5=01_V, 6=01_T, 7=FC_V, 8=FC_T
             
-            # 3. SE FOR DESTINO NORMAL: POPULA AS LISTAS PARA O BOTÃO "TOCAR PARA VER DESTINOS"
-            pr_v = int(safe_to_numeric(linha.iloc[i_pr_v]))
-            pr_t = forcar_par(safe_to_numeric(linha.iloc[i_pr_t]))
+            # 1. SE FOR A LINHA DE TOTAL GERAL: CAPTURA OS VALORES EXATOS
+            if "TOTAL GERAL FÁBRICA" in dest_nome.upper():
+                dados_patio["PR"]["veiculos"] = int(safe_to_numeric(linha.iloc[1]))
+                dados_patio["PR"]["peso"] = forcar_par(safe_to_numeric(linha.iloc[2]))
+                
+                dados_patio["00"]["veiculos"] = int(safe_to_numeric(linha.iloc[3]))
+                dados_patio["00"]["peso"] = forcar_par(safe_to_numeric(linha.iloc[4]))
+                
+                dados_patio["01"]["veiculos"] = int(safe_to_numeric(linha.iloc[5]))
+                dados_patio["01"]["peso"] = forcar_par(safe_to_numeric(linha.iloc[6]))
+                
+                # Captura de Fila de Carregamento (FC) -> Índices 7 e 8
+                if len(linha) > 8:
+                    dados_patio["FC"]["veiculos"] = int(safe_to_numeric(linha.iloc[7]))
+                    dados_patio["FC"]["peso"] = forcar_par(safe_to_numeric(linha.iloc[8]))
+                continue
+            
+            # 2. SE FOR DESTINO NORMAL: POPULA AS LISTAS
+            pr_v = int(safe_to_numeric(linha.iloc[1]))
+            pr_t = forcar_par(safe_to_numeric(linha.iloc[2]))
             if pr_v > 0 or pr_t > 0:
                 destinos_por_status["PR"].append({"destino": dest_nome, "veic": pr_v, "ton": pr_t})
 
-            v00 = int(safe_to_numeric(linha.iloc[i_00_v]))
-            t00 = forcar_par(safe_to_numeric(linha.iloc[i_00_t]))
+            v00 = int(safe_to_numeric(linha.iloc[3]))
+            t00 = forcar_par(safe_to_numeric(linha.iloc[4]))
             if v00 > 0 or t00 > 0:
                 destinos_por_status["00"].append({"destino": dest_nome, "veic": v00, "ton": t00})
 
-            v01 = int(safe_to_numeric(linha.iloc[i_01_v]))
-            t01 = forcar_par(safe_to_numeric(linha.iloc[i_01_t]))
+            v01 = int(safe_to_numeric(linha.iloc[5]))
+            t01 = forcar_par(safe_to_numeric(linha.iloc[6]))
             if v01 > 0 or t01 > 0:
                 destinos_por_status["01"].append({"destino": dest_nome, "veic": v01, "ton": t01})
 
-            vfc = int(safe_to_numeric(linha.iloc[i_fc_v]))
-            tfc = forcar_par(safe_to_numeric(linha.iloc[i_fc_t]))
-            if vfc > 0 or tfc > 0:
-                destinos_por_status["FC"].append({"destino": dest_nome, "veic": vfc, "ton": tfc})
+            if len(linha) > 8:
+                vfc = int(safe_to_numeric(linha.iloc[7]))
+                tfc = forcar_par(safe_to_numeric(linha.iloc[8]))
+                if vfc > 0 or tfc > 0:
+                    destinos_por_status["FC"].append({"destino": dest_nome, "veic": vfc, "ton": tfc})
 
         except Exception as e:
             continue
 
-# O Termo SAP continua sendo lido do Dashboard (df_dash) conforme sua instrução
+# O Termo SAP continua sendo lido do Dashboard
 v_qtd_tr = int(safe_to_numeric(df_dash.iloc[0].get("TR_VEIC", 0))) if not df_dash.empty else 0
 v_ton_tr = forcar_par(safe_to_numeric(df_dash.iloc[0].get("TR_TON", 0))) if not df_dash.empty else 0
 dados_patio["TR"]["veiculos"] = v_qtd_tr
