@@ -12,7 +12,7 @@ import re
 # 1. IMPORTA O REFRESHER
 from streamlit_autorefresh import st_autorefresh
 
-# URL direta da logo no seu GitHub para funcionar como ícone da tela inicial (agora .jfif)
+# URL direta da logo no seu GitHub
 LOGO_ALOVE_URL = "https://raw.githubusercontent.com/expedicao-mi/A.L.O.V.E-/main/app_icon.png"
 LOGO_PAINEL = "https://raw.githubusercontent.com/expedicao-mi/A.L.O.V.E-/main/logo_alove.jfif"
 
@@ -35,22 +35,16 @@ if "bafometro_autenticado" not in st.session_state:
     st.session_state.bafometro_autenticado = False
 
 # ==============================================================================
-# 📱 INJEÇÃO DE METATAGS (PWA / APP NATIVO / TELA CHEIA)
+# 📱 INJEÇÃO DE METATAGS
 # ==============================================================================
 st.markdown(f"""
-    <!-- Força exibição como App Nativo em iOS (Safari) -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="A.L.O.V.E.">
     <link rel="apple-touch-icon" href="{LOGO_ALOVE_URL}">
-    
-    <!-- Força exibição como App Nativo em Android (Chrome) -->
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="theme-color" content="#0a101d">
     <link rel="icon" type="image/png" href="{LOGO_ALOVE_URL}">
-    <link rel="manifest" href="https://raw.githubusercontent.com/expedicao-mi/A.L.O.V.E-/main/manifest.json">
-    
-    <!-- Evita zoom indesejado por toque acidental e trava a proporção mobile -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 """, unsafe_allow_html=True)
 
@@ -74,7 +68,7 @@ st.markdown("""
         }
 
         /* 3. A MÁGICA DO CABEÇALHO FIXO NATIVO */
-        div[data-testid="stVerticalBlock"] > div:has(.ancora-topo) {
+        div.element-container:has(.topo-ancora) + div.element-container {
             position: -webkit-sticky !important;
             position: sticky !important;
             top: 0px !important;
@@ -88,7 +82,7 @@ st.markdown("""
 
         /* 4. AJUSTE DAS MARGENS DA TELA */
         .block-container {
-            padding-top: 0rem !important; 
+            padding-top: 0rem !important;
             padding-bottom: 1rem !important;
             padding-left: 0.8rem !important;
             padding-right: 0.8rem !important;
@@ -436,18 +430,15 @@ if not df_qual.empty:
             }
 
 # ==============================================================================
-# 📌 CABEÇALHO SUPERIOR (FIXADO PELO CSS DA LINHA 75)
+# 📌 CABEÇALHO SUPERIOR (FIXADO PELO CSS)
 # ==============================================================================
+# A Âncora invisível que avisa o CSS para travar o container que vem logo em seguida!
+st.markdown('<div class="topo-ancora"></div>', unsafe_allow_html=True)
 
-# Esta é a âncora invisível que o CSS vai caçar para travar este bloco no teto
-st.markdown('<div class="ancora-topo"></div>', unsafe_allow_html=True)
-
-# Container que vai grudar no topo
 with st.container():
     col_logo, col_status, col_btn = st.columns([3.5, 2.5, 1.2], vertical_alignment="center")
 
     with col_logo:
-        # Puxando a imagem com a extensão nova .jfif
         st.image(LOGO_PAINEL, use_container_width=True)
 
     with col_status:
