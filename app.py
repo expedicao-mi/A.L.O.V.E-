@@ -449,73 +449,88 @@ if not df_qual.empty:
             }
 
 # ==============================================================================
-# 📌 CABEÇALHO SUPERIOR FIXO (STICKY) E PREVISÕES
+# 📌 CABEÇALHO SUPERIOR FIXO (NATIVO HTML/CSS) E PREVISÕES
 # ==============================================================================
-st.markdown('<div class="cabecalho-fixo">', unsafe_allow_html=True) # 👈 AQUI ABRE O CABEÇALHO FIXO
 
-col_logo, col_status, col_btn = st.columns([3.5, 2.5, 1.2], vertical_alignment="center")
+# Criação de um botão fantasma invisível no topo da página para capturar o clique
+if st.button("refresh_invisivel", key="btn_invisivel_refresh"):
+    st.cache_data.clear()
+    st.rerun()
 
-with col_logo:
-    try:
-        st.image("logo_alove.png", use_container_width=True)
-    except:
-        st.markdown("<h3 style='margin:0; color:#00f3ff; font-style:italic; font-weight: normal;'>A.L.O.V.E.</h3>", unsafe_allow_html=True)
+st.markdown(f"""
+    <style>
+        /* Esconde o botão invisível do Streamlit que captura a ação */
+        div[data-testid="stButton"] button[key="btn_invisivel_refresh"] {{
+            display: none !important;
+        }}
 
-with col_status:
-    st.markdown(f"""
-        <div style="text-align: right;">
-            <div style="color: #00D672; font-size: 0.85rem; font-weight: normal; display: flex; justify-content: flex-end; align-items: center; gap: 6px;">
-                <span style="font-size: 1.1rem;">🎯</span> {ritmo_torre}
+        /* Cabeçalho que fica colado no teto absoluto da tela */
+        .header-colado {{
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100vw !important;
+            height: 65px !important;
+            background-color: #0a101d !important;
+            border-bottom: 1px solid #1c2b42 !important;
+            z-index: 9999999 !important;
+            display: flex !important;
+            justify-content: space-between !important;
+            align-items: center !important;
+            padding: 0 15px !important;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5) !important;
+        }}
+
+        /* Espaço para empurrar o restante da página para baixo do cabeçalho */
+        .espaco-header {{
+            height: 70px !important;
+            width: 100% !important;
+            display: block !important;
+        }}
+
+        /* Estilo do botão de atualizar em HTML */
+        .btn-atualizar-nativo {{
+            background-color: #162438;
+            color: #ffffff;
+            border: 1px solid #1c2b42;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }}
+        .btn-atualizar-nativo:active {{
+            background-color: #1c2b42;
+        }}
+    </style>
+
+    <div class="header-colado">
+        <!-- Logo A.L.O.V.E -->
+        <img src="https://raw.githubusercontent.com/expedicao-mi/A.L.O.V.E-/main/logo_alove.png" style="height: 35px; width: auto;">
+        
+        <!-- Status e Ritmo -->
+        <div style="text-align: right; display: flex; flex-direction: column; align-items: flex-end; margin-right: 10px;">
+            <div style="color: #00D672; font-size: 0.75rem; font-weight: normal; display: flex; align-items: center; gap: 4px;">
+                <span>🎯</span> {ritmo_torre}
             </div>
-            <div style="color: #94a3b8; font-size: 0.7rem; font-weight: normal; margin-top: 2px;">
-                Sincronizado: {ultima_att}
+            <div style="color: #94a3b8; font-size: 0.65rem; font-weight: normal; margin-top: 2px;">
+                Sinc: {ultima_att}
             </div>
         </div>
-    """, unsafe_allow_html=True)
 
-with col_btn:
-    if st.button("🔄 Atualizar", use_container_width=True):
-        st.cache_data.clear()
-        st.rerun()
-
-st.markdown('</div>', unsafe_allow_html=True) # 👈 AQUI FECHA O CABEÇALHO FIXO
-# Removemos o st.markdown("<br>") que estava aqui para o corte do topo ficar perfeito
-
-html_previsoes = f"""
-<div class="prev-container">
-    <div class="prev-card-prod">
-        <div class="prev-title">📈 Prev. Produção</div>
-        <div class="prev-val">{prev_prod:,.0f} <span style="font-size:0.9rem; color:#64748b;">t</span></div>
+        <!-- Botão Atualizar que clica no botão invisível do Streamlit -->
+        <button class="btn-atualizar-nativo" onclick="
+            window.parent.document.querySelector('div[data-testid=\\'stButton\\'] button').click();
+        ">
+            🔄 Atualizar
+        </button>
     </div>
-    <div class="prev-card-carr">
-        <div class="prev-title">🎯 Prev. Expedição</div>
-        <div class="prev-val">{prev_carr:,.0f} <span style="font-size:0.9rem; color:#64748b;">t</span></div>
-    </div>
-</div>
-"""
-st.markdown(html_previsoes, unsafe_allow_html=True)
-
-if not df_alertas.empty:
-    linhas_alt = []
-    tem_critico = False
-    for _, alt_row in df_alertas.iterrows():
-        txt_alt = str(alt_row.get("ALERTA", "")).strip()
-        nv_alt = str(alt_row.get("NIVEL", "")).strip().upper()
-        if txt_alt and "Normal" not in txt_alt:
-            linhas_alt.append(f"• {txt_alt}")
-            if nv_alt == "CRITICO": tem_critico = True
-
-    if linhas_alt:
-        cor_b = "#E74C3C" if tem_critico else "#FF9F1C"
-        bg_b = "#2b1111" if tem_critico else "#24180d"
-        txt_cor = "#ff9999" if tem_critico else "#ffd299"
-        corpo_alt = "<br>".join(linhas_alt[:4])
-        st.markdown(f"""
-            <div style="background-color: {bg_b}; border-left: 4px solid {cor_b}; padding: 10px 14px; margin-bottom: 12px; border-radius: 6px;">
-                <div style="color: {cor_b}; font-size: 11px; font-weight: normal; text-transform: uppercase;">🚨 Observações & Alertas Críticos</div>
-                <div style="color: {txt_cor}; font-size: 12px; font-weight: normal; margin-top: 4px;">{corpo_alt}</div>
-            </div>
-        """, unsafe_allow_html=True)
+    
+    <!-- Divisor invisível para empurrar os cards de previsão para não ficarem escondidos pelo cabeçalho -->
+    <div class="espaco-header"></div>
+""", unsafe_allow_html=True)
 
 
 # ==============================================================================
