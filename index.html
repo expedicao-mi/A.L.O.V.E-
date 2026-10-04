@@ -12,52 +12,118 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="theme-color" content="#0a101d">
 
-  <!-- Ícone Oficial A.L.O.V.E. -->
-  <link rel="apple-touch-icon" sizes="180x180" href="https://raw.githubusercontent.com/expedicao-mi/A.L.O.V.E-/main/app_icon.png">
-  <link rel="icon" type="image/png" sizes="192x192" href="https://raw.githubusercontent.com/expedicao-mi/A.L.O.V.E-/main/app_icon.png">
-  <link rel="icon" type="image/png" sizes="512x512" href="https://raw.githubusercontent.com/expedicao-mi/A.L.O.V.E-/main/app_icon.png">
+  <!-- Ícones -->
+  <link rel="apple-touch-icon" sizes="180x180" href="./app_icon.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="./app_icon.png">
+  <link rel="icon" type="image/png" sizes="512x512" href="./app_icon.png">
 
   <style>
     * {
-      margin: 0 !important;
-      padding: 0 !important;
-      box-sizing: border-box !important;
-      border: none !important;
-      outline: none !important;
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      user-select: none;
     }
 
     html, body {
       width: 100vw;
       height: 100vh;
-      overflow: hidden !important;
-      background-color: #0a101d !important;
+      overflow: hidden;
+      background-color: #0a101d;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     }
 
-    .app-wrapper {
+    /* 1. CABEÇALHO FIXO E IMÓVEL DA CASCA PWA */
+    .header-nativo {
       position: fixed;
       top: 0;
       left: 0;
       width: 100vw;
-      height: 100vh;
-      overflow: hidden !important;
-      background-color: #0a101d !important;
+      /* O env(safe-area) respeita o entalhe/câmera do iPhone e Androids novos */
+      padding-top: env(safe-area-inset-top, 20px);
+      height: calc(55px + env(safe-area-inset-top, 20px));
+      background-color: #0a101d;
+      border-bottom: 1px solid #1c2b42;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end; 
+      padding-bottom: 12px;
+      padding-left: 15px;
+      padding-right: 15px;
+      z-index: 9999;
     }
 
+    .header-logo {
+      height: 28px;
+      width: auto;
+      margin-bottom: 2px;
+    }
+
+    .btn-atualizar {
+      background-color: #162438;
+      color: #ffffff;
+      border: 1px solid #1c2b42;
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      font-weight: bold;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .btn-atualizar:active {
+      background-color: #1c2b42;
+      transform: scale(0.95);
+    }
+
+    /* 2. ÁREA ONDE O STREAMLIT VAI ROLAR (CORTADA ABAIXO DO CABEÇALHO) */
+    .app-wrapper {
+      position: fixed;
+      top: calc(55px + env(safe-area-inset-top, 20px)); 
+      left: 0;
+      width: 100vw;
+      height: calc(100vh - (55px + env(safe-area-inset-top, 20px)));
+      overflow: hidden;
+      background-color: #0a101d;
+    }
+
+    /* 3. IFRAME COM MARGENS NEGATIVAS PARA ENGOLIR A BARRA INFERIOR */
     iframe {
       position: absolute;
-      top: -12px !important;
-      left: -12px !important;
-      width: calc(100vw + 24px) !important;
-      height: calc(100vh + 82px) !important;
-      border: 0 !important;
-      outline: 0 !important;
-      background-color: #0a101d !important;
+      top: -12px;
+      left: -12px;
+      width: calc(100vw + 24px);
+      height: calc(100% + 82px);
+      border: none;
+      outline: none;
+      background-color: #0a101d;
     }
   </style>
 </head>
 <body>
-  <div class="app-wrapper">
-    <iframe src="https://alove-painel-gestor.streamlit.app/?embed=true" frameborder="0"></iframe>
+
+  <!-- BARRA SUPERIOR ABSOLUTA (NATIVA DO DISPOSITIVO) -->
+  <div class="header-nativo">
+    <img src="https://raw.githubusercontent.com/expedicao-mi/A.L.O.V.E-/main/logo_alove.png" class="header-logo" alt="ALOVE">
+    <button class="btn-atualizar" onclick="recarregarApp()">
+      🔄 Atualizar
+    </button>
   </div>
+
+  <!-- CONTAINER QUE SEGURA O STREAMLIT -->
+  <div class="app-wrapper">
+    <iframe id="meu-iframe" src="https://alove-painel-gestor.streamlit.app/?embed=true" frameborder="0"></iframe>
+  </div>
+
+  <!-- SCRIPT PARA FORÇAR O RELOAD DO IFRAME AO CLICAR NO BOTÃO -->
+  <script>
+    function recarregarApp() {
+      var iframe = document.getElementById('meu-iframe');
+      // O Timestamp na URL obriga o navegador a recarregar de verdade o Streamlit
+      iframe.src = "https://alove-painel-gestor.streamlit.app/?embed=true&t=" + new Date().getTime();
+    }
+  </script>
 </body>
 </html>
