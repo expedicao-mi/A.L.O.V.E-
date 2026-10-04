@@ -4,32 +4,36 @@
   <meta charset="UTF-8">
   <title>A.L.O.V.E.</title>
 
+  <!-- PWA & Mobile Fullscreen -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="A.L.O.V.E.">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="theme-color" content="#0a101d">
 
+  <!-- Ícones Oficiais -->
   <link rel="apple-touch-icon" href="https://raw.githubusercontent.com/cris2026/A.L.O.V.E-/main/logo_alove.png">
   <link rel="icon" type="image/png" href="https://raw.githubusercontent.com/cris2026/A.L.O.V.E-/main/logo_alove.png">
 
   <style>
     * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-      outline: none !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      box-sizing: border-box !important;
       border: none !important;
+      outline: none !important;
     }
+
     html, body {
       width: 100vw;
       height: 100vh;
-      overflow: hidden;
-      background-color: #0a101d;
+      overflow: hidden !important;
+      background-color: #0a101d !important;
     }
-    
-    .app-viewport {
+
+    /* Container de recorte fixo */
+    .app-wrapper {
       position: fixed;
       top: 0;
       left: 0;
@@ -37,25 +41,23 @@
       height: 100vh;
       overflow: hidden;
       background-color: #0a101d;
-      border: none !important;
-      outline: none !important;
     }
 
+    /* Expande 6px para as laterais e topo para engolir a linha branca, e 60px para baixo para sumir com o rodapé */
     iframe {
       position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: calc(100% + 55px);
+      top: -6px;
+      left: -6px;
+      width: calc(100vw + 12px);
+      height: calc(100vh + 66px);
       border: 0 !important;
-      outline: none !important;
-      display: block;
+      outline: 0 !important;
       background-color: #0a101d;
     }
   </style>
 </head>
 <body>
-  <div class="app-viewport">
+  <div class="app-wrapper">
     <iframe src="https://alove-painel-gestor.streamlit.app/?embed=true" frameborder="0"></iframe>
   </div>
 </body>
