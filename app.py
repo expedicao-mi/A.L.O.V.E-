@@ -13,7 +13,7 @@ import re
 from streamlit_autorefresh import st_autorefresh
 
 # URL direta da logo no seu GitHub para funcionar como ícone da tela inicial
-LOGO_ALOVE_URL = "https://raw.githubusercontent.com/cris2026/A.L.O.V.E-/main/logo_alove.png"
+LOGO_ALOVE_URL = "https://raw.githubusercontent.com/cris2026/A.L.O.V.E-/main/logo_alove.jfif"
 
 st.set_page_config(
     page_title="A.L.O.V.E. Mobile",
