@@ -449,39 +449,18 @@ if not df_qual.empty:
             }
 
 # ==============================================================================
-# 📌 CABEÇALHO SUPERIOR FIXO (STICKY NATIVO) E PREVISÕES
+# 📌 STATUS DE SINCRONIZAÇÃO DA TORRE (LOGO E BOTÃO AGORA ESTÃO NO INDEX.HTML)
 # ==============================================================================
-cabecalho = st.container()
-with cabecalho:
-    # Âncora invisível que o CSS caça para fixar este bloco inteiro
-    st.markdown('<div class="ancora-cabecalho"></div>', unsafe_allow_html=True)
-    
-    col_logo, col_status, col_btn = st.columns([3.5, 2.5, 1.2], vertical_alignment="center")
-
-    with col_logo:
-        try:
-            st.image("logo_alove.png", use_container_width=True)
-        except:
-            st.markdown("<h3 style='margin:0; color:#00f3ff; font-style:italic; font-weight: normal;'>A.L.O.V.E.</h3>", unsafe_allow_html=True)
-
-    with col_status:
-        st.markdown(f"""
-            <div style="text-align: right;">
-                <div style="color: #00D672; font-size: 0.85rem; font-weight: normal; display: flex; justify-content: flex-end; align-items: center; gap: 6px;">
-                    <span style="font-size: 1.1rem;">🎯</span> {ritmo_torre}
-                </div>
-                <div style="color: #94a3b8; font-size: 0.7rem; font-weight: normal; margin-top: 2px;">
-                    Sincronizado: {ultima_att}
-                </div>
-            </div>
-        """, unsafe_allow_html=True)
-
-    with col_btn:
-        if st.button("🔄 Atualizar", use_container_width=True):
-            st.cache_data.clear()
-            st.rerun()
-
-html_previsoes = f"""
+st.markdown(f"""
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; border-bottom: 1px dashed #1c2b42; padding-bottom: 8px;">
+        <div style="color: #94a3b8; font-size: 0.70rem;">
+            Última Sinc: <span style="color: #ffffff;">{ultima_att}</span>
+        </div>
+        <div style="color: #00D672; font-size: 0.70rem; font-weight: bold;">
+            <span>🎯</span> {ritmo_torre}
+        </div>
+    </div>
+""", unsafe_allow_html=True)
 
 # ==============================================================================
 # 📦 BLOCO 1: PÁTIO DE VEÍCULOS (EXPANSÍVEL POR DESTINOS)
