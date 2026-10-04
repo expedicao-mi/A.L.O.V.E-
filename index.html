@@ -1,129 +1,83 @@
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-  <meta charset="UTF-8">
-  <title>A.L.O.V.E.</title>
+# ==============================================================================
+# 📌 CABEÇALHO SUPERIOR FIXO (INJEÇÃO ABSOLUTA NO DOM)
+# ==============================================================================
 
-  <!-- PWA & Mobile Fullscreen -->
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="A.L.O.V.E.">
-  <meta name="mobile-web-app-capable" content="yes">
-  <meta name="theme-color" content="#0a101d">
+# 1. Botão fantasma invisível que faz o trabalho sujo de recarregar os dados
+if st.button("refresh_invisivel", key="btn_invisivel_refresh"):
+    st.cache_data.clear()
+    st.rerun()
 
-  <!-- Ícones -->
-  <link rel="apple-touch-icon" sizes="180x180" href="./app_icon.png">
-  <link rel="icon" type="image/png" sizes="192x192" href="./app_icon.png">
-  <link rel="icon" type="image/png" sizes="512x512" href="./app_icon.png">
+# 2. Injeção do Cabeçalho Fixo em HTML/CSS e ocultação do botão fantasma
+st.markdown(f"""
+    <style>
+        /* Esconde o botão Python original que faz a ação */
+        div[data-testid="stButton"] button[key="btn_invisivel_refresh"] {{
+            display: none !important;
+        }}
 
-  <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-      user-select: none;
-    }
+        /* Cria o cabeçalho fixo no teto da tela */
+        .header-fixo-flutuante {{
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100vw !important;
+            height: 70px !important;
+            background-color: #0a101d !important;
+            border-bottom: 1px solid #1c2b42 !important;
+            z-index: 999999 !important;
+            display: flex !important;
+            justify-content: space-between !important;
+            align-items: center !important;
+            padding: 0 16px !important;
+            box-sizing: border-box !important;
+        }}
 
-    html, body {
-      width: 100vw;
-      height: 100vh;
-      overflow: hidden;
-      background-color: #0a101d;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    }
+        /* Ajusta o tamanho da logo para não ficar gigante no PC */
+        .header-logo-img {{
+            height: 45px !important;
+            max-width: 250px !important;
+            object-fit: contain !important;
+        }}
 
-    /* 1. CABEÇALHO FIXO E IMÓVEL DA CASCA PWA */
-    .header-nativo {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100vw;
-      /* O env(safe-area) respeita o entalhe/câmera do iPhone e Androids novos */
-      padding-top: env(safe-area-inset-top, 20px);
-      height: calc(55px + env(safe-area-inset-top, 20px));
-      background-color: #0a101d;
-      border-bottom: 1px solid #1c2b42;
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-end; 
-      padding-bottom: 12px;
-      padding-left: 15px;
-      padding-right: 15px;
-      z-index: 9999;
-    }
+        /* Bloco da direita com Status e Botão */
+        .header-controles {{
+            display: flex !important;
+            align-items: center !important;
+            gap: 12px !important;
+        }}
 
-    .header-logo {
-      height: 28px;
-      width: auto;
-      margin-bottom: 2px;
-    }
+        /* Botão visual de Atualizar */
+        .btn-atualizar-flutuante {{
+            background-color: #162438 !important;
+            color: #ffffff !important;
+            border: 1px solid #1c2b42 !important;
+            padding: 8px 14px !important;
+            border-radius: 6px !important;
+            font-size: 0.9rem !important;
+            cursor: pointer !important;
+        }}
+        .btn-atualizar-flutuante:active {{
+            background-color: #1c2b42 !important;
+        }}
 
-    .btn-atualizar {
-      background-color: #162438;
-      color: #ffffff;
-      border: 1px solid #1c2b42;
-      padding: 6px 12px;
-      border-radius: 6px;
-      font-size: 0.85rem;
-      font-weight: bold;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
+        /* Empurra o Streamlit para baixo para não ficar escondido atrás do cabeçalho */
+        .block-container {{
+            padding-top: 85px !important; 
+        }}
+    </style>
 
-    .btn-atualizar:active {
-      background-color: #1c2b42;
-      transform: scale(0.95);
-    }
-
-    /* 2. ÁREA ONDE O STREAMLIT VAI ROLAR (CORTADA ABAIXO DO CABEÇALHO) */
-    .app-wrapper {
-      position: fixed;
-      top: calc(55px + env(safe-area-inset-top, 20px)); 
-      left: 0;
-      width: 100vw;
-      height: calc(100vh - (55px + env(safe-area-inset-top, 20px)));
-      overflow: hidden;
-      background-color: #0a101d;
-    }
-
-    /* 3. IFRAME COM MARGENS NEGATIVAS PARA ENGOLIR A BARRA INFERIOR */
-    iframe {
-      position: absolute;
-      top: -12px;
-      left: -12px;
-      width: calc(100vw + 24px);
-      height: calc(100% + 82px);
-      border: none;
-      outline: none;
-      background-color: #0a101d;
-    }
-  </style>
-</head>
-<body>
-
-  <!-- BARRA SUPERIOR ABSOLUTA (NATIVA DO DISPOSITIVO) -->
-  <div class="header-nativo">
-    <img src="https://raw.githubusercontent.com/expedicao-mi/A.L.O.V.E-/main/logo_alove.png" class="header-logo" alt="ALOVE">
-    <button class="btn-atualizar" onclick="recarregarApp()">
-      🔄 Atualizar
-    </button>
-  </div>
-
-  <!-- CONTAINER QUE SEGURA O STREAMLIT -->
-  <div class="app-wrapper">
-    <iframe id="meu-iframe" src="https://alove-painel-gestor.streamlit.app/?embed=true" frameborder="0"></iframe>
-  </div>
-
-  <!-- SCRIPT PARA FORÇAR O RELOAD DO IFRAME AO CLICAR NO BOTÃO -->
-  <script>
-    function recarregarApp() {
-      var iframe = document.getElementById('meu-iframe');
-      // O Timestamp na URL obriga o navegador a recarregar de verdade o Streamlit
-      iframe.src = "https://alove-painel-gestor.streamlit.app/?embed=true&t=" + new Date().getTime();
-    }
-  </script>
-</body>
-</html>
+    <div class="header-fixo-flutuante">
+        <img src="https://raw.githubusercontent.com/expedicao-mi/A.L.O.V.E-/main/logo_alove.png" class="header-logo-img" alt="A.L.O.V.E.">
+        
+        <div class="header-controles">
+            <div style="text-align: right; display: flex; flex-direction: column;">
+                <div style="color: #00D672; font-size: 0.8rem;">🎯 {ritmo_torre}</div>
+                <div style="color: #94a3b8; font-size: 0.7rem;">Sinc: {ultima_att}</div>
+            </div>
+            
+            <button class="btn-atualizar-flutuante" onclick="window.parent.document.querySelector('div[data-testid=\\'stButton\\'] button').click();">
+                🔄 Atualizar
+            </button>
+        </div>
+    </div>
+""", unsafe_allow_html=True)
