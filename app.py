@@ -54,7 +54,7 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 # ==============================================================================
-# 🎨 CSS AVANÇADO (NOVO LAYOUT DOS CARDS + REMOÇÃO MARCAS DO STREAMLIT)
+# 🎨 CSS AVANÇADO (NOVO LAYOUT DOS CARDS + CABEÇALHO FIXO + REMOÇÃO MARCAS)
 # ==============================================================================
 st.markdown("""
     <style>
@@ -85,11 +85,24 @@ st.markdown("""
 
         /* EXPULSA AS MARGENS PARA OCUPAR A TELA TODA NO CELULAR */
         .block-container {
-            padding-top: 1rem !important;
+            padding-top: 0.2rem !important;
             padding-bottom: 1rem !important;
             padding-left: 0.8rem !important;
             padding-right: 0.8rem !important;
             max-width: 100% !important;
+        }
+
+        /* 📌 CABEÇALHO FIXO NO TOPO (LOGO + ATUALIZAR) */
+        .cabecalho-fixo {
+            position: -webkit-sticky !important;
+            position: sticky !important;
+            top: 0 !important;
+            z-index: 999999 !important;
+            background-color: #0a101d !important;
+            padding-top: 6px !important;
+            padding-bottom: 8px !important;
+            margin-bottom: 12px !important;
+            border-bottom: 1px solid #1c2b42 !important;
         }
         
         input[type="radio"] { display: none; }
@@ -436,8 +449,10 @@ if not df_qual.empty:
             }
 
 # ==============================================================================
-# CABEÇALHO SUPERIOR E PREVISÕES
+# 📌 CABEÇALHO SUPERIOR FIXO (STICKY) E PREVISÕES
 # ==============================================================================
+st.markdown('<div class="cabecalho-fixo">', unsafe_allow_html=True) # 👈 AQUI ABRE O CABEÇALHO FIXO
+
 col_logo, col_status, col_btn = st.columns([3.5, 2.5, 1.2], vertical_alignment="center")
 
 with col_logo:
@@ -463,7 +478,8 @@ with col_btn:
         st.cache_data.clear()
         st.rerun()
 
-st.markdown("<br>", unsafe_allow_html=True)
+st.markdown('</div>', unsafe_allow_html=True) # 👈 AQUI FECHA O CABEÇALHO FIXO
+# Removemos o st.markdown("<br>") que estava aqui para o corte do topo ficar perfeito
 
 html_previsoes = f"""
 <div class="prev-container">
