@@ -430,18 +430,21 @@ if not df_qual.empty:
             }
 
 # ==============================================================================
-# 📌 CABEÇALHO SUPERIOR (FIXADO PELO CSS)
+# 📌 CABEÇALHO SUPERIOR (TRAVA 100% GARANTIDA + NOVA LOGO .JFIF)
 # ==============================================================================
-# A Âncora invisível que avisa o CSS para travar o container que vem logo em seguida!
-st.markdown('<div class="topo-ancora"></div>', unsafe_allow_html=True)
+# Garanta que a URL seja a correta para a nova imagem
+LOGO_PAINEL_NOVA = "https://raw.githubusercontent.com/expedicao-mi/A.L.O.V.E-/main/logo_alove.jfif"
 
-with st.container():
-    col_logo, col_status, col_btn = st.columns([3.5, 2.5, 1.2], vertical_alignment="center")
+# Cria um container nativo do Streamlit para agrupar tudo
+header_container = st.container()
 
-    with col_logo:
-        st.image(LOGO_PAINEL, use_container_width=True)
-
-    with col_status:
+with header_container:
+    col1, col2, col3 = st.columns([3.5, 2.5, 1.2], vertical_alignment="center")
+    
+    with col1:
+        st.image(LOGO_PAINEL_NOVA, use_container_width=True)
+        
+    with col2:
         st.markdown(f"""
             <div style="text-align: right;">
                 <div style="color: #00D672; font-size: 0.85rem; font-weight: normal; display: flex; justify-content: flex-end; align-items: center; gap: 6px;">
@@ -452,52 +455,37 @@ with st.container():
                 </div>
             </div>
         """, unsafe_allow_html=True)
-
-    with col_btn:
-        if st.button("🔄 Atualizar", key="btn_atualizar_topo", use_container_width=True):
+        
+    with col3:
+        if st.button("🔄 Atualizar", use_container_width=True):
             st.cache_data.clear()
             st.rerun()
 
-# ==============================================================================
-# OS CARDS COMEÇAM AQUI E ROLAM POR BAIXO DO CABEÇALHO
-# ==============================================================================
-
-html_previsoes = f"""
-<div class="prev-container">
-    <div class="prev-card-prod">
-        <div class="prev-title">📈 Prev. Produção</div>
-        <div class="prev-val">{prev_prod:,.0f} <span style="font-size:0.9rem; color:#64748b;">t</span></div>
-    </div>
-    <div class="prev-card-carr">
-        <div class="prev-title">🎯 Prev. Expedição</div>
-        <div class="prev-val">{prev_carr:,.0f} <span style="font-size:0.9rem; color:#64748b;">t</span></div>
-    </div>
-</div>
-"""
-st.markdown(html_previsoes, unsafe_allow_html=True)
-
-if not df_alertas.empty:
-    linhas_alt = []
-    tem_critico = False
-    for _, alt_row in df_alertas.iterrows():
-        txt_alt = str(alt_row.get("ALERTA", "")).strip()
-        nv_alt = str(alt_row.get("NIVEL", "")).strip().upper()
-        if txt_alt and "Normal" not in txt_alt:
-            linhas_alt.append(f"• {txt_alt}")
-            if nv_alt == "CRITICO": tem_critico = True
-
-    if linhas_alt:
-        cor_b = "#E74C3C" if tem_critico else "#FF9F1C"
-        bg_b = "#2b1111" if tem_critico else "#24180d"
-        txt_cor = "#ff9999" if tem_critico else "#ffd299"
-        corpo_alt = "<br>".join(linhas_alt[:4])
-        st.markdown(f"""
-            <div style="background-color: {bg_b}; border-left: 4px solid {cor_b}; padding: 10px 14px; margin-bottom: 12px; border-radius: 6px;">
-                <div style="color: {cor_b}; font-size: 11px; font-weight: normal; text-transform: uppercase;">🚨 Observações & Alertas Críticos</div>
-                <div style="color: {txt_cor}; font-size: 12px; font-weight: normal; margin-top: 4px;">{corpo_alt}</div>
-            </div>
-        """, unsafe_allow_html=True)
-
+# ---------------------------------------------------------
+# O TRUQUE DE MESTRE: Forçar o container do Streamlit a colar no teto
+# Injetamos o CSS AGORA, logo depois de criar o container, 
+# e usamos o seletor :first-child do Streamlit para mirar apenas nele.
+# ---------------------------------------------------------
+st.markdown("""
+    <style>
+        /* Pega o PRIMEIRO bloco do app (que acabamos de criar acima) e gruda no teto */
+        div[data-testid="stVerticalBlock"] > div:first-child {
+            position: sticky !important;
+            position: -webkit-sticky !important;
+            top: 0 !important;
+            z-index: 999999 !important;
+            background-color: #0a101d !important;
+            padding: 10px 0 !important;
+            border-bottom: 1px solid #1c2b42 !important;
+            box-shadow: 0px 4px 10px rgba(0,0,0,0.5) !important;
+        }
+        
+        /* Remove o espaço em branco inútil do topo para colar certinho */
+        .block-container {
+            padding-top: 0 !important;
+        }
+    </style>
+""", unsafe_allow_html=True)
 
 # ==============================================================================
 # 📦 BLOCO 1: PÁTIO DE VEÍCULOS (EXPANSÍVEL POR DESTINOS)
