@@ -37,25 +37,53 @@ if "bafometro_autenticado" not in st.session_state:
 # 📱 INJEÇÃO DE METATAGS (PWA / APP NATIVO / TELA CHEIA)
 # ==============================================================================
 st.markdown(f"""
-    <!-- Metatags para App Nativo / Tela Cheia Mobile -->
+    <!-- Força exibição como App Nativo em iOS (Safari) -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="A.L.O.V.E.">
+    <link rel="apple-touch-icon" href="{LOGO_ALOVE_URL}">
+    
+    <!-- Força exibição como App Nativo em Android (Chrome) -->
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="theme-color" content="#0a101d">
-    <link rel="apple-touch-icon" href="{LOGO_ALOVE_URL}">
     <link rel="icon" type="image/png" href="{LOGO_ALOVE_URL}">
+    <link rel="manifest" href="https://raw.githubusercontent.com/cris2026/A.L.O.V.E-/main/manifest.json">
+    
+    <!-- Evita zoom indesejado por toque acidental e trava a proporção mobile -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 """, unsafe_allow_html=True)
 
 # ==============================================================================
-# 🎨 CSS AVANÇADO (NOVO LAYOUT DOS CARDS)
+# 🎨 CSS AVANÇADO (NOVO LAYOUT DOS CARDS + REMOÇÃO MARCAS DO STREAMLIT)
 # ==============================================================================
 st.markdown("""
     <style>
-        header[data-testid="stHeader"] { display: none !important; height: 0px !important; }
-        footer { display: none !important; height: 0px !important; }
-        .viewerBadge_container__1QSob, [data-testid="manage-app-button"], .stActionButton, #MainMenu { display: none !important; }
-        .block-container { padding-top: 1.2rem !important; padding-bottom: 2rem !important; padding-left: 0.8rem !important; padding-right: 0.8rem !important; }
+        /* MATA O CABEÇALHO, RODAPÉ E MENU DO STREAMLIT */
+        #MainMenu {visibility: hidden !important;}
+        footer {visibility: hidden !important; display: none !important;}
+        header {visibility: hidden !important; display: none !important;}
+        
+        /* MATA OS BOTÕES FLUTUANTES DA NUVEM (Manage App, GitHub, etc) */
+        [data-testid="manage-app-button"] {display: none !important;}
+        [data-testid="stToolbar"] {display: none !important;}
+        [data-testid="stDecoration"] {display: none !important;}
+        [data-testid="stHeader"] {display: none !important;}
+        .viewerBadge_container__1QSob {display: none !important;}
+        .viewerBadge_link__1S137 {display: none !important;}
+        
+        /* MATA A ÁREA EM BRANCO NO FUNDO */
+        .stAppBottom {display: none !important;}
+        .stApp > header {display: none !important;}
+
+        /* EXPULSA AS MARGENS PARA OCUPAR A TELA TODA NO CELULAR */
+        .block-container {
+            padding-top: 1rem !important;
+            padding-bottom: 1rem !important;
+            padding-left: 0.8rem !important;
+            padding-right: 0.8rem !important;
+            max-width: 100% !important;
+        }
+        
         input[type="radio"] { display: none; }
         
         .prev-container { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px; }
@@ -1084,7 +1112,7 @@ html_frota = f"""
             </div>
             <div id="frota_h_content_08" class="f-content-turno-hoje">
                 <div class="f-tag-container"><div class="f-tag-title">🟢 Empilhadeiras Logadas</div><div>{render_tags(frota_agrupada['hoje']['08h - 16h']['EMP'])}</div></div>
-                <div class="f-tag-container" style="margin-bottom:0;"><div class="f-tag-title">🏗️ Talhas / Pontes Rolantes</div><div>{render_tags(frota_agrupada['hoje']['08h - 16h']['TALHA'])}</div></div>
+                <div class="f-tag-container" style="margin-bottom:0;"><div class="f-tag-title">🏗 Talhas / Pontes Rolantes</div><div>{render_tags(frota_agrupada['hoje']['08h - 16h']['TALHA'])}</div></div>
             </div>
             <div id="frota_h_content_16" class="f-content-turno-hoje">
                 <div class="f-tag-container"><div class="f-tag-title">🟢 Empilhadeiras Logadas</div><div>{render_tags(frota_agrupada['hoje']['16h - 00h']['EMP'])}</div></div>
