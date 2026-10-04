@@ -4,7 +4,6 @@
   <meta charset="UTF-8">
   <title>A.L.O.V.E.</title>
 
-  <!-- PWA & Tela Cheia Mobile -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
@@ -12,7 +11,6 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="theme-color" content="#0a101d">
 
-  <!-- Ícones Oficiais -->
   <link rel="apple-touch-icon" href="https://raw.githubusercontent.com/cris2026/A.L.O.V.E-/main/logo_alove.png">
   <link rel="icon" type="image/png" href="https://raw.githubusercontent.com/cris2026/A.L.O.V.E-/main/logo_alove.png">
 
@@ -21,6 +19,8 @@
       margin: 0;
       padding: 0;
       box-sizing: border-box;
+      outline: none !important;
+      border: none !important;
     }
     html, body {
       width: 100vw;
@@ -29,7 +29,6 @@
       background-color: #0a101d;
     }
     
-    /* Container que prende a tela e corta qualquer sobra */
     .app-viewport {
       position: fixed;
       top: 0;
@@ -38,16 +37,18 @@
       height: 100vh;
       overflow: hidden;
       background-color: #0a101d;
+      border: none !important;
+      outline: none !important;
     }
 
-    /* Iframe esticado para projetar o rodapé além da viewport */
     iframe {
       position: absolute;
       top: 0;
       left: 0;
       width: 100%;
       height: calc(100% + 55px);
-      border: none;
+      border: 0 !important;
+      outline: none !important;
       display: block;
       background-color: #0a101d;
     }
@@ -55,7 +56,7 @@
 </head>
 <body>
   <div class="app-viewport">
-    <iframe src="https://alove-painel-gestor.streamlit.app/?embed=true"></iframe>
+    <iframe src="https://alove-painel-gestor.streamlit.app/?embed=true" frameborder="0"></iframe>
   </div>
 </body>
 </html>
