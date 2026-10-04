@@ -9,11 +9,12 @@ from io import StringIO
 import ast
 import re
 
-# 1. 👈 IMPORTA O REFRESHER
+# 1. IMPORTA O REFRESHER
 from streamlit_autorefresh import st_autorefresh
 
-# URL direta da logo no seu GitHub para funcionar como ícone da tela inicial
-LOGO_ALOVE_URL = "https://raw.githubusercontent.com/cris2026/A.L.O.V.E-/main/logo_alove.jfif"
+# URL direta da logo no seu GitHub para funcionar como ícone da tela inicial (agora .jfif)
+LOGO_ALOVE_URL = "https://raw.githubusercontent.com/expedicao-mi/A.L.O.V.E-/main/app_icon.png"
+LOGO_PAINEL = "https://raw.githubusercontent.com/expedicao-mi/A.L.O.V.E-/main/logo_alove.jfif"
 
 st.set_page_config(
     page_title="A.L.O.V.E. Mobile",
@@ -22,13 +23,13 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# 2. 👈 INICIA O CRONÔMETRO INVISÍVEL (60.000 milissegundos = 1 minuto)
+# 2. INICIA O CRONÔMETRO INVISÍVEL (60.000 milissegundos = 1 minuto)
 st_autorefresh(interval=60000, limit=None, key="refresh_mobile")
 
 # ==============================================================================
 # 🔑 CONTROLE DE ACESSO - BAFÔMETRO
 # ==============================================================================
-SENHA_BAFOMETRO = "alove2026"  # 👈 Altere para a senha que preferir
+SENHA_BAFOMETRO = "alove2026"
 
 if "bafometro_autenticado" not in st.session_state:
     st.session_state.bafometro_autenticado = False
@@ -47,18 +48,24 @@ st.markdown(f"""
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="theme-color" content="#0a101d">
     <link rel="icon" type="image/png" href="{LOGO_ALOVE_URL}">
-    <link rel="manifest" href="https://raw.githubusercontent.com/cris2026/A.L.O.V.E-/main/manifest.json">
+    <link rel="manifest" href="https://raw.githubusercontent.com/expedicao-mi/A.L.O.V.E-/main/manifest.json">
     
     <!-- Evita zoom indesejado por toque acidental e trava a proporção mobile -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 """, unsafe_allow_html=True)
 
 # ==============================================================================
-# 🎨 CSS AVANÇADO (NOVO LAYOUT DOS CARDS + CABEÇALHO FIXO + REMOÇÃO MARCAS)
+# 🎨 CSS AVANÇADO (CABEÇALHO FIXO GARANTIDO E REMOÇÃO DE MARCAS)
 # ==============================================================================
 st.markdown("""
     <style>
-        /* ELIMINA O CONTORNO E AS BORDAS BRANCAS DO MODO EMBED */
+        /* 1. MATA AS MARCAS DO STREAMLIT */
+        #MainMenu, footer, header, [data-testid="manage-app-button"], [data-testid="stToolbar"], [data-testid="stDecoration"], .viewerBadge_container__1QSob, .viewerBadge_link__1S137 {
+            display: none !important;
+            visibility: hidden !important;
+        }
+
+        /* 2. REMOVE BORDAS E FUNDO BRANCO */
         html, body, [data-testid="stAppViewContainer"], .stApp, .main {
             background-color: #0a101d !important;
             border: none !important;
@@ -66,45 +73,28 @@ st.markdown("""
             box-shadow: none !important;
         }
 
-        /* MATA O CABEÇALHO, RODAPÉ E MENU DO STREAMLIT */
-        #MainMenu {visibility: hidden !important;}
-        footer {visibility: hidden !important; display: none !important;}
-        header {visibility: hidden !important; display: none !important;}
-        
-        /* MATA OS BOTÕES FLUTUANTES DA NUVEM (Manage App, GitHub, etc) */
-        [data-testid="manage-app-button"] {display: none !important;}
-        [data-testid="stToolbar"] {display: none !important;}
-        [data-testid="stDecoration"] {display: none !important;}
-        [data-testid="stHeader"] {display: none !important;}
-        .viewerBadge_container__1QSob {display: none !important;}
-        .viewerBadge_link__1S137 {display: none !important;}
-        
-        /* MATA A ÁREA EM BRANCO NO FUNDO */
-        .stAppBottom {display: none !important;}
-        .stApp > header {display: none !important;}
+        /* 3. A MÁGICA DO CABEÇALHO FIXO NATIVO */
+        div[data-testid="stVerticalBlock"] > div:has(.ancora-topo) {
+            position: -webkit-sticky !important;
+            position: sticky !important;
+            top: 0px !important;
+            z-index: 999999 !important;
+            background-color: #0a101d !important;
+            padding-top: 15px !important;
+            padding-bottom: 10px !important;
+            margin-bottom: 15px !important;
+            border-bottom: 1px solid #1c2b42 !important;
+        }
 
-        /* EXPULSA AS MARGENS PARA OCUPAR A TELA TODA NO CELULAR */
+        /* 4. AJUSTE DAS MARGENS DA TELA */
         .block-container {
-            padding-top: 0.2rem !important;
+            padding-top: 0rem !important; 
             padding-bottom: 1rem !important;
             padding-left: 0.8rem !important;
             padding-right: 0.8rem !important;
             max-width: 100% !important;
         }
 
-        /* 📌 CABEÇALHO FIXO NO TOPO (LOGO + ATUALIZAR) */
-        .cabecalho-fixo {
-            position: -webkit-sticky !important;
-            position: sticky !important;
-            top: 0 !important;
-            z-index: 999999 !important;
-            background-color: #0a101d !important;
-            padding-top: 6px !important;
-            padding-bottom: 8px !important;
-            margin-bottom: 12px !important;
-            border-bottom: 1px solid #1c2b42 !important;
-        }
-        
         input[type="radio"] { display: none; }
         
         .prev-container { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px; }
@@ -300,7 +290,7 @@ if not df_dash.empty:
         ritmo_torre = ritmo_torre_bruto
 
 # ==============================================================================
-# 🎯 CORREÇÃO V6: MAPEAMENTO SEGURO DE COLUNAS E TOTAIS (PÁTIO)
+# 🎯 MAPEAMENTO SEGURO DE COLUNAS E TOTAIS (PÁTIO)
 # ==============================================================================
 destinos_por_status = {
     "PR": [], "00": [], "01": [], "FC": [], "TR": []
@@ -384,7 +374,6 @@ if not df_patio_dest.empty:
         except Exception as e:
             continue
 
-# O Termo SAP continua sendo lido do Dashboard
 v_qtd_tr = int(safe_to_numeric(df_dash.iloc[0].get("TR_VEIC", 0))) if not df_dash.empty else 0
 v_ton_tr = forcar_par(safe_to_numeric(df_dash.iloc[0].get("TR_TON", 0))) if not df_dash.empty else 0
 dados_patio["TR"]["veiculos"] = v_qtd_tr
@@ -393,7 +382,6 @@ dados_patio["TR"]["peso"] = v_ton_tr
 total_veiculos_fisicos = dados_patio["00"]["veiculos"] + dados_patio["01"]["veiculos"] + dados_patio["FC"]["veiculos"]
 vol_patio_disponivel = forcar_par(dados_patio["00"]["peso"] + dados_patio["01"]["peso"] + dados_patio["FC"]["peso"])
 
-# Mapeamento do Status Virada de Linha
 viradas_info = {}
 if not df_status_virada.empty:
     for _, row_st in df_status_virada.iterrows():
@@ -405,7 +393,6 @@ if not df_status_virada.empty:
             "status_email": str(row_st.get("STATUS_EMAIL_TROCA", "N/D"))
         }
 
-# Extração do Balanço de Expedição por Destino
 balanco_destinos = []
 total_expedicao_meta = 0.0
 total_expedicao_real = 0.0
@@ -449,18 +436,77 @@ if not df_qual.empty:
             }
 
 # ==============================================================================
-# 📌 STATUS DE SINCRONIZAÇÃO DA TORRE (LOGO E BOTÃO AGORA ESTÃO NO INDEX.HTML)
+# 📌 CABEÇALHO SUPERIOR (FIXADO PELO CSS DA LINHA 75)
 # ==============================================================================
-st.markdown(f"""
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; border-bottom: 1px dashed #1c2b42; padding-bottom: 8px;">
-        <div style="color: #94a3b8; font-size: 0.70rem;">
-            Última Sinc: <span style="color: #ffffff;">{ultima_att}</span>
-        </div>
-        <div style="color: #00D672; font-size: 0.70rem; font-weight: bold;">
-            <span>🎯</span> {ritmo_torre}
-        </div>
+
+# Esta é a âncora invisível que o CSS vai caçar para travar este bloco no teto
+st.markdown('<div class="ancora-topo"></div>', unsafe_allow_html=True)
+
+# Container que vai grudar no topo
+with st.container():
+    col_logo, col_status, col_btn = st.columns([3.5, 2.5, 1.2], vertical_alignment="center")
+
+    with col_logo:
+        # Puxando a imagem com a extensão nova .jfif
+        st.image(LOGO_PAINEL, use_container_width=True)
+
+    with col_status:
+        st.markdown(f"""
+            <div style="text-align: right;">
+                <div style="color: #00D672; font-size: 0.85rem; font-weight: normal; display: flex; justify-content: flex-end; align-items: center; gap: 6px;">
+                    <span style="font-size: 1.1rem;">🎯</span> {ritmo_torre}
+                </div>
+                <div style="color: #94a3b8; font-size: 0.7rem; font-weight: normal; margin-top: 2px;">
+                    Sincronizado: {ultima_att}
+                </div>
+            </div>
+        """, unsafe_allow_html=True)
+
+    with col_btn:
+        if st.button("🔄 Atualizar", key="btn_atualizar_topo", use_container_width=True):
+            st.cache_data.clear()
+            st.rerun()
+
+# ==============================================================================
+# OS CARDS COMEÇAM AQUI E ROLAM POR BAIXO DO CABEÇALHO
+# ==============================================================================
+
+html_previsoes = f"""
+<div class="prev-container">
+    <div class="prev-card-prod">
+        <div class="prev-title">📈 Prev. Produção</div>
+        <div class="prev-val">{prev_prod:,.0f} <span style="font-size:0.9rem; color:#64748b;">t</span></div>
     </div>
-""", unsafe_allow_html=True)
+    <div class="prev-card-carr">
+        <div class="prev-title">🎯 Prev. Expedição</div>
+        <div class="prev-val">{prev_carr:,.0f} <span style="font-size:0.9rem; color:#64748b;">t</span></div>
+    </div>
+</div>
+"""
+st.markdown(html_previsoes, unsafe_allow_html=True)
+
+if not df_alertas.empty:
+    linhas_alt = []
+    tem_critico = False
+    for _, alt_row in df_alertas.iterrows():
+        txt_alt = str(alt_row.get("ALERTA", "")).strip()
+        nv_alt = str(alt_row.get("NIVEL", "")).strip().upper()
+        if txt_alt and "Normal" not in txt_alt:
+            linhas_alt.append(f"• {txt_alt}")
+            if nv_alt == "CRITICO": tem_critico = True
+
+    if linhas_alt:
+        cor_b = "#E74C3C" if tem_critico else "#FF9F1C"
+        bg_b = "#2b1111" if tem_critico else "#24180d"
+        txt_cor = "#ff9999" if tem_critico else "#ffd299"
+        corpo_alt = "<br>".join(linhas_alt[:4])
+        st.markdown(f"""
+            <div style="background-color: {bg_b}; border-left: 4px solid {cor_b}; padding: 10px 14px; margin-bottom: 12px; border-radius: 6px;">
+                <div style="color: {cor_b}; font-size: 11px; font-weight: normal; text-transform: uppercase;">🚨 Observações & Alertas Críticos</div>
+                <div style="color: {txt_cor}; font-size: 12px; font-weight: normal; margin-top: 4px;">{corpo_alt}</div>
+            </div>
+        """, unsafe_allow_html=True)
+
 
 # ==============================================================================
 # 📦 BLOCO 1: PÁTIO DE VEÍCULOS (EXPANSÍVEL POR DESTINOS)
