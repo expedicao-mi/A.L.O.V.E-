@@ -58,6 +58,14 @@ st.markdown(f"""
 # ==============================================================================
 st.markdown("""
     <style>
+        /* ELIMINA O CONTORNO E AS BORDAS BRANCAS DO MODO EMBED */
+        html, body, [data-testid="stAppViewContainer"], .stApp, .main {
+            background-color: #0a101d !important;
+            border: none !important;
+            outline: none !important;
+            box-shadow: none !important;
+        }
+
         /* MATA O CABEÇALHO, RODAPÉ E MENU DO STREAMLIT */
         #MainMenu {visibility: hidden !important;}
         footer {visibility: hidden !important; display: none !important;}
