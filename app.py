@@ -430,63 +430,35 @@ if not df_qual.empty:
             }
 
 # ==============================================================================
-# 📌 CABEÇALHO SUPERIOR (TRAVA 100% GARANTIDA + NOVA LOGO .JFIF)
+# 📌 CABEÇALHO SUPERIOR (LOGO NOVA .JFIF CONTROLADA)
 # ==============================================================================
-# Garanta que a URL seja a correta para a nova imagem
 LOGO_PAINEL_NOVA = "https://raw.githubusercontent.com/expedicao-mi/A.L.O.V.E-/main/logo_alove.jfif"
 
-# Cria um container nativo do Streamlit para agrupar tudo
-header_container = st.container()
+col_logo, col_status, col_btn = st.columns([3.5, 2.5, 1.2], vertical_alignment="center")
 
-with header_container:
-    col1, col2, col3 = st.columns([3.5, 2.5, 1.2], vertical_alignment="center")
-    
-    with col1:
-        st.image(LOGO_PAINEL_NOVA, use_container_width=True)
-        
-    with col2:
-        st.markdown(f"""
-            <div style="text-align: right;">
-                <div style="color: #00D672; font-size: 0.85rem; font-weight: normal; display: flex; justify-content: flex-end; align-items: center; gap: 6px;">
-                    <span style="font-size: 1.1rem;">🎯</span> {ritmo_torre}
-                </div>
-                <div style="color: #94a3b8; font-size: 0.7rem; font-weight: normal; margin-top: 2px;">
-                    Sincronizado: {ultima_att}
-                </div>
+with col_logo:
+    # Mostra a logo nova limitando o tamanho para não estourar na tela
+    st.markdown(f'<img src="{LOGO_PAINEL_NOVA}" style="height: 45px; width: auto; max-width: 100%; object-fit: contain;">', unsafe_allow_html=True)
+
+with col_status:
+    st.markdown(f"""
+        <div style="text-align: right;">
+            <div style="color: #00D672; font-size: 0.85rem; font-weight: normal; display: flex; justify-content: flex-end; align-items: center; gap: 6px;">
+                <span style="font-size: 1.1rem;">🎯</span> {ritmo_torre}
             </div>
-        """, unsafe_allow_html=True)
-        
-    with col3:
-        if st.button("🔄 Atualizar", use_container_width=True):
-            st.cache_data.clear()
-            st.rerun()
+            <div style="color: #94a3b8; font-size: 0.7rem; font-weight: normal; margin-top: 2px;">
+                Sincronizado: {ultima_att}
+            </div>
+        </div>
+    """, unsafe_allow_html=True)
 
-# ---------------------------------------------------------
-# O TRUQUE DE MESTRE: Forçar o container do Streamlit a colar no teto
-# Injetamos o CSS AGORA, logo depois de criar o container, 
-# e usamos o seletor :first-child do Streamlit para mirar apenas nele.
-# ---------------------------------------------------------
-st.markdown("""
-    <style>
-        /* Pega o PRIMEIRO bloco do app (que acabamos de criar acima) e gruda no teto */
-        div[data-testid="stVerticalBlock"] > div:first-child {
-            position: sticky !important;
-            position: -webkit-sticky !important;
-            top: 0 !important;
-            z-index: 999999 !important;
-            background-color: #0a101d !important;
-            padding: 10px 0 !important;
-            border-bottom: 1px solid #1c2b42 !important;
-            box-shadow: 0px 4px 10px rgba(0,0,0,0.5) !important;
-        }
-        
-        /* Remove o espaço em branco inútil do topo para colar certinho */
-        .block-container {
-            padding-top: 0 !important;
-        }
-    </style>
-""", unsafe_allow_html=True)
+with col_btn:
+    if st.button("🔄 Atualizar", use_container_width=True):
+        st.cache_data.clear()
+        st.rerun()
 
+# Espaçamento simples antes dos cards
+st.markdown("<br>", unsafe_allow_html=True)
 # ==============================================================================
 # 📦 BLOCO 1: PÁTIO DE VEÍCULOS (EXPANSÍVEL POR DESTINOS)
 # ==============================================================================
