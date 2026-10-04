@@ -4,7 +4,6 @@
   <meta charset="UTF-8">
   <title>A.L.O.V.E.</title>
 
-  <!-- PWA & Mobile Fullscreen -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -12,7 +11,6 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="theme-color" content="#0a101d">
 
-  <!-- Ícones Oficiais -->
   <link rel="apple-touch-icon" href="https://raw.githubusercontent.com/cris2026/A.L.O.V.E-/main/logo_alove.png">
   <link rel="icon" type="image/png" href="https://raw.githubusercontent.com/cris2026/A.L.O.V.E-/main/logo_alove.png">
 
@@ -32,27 +30,27 @@
       background-color: #0a101d !important;
     }
 
-    /* Container de recorte fixo */
+    /* Container de recorte fixo na tela */
     .app-wrapper {
       position: fixed;
       top: 0;
       left: 0;
       width: 100vw;
       height: 100vh;
-      overflow: hidden;
-      background-color: #0a101d;
+      overflow: hidden !important;
+      background-color: #0a101d !important;
     }
 
-    /* Expande 6px para as laterais e topo para engolir a linha branca, e 60px para baixo para sumir com o rodapé */
+    /* Puxa 12px para fora em cima/lados para engolir qualquer borda branca, e 70px embaixo para o rodapé */
     iframe {
       position: absolute;
-      top: -6px;
-      left: -6px;
-      width: calc(100vw + 12px);
-      height: calc(100vh + 66px);
+      top: -12px !important;
+      left: -12px !important;
+      width: calc(100vw + 24px) !important;
+      height: calc(100vh + 82px) !important;
       border: 0 !important;
       outline: 0 !important;
-      background-color: #0a101d;
+      background-color: #0a101d !important;
     }
   </style>
 </head>
