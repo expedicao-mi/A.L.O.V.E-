@@ -430,9 +430,9 @@ if not df_qual.empty:
             }
 
 # ==============================================================================
-# 📌 CABEÇALHO SUPERIOR (LOGO NOVA .JFIF CONTROLADA)
+# 📌 CABEÇALHO SUPERIOR (LOGO NOVA)
 # ==============================================================================
-LOGO_PAINEL_NOVA = "https://raw.githubusercontent.com/expedicao-mi/A.L.O.V.E-/main/logo_alove.jfif"
+LOGO_PAINEL_NOVA = "https://raw.githubusercontent.com/expedicao-mi/A.L.O.V.E-/main/logo_alove.jpg"
 
 col_logo, col_status, col_btn = st.columns([3.5, 2.5, 1.2], vertical_alignment="center")
 
