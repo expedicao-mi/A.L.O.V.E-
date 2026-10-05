@@ -431,15 +431,14 @@ if not df_qual.empty:
             }
 
 # ==============================================================================
-# 📌 CABEÇALHO SUPERIOR (LOGO NOVA)
+# 📌 CABEÇALHO SUPERIOR (LOGO NOVA .JPG)
 # ==============================================================================
-LOGO_PAINEL_NOVA = "https://raw.githubusercontent.com/expedicao-mi/A.L.O.V.E-/main/logo_alove.jpg"
 
 col_logo, col_status, col_btn = st.columns([3.5, 2.5, 1.2], vertical_alignment="center")
 
 with col_logo:
-    # Mostra a logo nova limitando o tamanho para não estourar na tela
-    st.markdown(f'<img src="{LOGO_PAINEL_NOVA}" style="height: 45px; width: auto; max-width: 100%; object-fit: contain;">', unsafe_allow_html=True)
+    # A imagem será carregada forçando a largura correta para não ficar gigante
+    st.markdown(f'<img src="{LOGO_PAINEL}" style="height: 45px; width: auto; max-width: 100%; object-fit: contain;">', unsafe_allow_html=True)
 
 with col_status:
     st.markdown(f"""
@@ -454,12 +453,12 @@ with col_status:
     """, unsafe_allow_html=True)
 
 with col_btn:
-    if st.button("🔄 Atualizar", use_container_width=True):
+    if st.button("🔄 Atualizar", key="btn_atualizar_topo", use_container_width=True):
         st.cache_data.clear()
         st.rerun()
 
-# Espaçamento simples antes dos cards
 st.markdown("<br>", unsafe_allow_html=True)
+
 # ==============================================================================
 # 📦 BLOCO 1: PÁTIO DE VEÍCULOS (EXPANSÍVEL POR DESTINOS)
 # ==============================================================================
