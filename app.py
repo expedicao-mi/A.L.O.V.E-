@@ -30,7 +30,7 @@ if "bafometro_autenticado" not in st.session_state:
     st.session_state.bafometro_autenticado = False
 
 # ==============================================================================
-# 🎨 CSS (LAYOUT VERTICAL COM DESIGN DE APP)
+# 🎨 CSS (LAYOUT VERTICAL COM DESIGN DE APP E BARRA FIXA)
 # ==============================================================================
 st.markdown(f"""
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -59,7 +59,7 @@ st.markdown("""
 
         /* COLUNA CENTRAL ESTILO APP */
         .block-container {
-            padding-top: 0rem !important; padding-bottom: 2rem !important;
+            padding-top: 0rem !important; padding-bottom: 5.5rem !important;
             padding-left: 0.8rem !important; padding-right: 0.8rem !important;
             max-width: 560px !important; margin: 0 auto !important;
         }
@@ -162,14 +162,58 @@ st.markdown("""
         .master-metric-sub { font-size: 0.85rem; font-weight: normal; margin-top: 4px; }
         .master-content { background-color: transparent; padding: 0 16px 16px 16px; }
 
-        /* TAGS DE FROTA E LEGENDAS */
+        /* TABS CSS NATIVO (PARA PRODUÇÃO/EXPEDIÇÃO/FROTA) */
+        .css-tabs-view label { display: inline-block; padding: 8px 20px; background-color: #162438; color: #94a3b8; border-radius: 8px; font-size: 0.9rem; font-weight: normal; margin: 0 4px 14px 4px; cursor: pointer; border: 1px solid #1c2b42; transition: 0.2s; }
+        .css-tabs-view input[type="radio"]#view_turnos:checked + label.lbl-v-turnos { background-color: #00D672; color: #0a101d; border-color: #00D672; }
+        .css-tabs-view input[type="radio"]#view_destinos:checked + label.lbl-v-destinos { background-color: #38bdf8; color: #0a101d; border-color: #38bdf8; }
+        .view-content-exp { display: none; animation: fadeIn 0.3s ease; }
+        #view_turnos:checked ~ #content_view_turnos { display: block; }
+        #view_destinos:checked ~ #content_view_destinos { display: block; }
+
+        .css-tabs-exp label { display: inline-block; padding: 6px 16px; background-color: #162438; color: #94a3b8; border-radius: 6px; font-size: 0.85rem; font-weight: normal; margin: 0 4px; cursor: pointer; border: 1px solid #1c2b42; transition: 0.2s; }
+        .css-tabs-exp input[type="radio"]#tab_ontem:checked + label.lbl-ontem { background-color: #38bdf8; color: #0a101d; border-color: #38bdf8; }
+        .css-tabs-exp input[type="radio"]#tab_hoje:checked + label.lbl-hoje { background-color: #00D672; color: #0a101d; border-color: #00D672; }
+        .tab-content-exp { display: none; animation: fadeIn 0.3s ease; }
+        #tab_ontem:checked ~ #content_ontem { display: block; }
+        #tab_hoje:checked ~ #content_hoje { display: block; }
+
+        /* TABS FROTA */
+        .frota-tabs-main { display: flex; gap: 8px; justify-content: center; margin-bottom: 16px; }
+        .frota-tabs-main label { padding: 8px 16px; background-color: #162438; color: #94a3b8; border-radius: 6px; cursor: pointer; border: 1px solid #1c2b42; font-weight: normal; font-size: 0.9rem; transition: 0.2s; }
+        .frota-tabs-sub { display: flex; gap: 6px; justify-content: center; margin-bottom: 14px; }
+        .frota-tabs-sub label { padding: 6px 12px; background-color: #111c2e; color: #64748b; border-radius: 6px; cursor: pointer; border: 1px solid #1c2b42; font-weight: normal; font-size: 0.8rem; transition: 0.2s; }
+
+        .f-rad-main, .f-rad-sub, input[type="radio"] { display: none; }
+        .f-content-dia { display: none; animation: fadeIn 0.3s ease; }
+
+        #frota_dia_ontem:checked ~ .frota-tabs-main .lbl-f-ontem { background-color: #38bdf8; color: #0a101d; border-color: #38bdf8; }
+        #frota_dia_hoje:checked ~ .frota-tabs-main .lbl-f-hoje { background-color: #E67E22; color: #0a101d; border-color: #E67E22; }
+        #frota_dia_ontem:checked ~ #frota_box_ontem { display: block; }
+        #frota_dia_hoje:checked ~ #frota_box_hoje { display: block; }
+
+        .f-content-turno-hoje, .f-content-turno-ontem { display: none; background-color: #05080f; padding: 14px; border-radius: 8px; border: 1px solid #1c2b42; text-align: left; }
+        #frota_h_00:checked ~ .frota-tabs-sub .lbl-h-00, #frota_h_08:checked ~ .frota-tabs-sub .lbl-h-08, #frota_h_16:checked ~ .frota-tabs-sub .lbl-h-16, #frota_o_00:checked ~ .frota-tabs-sub .lbl-o-00, #frota_o_08:checked ~ .frota-tabs-sub .lbl-o-08, #frota_o_16:checked ~ .frota-tabs-sub .lbl-o-16 { background-color: #0d2417; color: #00D672; border-color: #00D672; }
+
+        #frota_h_00:checked ~ #frota_h_content_00, #frota_h_08:checked ~ #frota_h_content_08, #frota_h_16:checked ~ #frota_h_content_16, #frota_o_00:checked ~ #frota_o_content_00, #frota_o_08:checked ~ #frota_o_content_08, #frota_o_16:checked ~ #frota_o_content_16 { display: block; }
+
         .f-tag-ok { background-color: #00D672; color: #0a101d; }
         .f-tag-avaria { background-color: #E74C3C; color: #ffffff; }
         .f-tag-aten { background-color: #FFD600; color: #0a101d; }
         .f-tag-title { font-size: 0.85rem; color: #ffffff; font-weight: normal; margin-bottom: 8px; border-bottom: 1px dashed #1c2b42; padding-bottom: 4px; }
         .f-tag-container { margin-bottom: 16px; text-align: left; }
         .tag-box { display: inline-block; padding: 6px 10px; margin: 3px; border-radius: 6px; font-weight: normal; font-size: 0.8rem; text-align: center; }
+        .f-legenda { margin-top: 14px; background: #05080f; border: 1px solid #1c2b42; border-radius: 8px; padding: 10px 12px; text-align: left; }
+        .f-leg-titulo { color: #94a3b8; font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 8px; }
+        .f-leg-item { display: flex; align-items: center; gap: 10px; color: #cbd5e1; font-size: .8rem; padding: 3px 0; }
+        .f-leg-cor { width: 16px; height: 16px; border-radius: 4px; flex-shrink: 0; }
 
+        /* ---------- BARRA DE NAVEGAÇÃO INFERIOR CSS (FIXA, SEM BOTÕES FEIOS) ---------- */
+        .bottom-nav { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: 100%; max-width: 560px; z-index: 999990; display: flex; justify-content: space-around; background: #070d18; border-top: 1px solid #12506e; padding: 10px 0 calc(10px + env(safe-area-inset-bottom)); }
+        .bottom-nav a { color: #8fa6c4; text-decoration: none; font-size: .7rem; display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 56px; }
+        .bottom-nav a span { font-size: 1.4rem; }
+        .bottom-nav a:active { color: #00D672; }
+
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
         @keyframes pulso { 0% { box-shadow: 0 0 0 0 rgba(0,214,114,.55); } 70% { box-shadow: 0 0 0 9px rgba(0,214,114,0); } 100% { box-shadow: 0 0 0 0 rgba(0,214,114,0); } }
     </style>
 """, unsafe_allow_html=True)
@@ -294,7 +338,7 @@ conn_txt, conn_cor = ("CONECTADO", "#00D672") if minutos_inativos <= 15 else ("A
 conn_hora = dt_att.strftime("%H:%M:%S") if dt_att.date() == hoje_date else dt_att.strftime("%d/%m %H:%M")
 
 # ==============================================================================
-# 🎯 PROCESSAMENTO DO PÁTIO
+# 🎯 PROCESSAMENTO DO PÁTIO (DESTINOS E STATUS)
 # ==============================================================================
 STATUS_COLS = {"PR": ("PR_VEIC", "PR_TON"), "00": ("00_VEIC", "00_TON"), "01": ("01_VEIC", "01_TON"), "FC": ("FC_VEIC", "FC_TON")}
 destinos_por_status = {"PR": [], "00": [], "01": [], "FC": [], "TR": []}
@@ -335,7 +379,7 @@ total_veiculos_fisicos = dados_patio["00"]["veiculos"] + dados_patio["01"]["veic
 vol_patio_disponivel = forcar_par(dados_patio["00"]["peso"] + dados_patio["01"]["peso"] + dados_patio["FC"]["peso"])
 
 # ==============================================================================
-# 🎯 PROCESSAMENTO PRODUÇÃO
+# 🎯 PROCESSAMENTO PRODUÇÃO E VIRADA DE LINHA
 # ==============================================================================
 viradas_info = {}
 if not df_status_virada.empty:
@@ -366,7 +410,7 @@ if not df_qual.empty:
             }
 
 # ==============================================================================
-# 🎯 PROCESSAMENTO EXPEDIÇÃO (BALANÇO)
+# 🎯 PROCESSAMENTO EXPEDIÇÃO (BALANÇO DESTINOS)
 # ==============================================================================
 balanco_destinos = []
 total_expedicao_meta, total_expedicao_real = 0.0, 0.0
@@ -392,9 +436,9 @@ if not df_balanco_dest.empty:
             })
 
 # ==============================================================================
-# 🎯 TOPO HTML: BANNER E STATUS
+# 🎯 TOPO HTML: BANNER E STATUS (Sempre Visível)
 # ==============================================================================
-st.markdown(f'<div class="topo-banner"><img src="{BANNER_TOPO_URL}"></div>', unsafe_allow_html=True)
+st.markdown(f'<div id="sec-inicio" class="anc"></div><div class="topo-banner"><img src="{BANNER_TOPO_URL}"></div>', unsafe_allow_html=True)
 
 with st.container(border=True):
     col_status, col_btn = st.columns([3, 2], vertical_alignment="center")
@@ -404,7 +448,7 @@ with st.container(border=True):
                 <span class="conn-dot" style="background:{conn_cor};"></span>
                 <span class="conn-titulo" style="color:{conn_cor};">{conn_txt}</span>
             </div>
-            <div class="conn-sub">🕒 Última att: {conn_hora}</div>
+            <div class="conn-sub">🕒 Última atualização: {conn_hora}</div>
             <div class="conn-ritmo">🎯 {ritmo_torre}</div>
         """.replace('\n', ''), unsafe_allow_html=True)
     with col_btn:
@@ -412,7 +456,7 @@ with st.container(border=True):
             st.cache_data.clear(); st.rerun()
 
 # ==============================================================================
-# 🔔 NOTIFICAÇÕES (Sempre Visível)
+# 🔔 ALERTAS GERAIS E NOTIFICAÇÕES (Sempre Visível)
 # ==============================================================================
 alertas_lista = []
 if not df_alertas.empty:
@@ -461,11 +505,13 @@ if alertas_lista:
     )
     st.markdown(html_notif.replace('\n', ''), unsafe_allow_html=True)
 
+# ==============================================================================
+# 📦 CONSTRUÇÃO DOS MÓDULOS DE RENDERIZAÇÃO (Rolagem Vertical)
+# ==============================================================================
 
-# ==============================================================================
-# 🏭 MÓDULO PÁTIO DE VEÍCULOS
-# ==============================================================================
+# --- MÓDULO PÁTIO ---
 html_patio = f'''
+<div id="sec-patio" class="anc"></div>
 <div class="card-main">
     <div class="card-head"><div class="icon-sq">🏭</div><div class="card-title">Pátio da Fábrica (Tempo Real)</div></div>
     <div class="kpi-duo">
@@ -512,6 +558,11 @@ for tit, chv, cor, ico in blocos_patio:
             f'<div class="dest-row total"><span class="n">TOTAL</span>'
             f'<span class="v">{v_qtd} veíc. <small>({fmt(v_ton)} t)</small></span></div>'
         )
+        if dif_status.get(chv, 0) != 0:
+            linhas_dest_html += (
+                f'<div class="dest-aviso">⚠️ A planilha informa {total_planilha[chv]["veiculos"]} veíc. no total '
+                f'(diferença de {abs(dif_status[chv])} não detalhada por destino).</div>'
+            )
     else:
         linhas_dest_html = '<div class="dest-vazio">Nenhum veículo alocado neste status.</div>'
 
@@ -542,9 +593,7 @@ html_patio += f'''
 </div>
 '''
 
-# ==============================================================================
-# 🏭 MÓDULO PRODUÇÃO
-# ==============================================================================
+# --- MÓDULO PRODUÇÃO ---
 html_prod_content = ""
 for maq in ["MS1", "MS2"]:
     q_dados = dados_maquinas.get(maq, {})
@@ -620,6 +669,7 @@ for maq in ["MS1", "MS2"]:
         html_prod_content += f"<div style='color:gray; padding:10px 0;'>Aguardando dados da {maq}...</div>"
 
 html_prod_completo = f"""
+<div id="sec-prod" class="anc"></div>
 <details class="master-box" style="border-left-color: #E5B800;" open>
     <summary>
         <div class="header-layout">
@@ -639,9 +689,7 @@ html_prod_completo = f"""
 </details>
 """
 
-# ==============================================================================
-# 🚚 MÓDULO EXPEDIÇÃO
-# ==============================================================================
+# --- MÓDULO EXPEDIÇÃO ---
 def func_exp_dados(dt_a):
     ls = descobrir_letras_turnos(dt_a)
     try:
@@ -733,8 +781,10 @@ if balanco_destinos:
             dest_nome = "MI / LATAM"
         else:
             parts = nome_cru.split('-')
-            if len(parts) >= 2: dest_nome = f"{parts[0].strip()} - {parts[1].strip()}"
-            else: dest_nome = nome_cru
+            if len(parts) >= 2:
+                dest_nome = f"{parts[0].strip()} - {parts[1].strip()}"
+            else:
+                dest_nome = nome_cru
 
         html_destinos += f"""
             <tr style="border-bottom: 1px dashed #1c2b42; font-weight: normal;">
@@ -750,6 +800,7 @@ else:
     html_destinos += '<div style="color:#64748b; font-size:0.8rem; text-align:center;">Nenhum destino ativo reportado.</div>'
 
 html_exp_completo = f"""
+<div id="sec-exp" class="anc"></div>
 <details class="master-box" style="border-left-color: #00D672;" open>
     <summary>
         <div class="header-layout">
@@ -763,9 +814,38 @@ html_exp_completo = f"""
         <div class="master-metric-sub" style="color: #00D672;">Consolidado Ontem (D-1): {fmt(vol_ontem)} t</div>
         <div class="master-metric-sub" style="color: #64748b;">Prev. Fechamento: {fmt(prev_carr)} t</div>
     </summary>
-    <div class="master-content" style="padding-top:16px;">
-        <div style='font-size:0.75rem; font-weight:bold; color:#00D672; text-transform:uppercase; margin-bottom:8px;'>🗓️ TURNOS EM OPERAÇÃO (HOJE)</div>
-        <div style='display:flex; gap:6px; margin-bottom:16px;'>
+    <div class="master-content css-tabs-view" style="padding-top:16px;">
+        <div style="text-align: center; margin-bottom: 16px;">
+            <input type="radio" name="exp_main_view" id="view_turnos" checked>
+            <label for="view_turnos" class="lbl-v-turnos">⏰ Turnos</label>
+
+            <input type="radio" name="exp_main_view" id="view_destinos">
+            <label for="view_destinos" class="lbl-v-destinos">📍 Destinos</label>
+
+            <div class="view-content-exp" id="content_view_turnos" style="margin-top: 14px;">
+                <div class="css-tabs-exp">
+                    <div style="text-align: center;">
+                        <input type="radio" name="exp_tabs" id="tab_ontem">
+                        <label for="tab_ontem" class="lbl-ontem">⏮️ Ontem (D-1)</label>
+
+                        <input type="radio" name="exp_tabs" id="tab_hoje" checked>
+                        <label for="tab_hoje" class="lbl-hoje">📅 Hoje</label>
+
+                        <div class="tab-content-exp" id="content_ontem" style="margin-top: 14px;">
+                            <div style='font-size:0.75rem; font-weight:normal; color:#38bdf8; text-transform:uppercase; margin-bottom:10px; text-align:left;'>Fechamento de Ontem ({ontem_date.strftime('%d/%m')}):</div>
+                            <div style='display:flex; gap:6px; margin-bottom:8px;'>
+"""
+for t in tns_ontem:
+    v_str_o = t.get("str_vol", f"{fmt(t['v'])} t")
+    html_val_o = f"<div style='font-size:0.85rem; font-weight:normal; color:#E74C3C; padding: 5px 0;'>EM FOLGA</div>" if v_str_o == "EM FOLGA" else f"<div style='font-size:1.1rem; font-weight:normal; color:#ffffff;'>{v_str_o}</div>"
+    html_exp_completo += f"<div style='flex:1; background-color:#0a101d; border:1px solid #1c2b42; border-radius:8px; padding:8px; text-align:center;'><div style='font-size:0.75rem; font-weight:bold; color:#38bdf8;'>{t['letra']}</div>{html_val_o}<div style='font-size:0.65rem; color:#64748b;'>{t['horario']}</div></div>"
+html_exp_completo += """
+                            </div>
+                        </div>
+
+                        <div class="tab-content-exp" id="content_hoje" style="margin-top: 14px;">
+                            <div style='font-size:0.75rem; font-weight:normal; color:#00D672; text-transform:uppercase; margin-bottom:10px; text-align:left;'>Turnos em Operação Hoje:</div>
+                            <div style='display:flex; gap:6px; margin-bottom:8px;'>
 """
 for i, t in enumerate(tns_hoje):
     is_atv = False
@@ -778,24 +858,22 @@ for i, t in enumerate(tns_hoje):
     html_val = f"<div style='font-size:0.85rem; font-weight:normal; color:#E74C3C; padding: 5px 0;'>EM FOLGA</div>" if v_str == "EM FOLGA" else f"<div style='font-size:1.1rem; font-weight:normal; color:#ffffff;'>{v_str}</div>"
     html_exp_completo += f"<div style='flex:1; background-color:#0a101d; border:1px solid {c_b}; border-radius:8px; padding:8px; text-align:center;'><div style='font-size:0.75rem; font-weight:bold; color:{c_t};'>{t['letra']}</div>{html_val}<div style='font-size:0.65rem; color:#64748b;'>{t['horario']}{' (ATIVO)' if is_atv else ''}</div></div>"
 html_exp_completo += f"""
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="view-content-exp" id="content_view_destinos" style="margin-top: 14px; text-align: left;">
+                {html_destinos}
+            </div>
         </div>
-        <div style='font-size:0.75rem; font-weight:bold; color:#38bdf8; text-transform:uppercase; margin-bottom:8px;'>⏮️ FECHAMENTO D-1 ({ontem_date.strftime('%d/%m')})</div>
-        <div style='display:flex; gap:6px; margin-bottom:20px;'>
-"""
-for t in tns_ontem:
-    v_str_o = t.get("str_vol", f"{fmt(t['v'])} t")
-    html_val_o = f"<div style='font-size:0.85rem; font-weight:normal; color:#E74C3C; padding: 5px 0;'>EM FOLGA</div>" if v_str_o == "EM FOLGA" else f"<div style='font-size:1.1rem; font-weight:normal; color:#ffffff;'>{v_str_o}</div>"
-    html_exp_completo += f"<div style='flex:1; background-color:#0a101d; border:1px solid #1c2b42; border-radius:8px; padding:8px; text-align:center;'><div style='font-size:0.75rem; font-weight:bold; color:#38bdf8;'>{t['letra']}</div>{html_val_o}<div style='font-size:0.65rem; color:#64748b;'>{t['horario']}</div></div>"
-html_exp_completo += f"""
-        </div>
-        <div style='font-size:0.75rem; font-weight:bold; color:#ffffff; text-transform:uppercase; margin-bottom:8px;'>📍 BALANÇO POR DESTINO</div>
-        {html_destinos}
     </div>
 </details>
 """
 
 # --- MÓDULO ESTOQUE FÍSICO ---
-html_est = f'<details class="master-box" style="border-left-color: #9b59b6;" open>'
+html_est = f'<div id="sec-estoque" class="anc"></div><details class="master-box" style="border-left-color: #9b59b6;" open>'
 html_est += f'''
 <summary>
     <div class="header-layout">
@@ -817,7 +895,6 @@ if dados_segregados:
     for _, r in df_seg.iterrows():
         t = forcar_par(r["Toneladas"])
         m = str(r["Material"]).upper()
-        # Se contiver "EQ", usa a cor verde, senão o azul padrão
         cb = "#00D672" if "EQ" in m else "#38bdf8"
         html_est += f"<div style='flex:1; min-width:30%; background-color:#0a101d; border:1px solid #1c2b42; border-radius:6px; padding:10px; text-align:center;'><div style='font-size:0.75rem; color:#94a3b8; font-weight:bold;'>{m}</div><div style='font-size:1.1rem; font-weight:bold; color:{cb}; margin-top:2px;'>{fmt(t)} t</div></div>"
     html_est += "</div>"
@@ -862,7 +939,7 @@ def rnd_tg(lst):
         r += f"<span class='tag-box {cl}'>{i['eq']}</span> "
     return r
 
-html_frota = f'<details class="master-box" style="border-left-color:#E67E22;"><summary><div class="header-layout"><div class="icon-box" style="background-color:rgba(230,126,34,.15); color:#E67E22;">🚜</div><div class="master-metric-title">Frota e Equipamentos</div></div><div class="value-layout"><div class="master-metric-val">{v_hoje}</div><div class="master-metric-unit">Veículos Logados Hoje</div></div><div class="master-metric-sub" style="color:#E67E22;">Empilhadeiras e Talhas Elétricas</div></summary><div class="master-content" style="padding-top:16px;">'
+html_frota = f'<div id="sec-frota" class="anc"></div><details class="master-box" style="border-left-color:#E67E22;"><summary><div class="header-layout"><div class="icon-box" style="background-color:rgba(230,126,34,.15); color:#E67E22;">🚜</div><div class="master-metric-title">Frota e Equipamentos</div></div><div class="value-layout"><div class="master-metric-val">{v_hoje}</div><div class="master-metric-unit">Veículos Logados Hoje</div></div><div class="master-metric-sub" style="color:#E67E22;">Empilhadeiras e Talhas Elétricas</div></summary><div class="master-content" style="padding-top:16px;">'
 html_frota += f"<div style='font-size:0.75rem; font-weight:bold; color:#00D672; text-transform:uppercase; margin-bottom:8px;'>📅 LOGADOS HOJE ({hoje_date.strftime('%d/%m')})</div><div style='background-color:#05080f; padding:12px; border-radius:8px; border:1px solid #1c2b42; margin-bottom:16px;'><div class='f-tag-title'>🟢 Empilhadeiras ({len(frota_agr['h']['e'])})</div><div style='margin-bottom:12px;'>{rnd_tg(frota_agr['h']['e'])}</div><div class='f-tag-title'>🏗️ Talhas / Pontes ({len(frota_agr['h']['t'])})</div><div>{rnd_tg(frota_agr['h']['t'])}</div></div>"
 html_frota += f"<div style='font-size:0.75rem; font-weight:bold; color:#38bdf8; text-transform:uppercase; margin-bottom:8px;'>⏮️ LOGADOS ONTEM ({ontem_date.strftime('%d/%m')})</div><div style='background-color:#05080f; padding:12px; border-radius:8px; border:1px solid #1c2b42; margin-bottom:16px;'><div class='f-tag-title'>🟢 Empilhadeiras ({len(frota_agr['o']['e'])})</div><div style='margin-bottom:12px;'>{rnd_tg(frota_agr['o']['e'])}</div><div class='f-tag-title'>🏗️ Talhas / Pontes ({len(frota_agr['o']['t'])})</div><div>{rnd_tg(frota_agr['o']['t'])}</div></div>"
 html_frota += '<div class="f-legenda"><div class="f-leg-titulo">🎨 Legenda das cores</div><div class="f-leg-item"><span class="f-leg-cor f-tag-ok"></span><span><b>Verde</b> — OK: sem avarias apontadas</span></div><div class="f-leg-item"><span class="f-leg-cor f-tag-aten"></span><span><b>Amarelo</b> — Atenção: item apontado no checklist</span></div><div class="f-leg-item"><span class="f-leg-cor f-tag-avaria"></span><span><b>Vermelho</b> — Avaria: equipamento bloqueado/quebrado</span></div></div></div></details>'
@@ -942,3 +1019,16 @@ if st.session_state.bafometro_autenticado:
 st.markdown(h_an, unsafe_allow_html=True)
 st.markdown("<br><center><span style='color:#64748b; font-size:0.75rem; letter-spacing:0.5px;'>A.L.O.V.E - Mobile / Developed by Crist Ciriaco</span></center>", unsafe_allow_html=True)
 
+# ==============================================================================
+# 🧭 NAVEGAÇÃO INFERIOR ESTRITA (FIXA VIA CSS PURO)
+# ==============================================================================
+st.markdown("""
+<div class="bottom-nav">
+    <a href="#sec-inicio" target="_self"><span>🏠</span>Início</a>
+    <a href="#sec-patio" target="_self"><span>🚛</span>Pátio</a>
+    <a href="#sec-prod" target="_self"><span>🏭</span>Produção</a>
+    <a href="#sec-exp" target="_self"><span>🚚</span>Exped</a>
+    <a href="#sec-estoque" target="_self"><span>📦</span>Estoque</a>
+    <a href="#sec-frota" target="_self"><span>🚜</span>Frota</a>
+</div>
+""", unsafe_allow_html=True)
