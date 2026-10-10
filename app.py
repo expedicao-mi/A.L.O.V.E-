@@ -556,22 +556,22 @@ html_notif = f"""
 </details>
 
 <img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" style="display:none;" onerror="
-(function() {
+(function() {{
     if (window._notifScrollWatcher) return;
     window._notifScrollWatcher = true;
-    var getScrollY = function() {
+    var getScrollY = function() {{
         return window.pageYOffset || document.documentElement.scrollTop || (document.querySelector('section.main') ? document.querySelector('section.main').scrollTop : 0) || 0;
-    };
+    }};
     var lastY = getScrollY();
-    window.addEventListener('scroll', function() {
+    window.addEventListener('scroll', function() {{
         var box = document.getElementById('box-notificacoes');
         var currY = getScrollY();
-        if (box && box.hasAttribute('open') && currY > lastY + 30) {
+        if (box && box.hasAttribute('open') && currY > lastY + 30) {{
             box.removeAttribute('open');
-        }
+        }}
         lastY = currY;
-    }, true);
-})();
+    }}, true);
+}})();
 "/>
 """
 st.markdown(html_notif.replace('\n', ''), unsafe_allow_html=True)
