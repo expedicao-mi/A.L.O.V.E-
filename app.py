@@ -345,13 +345,9 @@ df_bafometro = carregar_dados_nuvem("Bafometro_Status", cabecalho=0)
 if df_bafometro.empty: df_bafometro = carregar_dados_nuvem("Auditoria_Bafometro", cabecalho=0)
 df_frota = carregar_dados_nuvem("Historico_DKRO", cabecalho=0)
 
-# 🟢 Carrega as 5 abas individuais + a matriz consolidada de destinos
-df_pr = carregar_tabela_cega("Status_PR", "PLACA")
-df_00 = carregar_tabela_cega("Status_00", "PLACA")
-df_01 = carregar_tabela_cega("Status_01", "PLACA")
-df_fc = carregar_tabela_cega("Status_FC", "PLACA")
-df_tr = carregar_tabela_cega("Status_TR", "PLACA")
-df_patio_dest = carregar_tabela_cega("Patio_Destino_Status", "DESTINO")
+# 🟢 Carrega diretamente a matriz consolidada de destinos (1 única chamada leve!)
+df_patio_dest = carregar_dados_nuvem("Patio_Destino_Status", cabecalho=2)
+
 
 cache_dict = {str(row.iloc[0]).strip(): str(row.iloc[1]).strip() for _, row in df_cache.iterrows()} if not df_cache.empty else {}
 dados_segregados = parse_robusto(cache_dict.get("dados_segregados", "{}"))
@@ -410,79 +406,63 @@ else:
 conn_hora = dt_att.strftime("%H:%M:%S") if dt_att.date() == hoje_date else dt_att.strftime("%d/%m %H:%M")
 
 # ==============================================================================
-# ⚙️ PROCESSAMENTO: PÁTIO (DIRETO DAS 5 ABAS COM RESGATE DE DESTINOS)
+# ⚙️ PROCESSAMENTO: PÁTIO (DIRETO DA MATRIZ PATIO_DESTINO_STATUS)
 # ==============================================================================
-mapa_abas_patio = [
-    ("Prog/Chegando", "PR", df_pr, "#38a9ff", "🚙", "PR_VEIC", "PR_TON"),
-    ("Checklist", "00", df_00, "#FFD600", "📋", "00_VEIC", "00_TON"),
-    ("Apoio", "01", df_01, "#E67E22", "🚛", "01_VEIC", "01_TON"),
-    ("Fila de Carregamento", "FC", df_fc, "#00D672", "✅", "FC_VEIC", "FC_TON"),
-    ("Termo SAP", "TR", df_tr, "#95A5A6", "📄", "TR_VEIC", "TR_TON")
+mapa_status_colunas = [
+    ("Prog/Chegando", "PR", "PR_VEIC", "PR_TON", "#38a9ff", "🚙"),
+    ("Checklist", "00", "00_VEIC", "00_TON", "#FFD600", "📋"),
+    ("Apoio", "01", "01_VEIC", "01_TON", "#E67E22", "🚛"),
+    ("Fila de Carregamento", "FC", "FC_VEIC", "FC_TON", "#00D672", "✅"),
+    ("Termo SAP", "TR", "TR_VEIC", "TR_TON", "#95A5A6", "📄")
 ]
 
 dados_patio = {}
 destinos_por_status = {}
 
-for tit, chv, df_s, cor, ico, col_v_fb, col_t_fb in mapa_abas_patio:
+if not df_patio_dest.empty:
+    df_patio_dest.columns = [str(c).strip().upper() for c in df_patio_dest.columns]
+
+for tit, chv, col_v, col_t, cor, ico in mapa_status_colunas:
     dest_list = []
     v_qtd = 0
     v_ton = 0
 
-    # 1. Tenta extrair primeiro direto da aba individual (Status_PR, Status_00, etc.)
-    if not df_s.empty and "PLACA" in df_s.columns:
-        df_valido = df_s[df_s["PLACA"].astype(str).str.strip().ne("")].copy()
-        v_qtd = len(df_valido)
-
-        if "TONELADAS" in df_valido.columns:
-            df_valido["TON_NUM"] = df_valido["TONELADAS"].apply(safe_to_numeric)
-            v_ton = forcar_par(df_valido["TON_NUM"].sum())
-        else:
-            v_ton = 0
-
-        if "DESTINO" in df_valido.columns and v_qtd > 0:
-            df_valido["DEST_LIMPO"] = df_valido["DESTINO"].astype(str).str.strip()
-            grp = df_valido.groupby("DEST_LIMPO").agg(
-                veic=("PLACA", "count"),
-                ton=("TON_NUM", "sum")
-            ).reset_index()
-
-            for _, r_d in grp.iterrows():
-                d_nome = str(r_d["DEST_LIMPO"]).strip()
-                if d_nome and d_nome.upper() not in ["NAN", "NONE", ""]:
-                    dest_list.append({
-                        "destino": d_nome,
-                        "veic": int(r_d["veic"]),
-                        "ton": forcar_par(r_d["ton"])
-                    })
-
-    # 2. Resgate de segurança: se a aba individual não trouxer destinos, busca em Patio_Destino_Status
-    if not dest_list and not df_patio_dest.empty and col_v_fb in df_patio_dest.columns:
-        for _, r_pd in df_patio_dest.iterrows():
-            d_name = str(r_pd.get("DESTINO", "")).strip()
-            if not d_name or "TOTAL" in d_name.upper() or d_name.upper() in ["NAN", "NONE"]:
+    if not df_patio_dest.empty and "DESTINO" in df_patio_dest.columns:
+        for _, row in df_patio_dest.iterrows():
+            d_nome = str(row.get("DESTINO", "")).strip()
+            
+            # Ignora linhas vazias ou de total geral da fábrica
+            if not d_nome or "TOTAL" in d_nome.upper() or d_nome.upper() in ["NAN", "NONE"]:
                 continue
-            v_num = int(safe_to_numeric(r_pd.get(col_v_fb, 0)))
-            t_num = forcar_par(safe_to_numeric(r_pd.get(col_t_fb, 0)))
-            if v_num > 0 or t_num > 0:
-                dest_list.append({"destino": d_name, "veic": v_num, "ton": t_num})
+                
+            qtd_carretas = int(safe_to_numeric(row.get(col_v, 0)))
+            toneladas = forcar_par(safe_to_numeric(row.get(col_t, 0)))
 
-        if v_qtd == 0 and dest_list:
-            v_qtd = sum(i["veic"] for i in dest_list)
-            v_ton = sum(i["ton"] for i in dest_list)
+            if qtd_carretas > 0 or toneladas > 0:
+                dest_list.append({
+                    "destino": d_nome,
+                    "veic": qtd_carretas,
+                    "ton": toneladas
+                })
 
-    # 3. Fallback de totais via Mobile_Dashboard se ainda estiver zerado
-    if v_qtd == 0:
-        fb_v = int(safe_to_numeric(pegar_val(col_v_fb, 0))) if 'pegar_val' in locals() else 0
-        fb_t = forcar_par(safe_to_numeric(pegar_val(col_t_fb, 0))) if 'pegar_val' in locals() else 0
-        v_qtd = fb_v
-        v_ton = fb_t
-
+    # Ordena os destinos do maior para o menor em veículos
     dest_list.sort(key=lambda x: x["veic"], reverse=True)
+    
+    # Soma total dos veículos e peso do status
+    if dest_list:
+        v_qtd = sum(x["veic"] for x in dest_list)
+        v_ton = forcar_par(sum(x["ton"] for x in dest_list))
+    else:
+        # Fallback do Dashboard se a aba estiver vazia
+        v_qtd = int(safe_to_numeric(pegar_val(col_v, 0))) if 'pegar_val' in locals() else 0
+        v_ton = forcar_par(safe_to_numeric(pegar_val(col_t, 0))) if 'pegar_val' in locals() else 0
+
     dados_patio[chv] = {"veiculos": v_qtd, "peso": v_ton}
     destinos_por_status[chv] = dest_list
 
 total_veiculos_fisicos = dados_patio["00"]["veiculos"] + dados_patio["01"]["veiculos"] + dados_patio["FC"]["veiculos"]
 vol_patio_disponivel = forcar_par(dados_patio["00"]["peso"] + dados_patio["01"]["peso"] + dados_patio["FC"]["peso"])
+
 # ==============================================================================
 # ⚙️ PROCESSAMENTO: PRODUÇÃO & VIRADA
 # ==============================================================================
