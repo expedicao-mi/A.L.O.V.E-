@@ -330,6 +330,9 @@ if not df_dash.empty:
     ritmo_torre_bruto = str(row_d.get("RITMO_TORRE", "NORMAL")).upper()
     ritmo_torre = "RITMO DE ATUALIZAÇÃO: RÁPIDO" if "12" in ritmo_torre_bruto or "ACELERADO" in ritmo_torre_bruto else ritmo_torre_bruto
 
+    ritmo_torre_bruto = str(row_d.get("RITMO_TORRE", "NORMAL")).upper()
+    ritmo_torre = "RITMO DE ATUALIZAÇÃO: RÁPIDO" if "12" in ritmo_torre_bruto or "ACELERADO" in ritmo_torre_bruto else ritmo_torre_bruto
+
 try: dt_att = datetime.strptime(ultima_att[:19], "%d/%m/%Y %H:%M:%S")
 except: dt_att = agora_br
 
