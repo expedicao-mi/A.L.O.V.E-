@@ -316,16 +316,39 @@ ultima_att = None
 vol_hoje = vol_ontem = prev_carr = prod_hoje_calc = prev_prod = estoque_total = 0
 status_transbordo = ritmo_torre = "NORMAL"
 
+# 🟢 NORMALIZAÇÃO TOTAL DE COLUNAS (Ignora maiúsculas, minúsculas e espaços em branco)
 if not df_dash.empty:
+    df_dash.columns = [str(c).strip().upper() for c in df_dash.columns]
     row_d = df_dash.iloc[0]
-    ultima_att = str(row_d.get("DATA_HORA", "")).strip() or None
-    vol_hoje = forcar_par(safe_to_numeric(row_d.get("EXPEDICAO_HOJE", 0)))
-    vol_ontem = forcar_par(safe_to_numeric(row_d.get("EXPEDICAO_ONTEM", 0)))
-    prev_carr = forcar_par(safe_to_numeric(row_d.get("PREV_EXPEDICAO", 0)))
-    prod_hoje_calc = forcar_par(safe_to_numeric(row_d.get("PRODUCAO_HOJE", 0)))
-    prev_prod = forcar_par(safe_to_numeric(row_d.get("PREV_PRODUCAO", 0)))
-    estoque_total = forcar_par(safe_to_numeric(row_d.get("ESTOQUE_TOTAL", 0)))
-    status_transbordo = str(row_d.get("STATUS_TRANSBORDO", "NORMAL"))
+    
+    # Função auxiliar interna para buscar independente de pequenas variações de nome
+    def pegar_val(chave_termo, padrao=0):
+        for col_name in df_dash.columns:
+            if chave_termo in col_name:
+                return row_d.get(col_name, padrao)
+        return padrao
+
+    ultima_att = str(pegar_val("DATA_HORA", "")).strip() or None
+    vol_hoje = forcar_par(safe_to_numeric(pegar_val("EXPEDICAO_HOJE", 0)))
+    vol_ontem = forcar_par(safe_to_numeric(pegar_val("EXPEDICAO_ONTEM", 0)))
+    prev_carr = forcar_par(safe_to_numeric(pegar_val("PREV_EXPEDICAO", 0)))
+    prod_hoje_calc = forcar_par(safe_to_numeric(pegar_val("PRODUCAO_HOJE", 0)))
+    prev_prod = forcar_par(safe_to_numeric(pegar_val("PREV_PRODUCAO", 0)))
+    estoque_total = forcar_par(safe_to_numeric(pegar_val("ESTOQUE_TOTAL", 0)))
+    status_transbordo = str(pegar_val("STATUS_TRANSBORDO", "NORMAL"))
+
+    ritmo_torre_bruto = str(pegar_val("RITMO_TORRE", "NORMAL")).upper()
+    ritmo_torre = "RITMO DE ATUALIZAÇÃO: RÁPIDO" if "12" in ritmo_torre_bruto or "ACELERADO" in ritmo_torre_bruto else ritmo_torre_bruto
+
+# 🟢 FALLBACK DE PREVISÃO CASO VENHA ZERADO DO DASHBOARD:
+# Se prev_prod ou prev_carr vierem zerados por delay de sincronização, calcula no próprio app:
+if prev_prod == 0 and prod_hoje_calc > 0:
+    horas_corridas = max(0.1, agora_br.hour + (agora_br.minute / 60.0))
+    prev_prod = forcar_par((prod_hoje_calc / horas_corridas) * 24.0)
+
+if prev_carr == 0 and vol_hoje > 0:
+    horas_corridas = max(0.1, agora_br.hour + (agora_br.minute / 60.0))
+    prev_carr = forcar_par((vol_hoje / horas_corridas) * 24.0)
 
     ritmo_torre_bruto = str(row_d.get("RITMO_TORRE", "NORMAL")).upper()
     ritmo_torre = "RITMO DE ATUALIZAÇÃO: RÁPIDO" if "12" in ritmo_torre_bruto or "ACELERADO" in ritmo_torre_bruto else ritmo_torre_bruto
