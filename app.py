@@ -692,29 +692,23 @@ html_previsoes_card = f"""
 st.markdown(html_previsoes_card.replace('\n', ''), unsafe_allow_html=True)
 
 # ==============================================================================
-# 🖨️ RENDERIZAÇÃO 4: PÁTIO DA FÁBRICA (5 ABAS - SEM CÓDIGO APARECENDO)
+# 🖨️ RENDERIZAÇÃO 4: PÁTIO DA FÁBRICA (AGORA DENTRO DO ACCORDION MASTER)
 # ==============================================================================
-html_patio = f'''<div class="card-main">
-<div class="card-head"><div class="icon-sq">🏭</div><div class="card-title">Pátio da Fábrica (Tempo Real)</div></div>
-<div class="kpi-duo">
-<div class="kpi-box">
-<div class="kpi-ico">🚚</div>
-<div>
-<div class="kpi-big">{total_veiculos_fisicos}</div>
-<div class="kpi-lbl">Veículos Físicos</div>
-<div class="kpi-sub">Checklist + Apoio + Fila</div>
-</div>
-</div>
-<div class="kpi-sep"></div>
-<div class="kpi-box">
-<div class="kpi-ico">📦</div>
-<div>
-<div class="kpi-lbl">Carga Disponível</div>
-<div class="kpi-big verde">{fmt(vol_patio_disponivel)} <span>t</span></div>
-</div>
-</div>
-</div>
-</div>
+html_patio = f'''
+<details class="master-box" style="border-left-color: #38a9ff;" open>
+    <summary>
+        <div class="header-layout">
+            <div class="icon-box" style="background-color: rgba(56, 169, 255, 0.15); color: #38a9ff;">🏭</div>
+            <div class="master-metric-title">Pátio da Fábrica (Tempo Real)</div>
+        </div>
+        <div class="value-layout">
+            <div class="master-metric-val">{total_veiculos_fisicos}</div>
+            <div class="master-metric-unit">Veículos Físicos</div>
+        </div>
+        <div class="master-metric-sub" style="color: #38a9ff;">Carga Disponível: {fmt(vol_patio_disponivel)} t</div>
+        <div class="master-metric-sub" style="color: #64748b;">(Checklist + Apoio + Fila)</div>
+    </summary>
+    <div class="master-content" style="padding-top:16px;">
 '''
 
 # 4 Cards principais (PR, 00, 01, FC)
@@ -768,9 +762,12 @@ html_patio += f'''<details class="st-card" style="--c:#95A5A6;">
 </summary>
 <div class="st-body">{linhas_tr_html}</div>
 </details>
+</div>
+</details>
 '''
 
 st.markdown(html_patio, unsafe_allow_html=True)
+
 
 # ==============================================================================
 # 🖨️ RENDERIZAÇÃO 5: PRODUÇÃO DE CELULOSE
