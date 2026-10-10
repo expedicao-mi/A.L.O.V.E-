@@ -16,6 +16,7 @@ from streamlit_autorefresh import st_autorefresh
 # ==============================================================================
 LOGO_ALOVE_URL = "https://raw.githubusercontent.com/expedicao-mi/A.L.O.V.E-/main/app_icon.png"
 BANNER_TOPO_URL = "https://raw.githubusercontent.com/expedicao-mi/A.L.O.V.E-/main/logo_alove.jpg?v=99"
+SENHA_BAFOMETRO = "1000"
 
 st.set_page_config(
     page_title="A.L.O.V.E. Mobile",
@@ -30,7 +31,7 @@ if "bafometro_autenticado" not in st.session_state:
     st.session_state.bafometro_autenticado = False
 
 # ==============================================================================
-# 🎨 CSS (LAYOUT VERTICAL COM DESIGN DE APP E BARRA FIXA)
+# 🎨 CSS (LAYOUT VERTICAL COM DESIGN DE APP - SEM BARRA INFERIOR)
 # ==============================================================================
 st.markdown(f"""
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -59,13 +60,14 @@ st.markdown("""
 
         /* COLUNA CENTRAL ESTILO APP */
         .block-container {
-            padding-top: 0rem !important; padding-bottom: 5.5rem !important;
-            padding-left: 0.8rem !important; padding-right: 0.8rem !important;
-            max-width: 560px !important; margin: 0 auto !important;
+            padding-top: 0rem !important; 
+            padding-bottom: 2rem !important;
+            padding-left: 0.8rem !important; 
+            padding-right: 0.8rem !important;
+            max-width: 560px !important; 
+            margin: 0 auto !important;
         }
 
-        .anc { scroll-margin-top: 8px; height: 0; }
-        
         /* BANNER */
         .topo-banner { margin: 0 -0.8rem 14px -0.8rem; background: #050d1a; border-bottom: 1px solid #12506e; text-align: center; }
         .topo-banner img { width: 100%; max-height: 130px; object-fit: cover; display: block; margin: 0 auto; }
@@ -207,12 +209,6 @@ st.markdown("""
         .f-leg-item { display: flex; align-items: center; gap: 10px; color: #cbd5e1; font-size: .8rem; padding: 3px 0; }
         .f-leg-cor { width: 16px; height: 16px; border-radius: 4px; flex-shrink: 0; }
 
-        /* ---------- BARRA DE NAVEGAÇÃO INFERIOR CSS (FIXA, SEM BOTÕES FEIOS) ---------- */
-        .bottom-nav { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: 100%; max-width: 560px; z-index: 999990; display: flex; justify-content: space-around; background: #070d18; border-top: 1px solid #12506e; padding: 10px 0 calc(10px + env(safe-area-inset-bottom)); }
-        .bottom-nav a { color: #8fa6c4; text-decoration: none; font-size: .7rem; display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 56px; }
-        .bottom-nav a span { font-size: 1.4rem; }
-        .bottom-nav a:active { color: #00D672; }
-
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
         @keyframes pulso { 0% { box-shadow: 0 0 0 0 rgba(0,214,114,.55); } 70% { box-shadow: 0 0 0 9px rgba(0,214,114,0); } 100% { box-shadow: 0 0 0 0 rgba(0,214,114,0); } }
     </style>
@@ -243,7 +239,6 @@ def carregar_dados_nuvem(worksheet_name: str, cabecalho=0):
 
 @st.cache_data(ttl=20)
 def carregar_tabela_cega(worksheet_name: str, chave: str = "DESTINO"):
-    """Procura a palavra-chave em qualquer lugar do topo e define ali como cabeçalho."""
     sheet_encoded = urllib.parse.quote(worksheet_name)
     url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet={sheet_encoded}"
     try:
@@ -316,12 +311,11 @@ ultima_att = None
 vol_hoje = vol_ontem = prev_carr = prod_hoje_calc = prev_prod = estoque_total = 0
 status_transbordo = ritmo_torre = "NORMAL"
 
-# 🟢 NORMALIZAÇÃO TOTAL DE COLUNAS (Ignora maiúsculas, minúsculas e espaços em branco)
+# 🟢 EXTRAÇÃO BLINDADA DO DASHBOARD (Sem sensibilidade a maiúsculas/espaços)
 if not df_dash.empty:
     df_dash.columns = [str(c).strip().upper() for c in df_dash.columns]
     row_d = df_dash.iloc[0]
-    
-    # Função auxiliar interna para buscar independente de pequenas variações de nome
+
     def pegar_val(chave_termo, padrao=0):
         for col_name in df_dash.columns:
             if chave_termo in col_name:
@@ -340,8 +334,7 @@ if not df_dash.empty:
     ritmo_torre_bruto = str(pegar_val("RITMO_TORRE", "NORMAL")).upper()
     ritmo_torre = "RITMO DE ATUALIZAÇÃO: RÁPIDO" if "12" in ritmo_torre_bruto or "ACELERADO" in ritmo_torre_bruto else ritmo_torre_bruto
 
-# 🟢 FALLBACK DE PREVISÃO CASO VENHA ZERADO DO DASHBOARD:
-# Se prev_prod ou prev_carr vierem zerados por delay de sincronização, calcula no próprio app:
+# 🟢 FALLBACK INTELIGENTE CASO A PREVISÃO VENHA ZERADA DO GOOGLE SHEETS
 if prev_prod == 0 and prod_hoje_calc > 0:
     horas_corridas = max(0.1, agora_br.hour + (agora_br.minute / 60.0))
     prev_prod = forcar_par((prod_hoje_calc / horas_corridas) * 24.0)
@@ -349,12 +342,6 @@ if prev_prod == 0 and prod_hoje_calc > 0:
 if prev_carr == 0 and vol_hoje > 0:
     horas_corridas = max(0.1, agora_br.hour + (agora_br.minute / 60.0))
     prev_carr = forcar_par((vol_hoje / horas_corridas) * 24.0)
-
-    ritmo_torre_bruto = str(row_d.get("RITMO_TORRE", "NORMAL")).upper()
-    ritmo_torre = "RITMO DE ATUALIZAÇÃO: RÁPIDO" if "12" in ritmo_torre_bruto or "ACELERADO" in ritmo_torre_bruto else ritmo_torre_bruto
-
-    ritmo_torre_bruto = str(row_d.get("RITMO_TORRE", "NORMAL")).upper()
-    ritmo_torre = "RITMO DE ATUALIZAÇÃO: RÁPIDO" if "12" in ritmo_torre_bruto or "ACELERADO" in ritmo_torre_bruto else ritmo_torre_bruto
 
 try: dt_att = datetime.strptime(ultima_att[:19], "%d/%m/%Y %H:%M:%S")
 except: dt_att = agora_br
@@ -464,7 +451,7 @@ if not df_balanco_dest.empty:
 # ==============================================================================
 # 🎯 TOPO HTML: BANNER E STATUS (Sempre Visível)
 # ==============================================================================
-st.markdown(f'<div id="sec-inicio" class="anc"></div><div class="topo-banner"><img src="{BANNER_TOPO_URL}"></div>', unsafe_allow_html=True)
+st.markdown(f'<div class="topo-banner"><img src="{BANNER_TOPO_URL}"></div>', unsafe_allow_html=True)
 
 with st.container(border=True):
     col_status, col_btn = st.columns([3, 2], vertical_alignment="center")
@@ -532,12 +519,46 @@ if alertas_lista:
     st.markdown(html_notif.replace('\n', ''), unsafe_allow_html=True)
 
 # ==============================================================================
-# 📦 CONSTRUÇÃO DOS MÓDULOS DE RENDERIZAÇÃO (Rolagem Vertical)
+# 📅 NOVO CARD: PREVISÕES DO DIA (PRODUÇÃO & EXPEDIÇÃO - 24H)
 # ==============================================================================
+html_previsoes_card = f"""
+<div class="card-main" style="border-color: #0084ff; box-shadow: 0 0 16px rgba(0, 132, 255, 0.15);">
+    <div class="card-head">
+        <div class="icon-sq" style="background:#091e38; border-color:#0084ff;">📅</div>
+        <div class="card-title" style="color:#38bdf8;">Previsões do Fechamento (24h)</div>
+    </div>
+    <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+        <div style="background:#070f1d; border:1px solid #16365c; border-left:4px solid #38bdf8; border-radius:12px; padding:12px 14px;">
+            <div style="display:flex; align-items:center; gap:6px; color:#94a3b8; font-size:0.75rem; font-weight:700; text-transform:uppercase;">
+                <span>🏭</span> Produção
+            </div>
+            <div style="color:#ffffff; font-size:1.7rem; font-weight:800; line-height:1.2; margin-top:4px;">
+                {fmt(prev_prod)} <span style="font-size:0.9rem; color:#64748b; font-weight:400;">t</span>
+            </div>
+            <div style="color:#38bdf8; font-size:0.72rem; margin-top:2px;">
+                Realizado: <b>{fmt(prod_hoje_calc)} t</b>
+            </div>
+        </div>
+        <div style="background:#070f1d; border:1px solid #16365c; border-left:4px solid #00D672; border-radius:12px; padding:12px 14px;">
+            <div style="display:flex; align-items:center; gap:6px; color:#94a3b8; font-size:0.75rem; font-weight:700; text-transform:uppercase;">
+                <span>🚚</span> Expedição
+            </div>
+            <div style="color:#00E676; font-size:1.7rem; font-weight:800; line-height:1.2; margin-top:4px;">
+                {fmt(prev_carr)} <span style="font-size:0.9rem; color:#64748b; font-weight:400;">t</span>
+            </div>
+            <div style="color:#9fb3cc; font-size:0.72rem; margin-top:2px;">
+                Realizado: <b>{fmt(vol_hoje)} t</b>
+            </div>
+        </div>
+    </div>
+</div>
+"""
+st.markdown(html_previsoes_card.replace('\n', ''), unsafe_allow_html=True)
 
-# --- MÓDULO PÁTIO ---
+# ==============================================================================
+# 📦 MÓDULO PÁTIO DA FÁBRICA
+# ==============================================================================
 html_patio = f'''
-<div id="sec-patio" class="anc"></div>
 <div class="card-main">
     <div class="card-head"><div class="icon-sq">🏭</div><div class="card-title">Pátio da Fábrica (Tempo Real)</div></div>
     <div class="kpi-duo">
@@ -618,8 +639,11 @@ html_patio += f'''
     </div>
 </div>
 '''
+st.markdown(html_patio, unsafe_allow_html=True)
 
-# --- MÓDULO PRODUÇÃO ---
+# ==============================================================================
+# 🏭 MÓDULO PRODUÇÃO DE CELULOSE
+# ==============================================================================
 html_prod_content = ""
 for maq in ["MS1", "MS2"]:
     q_dados = dados_maquinas.get(maq, {})
@@ -695,7 +719,6 @@ for maq in ["MS1", "MS2"]:
         html_prod_content += f"<div style='color:gray; padding:10px 0;'>Aguardando dados da {maq}...</div>"
 
 html_prod_completo = f"""
-<div id="sec-prod" class="anc"></div>
 <details class="master-box" style="border-left-color: #E5B800;" open>
     <summary>
         <div class="header-layout">
@@ -714,8 +737,11 @@ html_prod_completo = f"""
     </div>
 </details>
 """
+st.markdown(html_prod_completo, unsafe_allow_html=True)
 
-# --- MÓDULO EXPEDIÇÃO ---
+# ==============================================================================
+# 🚚 MÓDULO EXPEDIÇÃO REALIZADA
+# ==============================================================================
 def func_exp_dados(dt_a):
     ls = descobrir_letras_turnos(dt_a)
     try:
@@ -826,7 +852,6 @@ else:
     html_destinos += '<div style="color:#64748b; font-size:0.8rem; text-align:center;">Nenhum destino ativo reportado.</div>'
 
 html_exp_completo = f"""
-<div id="sec-exp" class="anc"></div>
 <details class="master-box" style="border-left-color: #00D672;" open>
     <summary>
         <div class="header-layout">
@@ -897,9 +922,12 @@ html_exp_completo += f"""
     </div>
 </details>
 """
+st.markdown(html_exp_completo, unsafe_allow_html=True)
 
-# --- MÓDULO ESTOQUE FÍSICO ---
-html_est = f'<div id="sec-estoque" class="anc"></div><details class="master-box" style="border-left-color: #9b59b6;" open>'
+# ==============================================================================
+# 📦 MÓDULO ESTOQUE FÍSICO
+# ==============================================================================
+html_est = f'<details class="master-box" style="border-left-color: #9b59b6;" open>'
 html_est += f'''
 <summary>
     <div class="header-layout">
@@ -928,8 +956,11 @@ else:
     html_est += '<div style="color:gray;">Aguardando detalhamento de material...</div>'
 
 html_est += "</div></details>"
+st.markdown(html_est, unsafe_allow_html=True)
 
-# --- MÓDULO FROTA E EQUIPAMENTOS ---
+# ==============================================================================
+# 🚜 MÓDULO FROTA E EQUIPAMENTOS
+# ==============================================================================
 frota_agr = {"h": {"e": [], "t": []}, "o": {"e": [], "t": []}}
 if not df_frota.empty and len(df_frota.columns) >= 7:
     for _, r in df_frota.iterrows():
@@ -965,35 +996,15 @@ def rnd_tg(lst):
         r += f"<span class='tag-box {cl}'>{i['eq']}</span> "
     return r
 
-html_frota = f'<div id="sec-frota" class="anc"></div><details class="master-box" style="border-left-color:#E67E22;"><summary><div class="header-layout"><div class="icon-box" style="background-color:rgba(230,126,34,.15); color:#E67E22;">🚜</div><div class="master-metric-title">Frota e Equipamentos</div></div><div class="value-layout"><div class="master-metric-val">{v_hoje}</div><div class="master-metric-unit">Veículos Logados Hoje</div></div><div class="master-metric-sub" style="color:#E67E22;">Empilhadeiras e Talhas Elétricas</div></summary><div class="master-content" style="padding-top:16px;">'
+html_frota = f'<details class="master-box" style="border-left-color:#E67E22;"><summary><div class="header-layout"><div class="icon-box" style="background-color:rgba(230,126,34,.15); color:#E67E22;">🚜</div><div class="master-metric-title">Frota e Equipamentos</div></div><div class="value-layout"><div class="master-metric-val">{v_hoje}</div><div class="master-metric-unit">Veículos Logados Hoje</div></div><div class="master-metric-sub" style="color:#E67E22;">Empilhadeiras e Talhas Elétricas</div></summary><div class="master-content" style="padding-top:16px;">'
 html_frota += f"<div style='font-size:0.75rem; font-weight:bold; color:#00D672; text-transform:uppercase; margin-bottom:8px;'>📅 LOGADOS HOJE ({hoje_date.strftime('%d/%m')})</div><div style='background-color:#05080f; padding:12px; border-radius:8px; border:1px solid #1c2b42; margin-bottom:16px;'><div class='f-tag-title'>🟢 Empilhadeiras ({len(frota_agr['h']['e'])})</div><div style='margin-bottom:12px;'>{rnd_tg(frota_agr['h']['e'])}</div><div class='f-tag-title'>🏗️ Talhas / Pontes ({len(frota_agr['h']['t'])})</div><div>{rnd_tg(frota_agr['h']['t'])}</div></div>"
 html_frota += f"<div style='font-size:0.75rem; font-weight:bold; color:#38bdf8; text-transform:uppercase; margin-bottom:8px;'>⏮️ LOGADOS ONTEM ({ontem_date.strftime('%d/%m')})</div><div style='background-color:#05080f; padding:12px; border-radius:8px; border:1px solid #1c2b42; margin-bottom:16px;'><div class='f-tag-title'>🟢 Empilhadeiras ({len(frota_agr['o']['e'])})</div><div style='margin-bottom:12px;'>{rnd_tg(frota_agr['o']['e'])}</div><div class='f-tag-title'>🏗️ Talhas / Pontes ({len(frota_agr['o']['t'])})</div><div>{rnd_tg(frota_agr['o']['t'])}</div></div>"
 html_frota += '<div class="f-legenda"><div class="f-leg-titulo">🎨 Legenda das cores</div><div class="f-leg-item"><span class="f-leg-cor f-tag-ok"></span><span><b>Verde</b> — OK: sem avarias apontadas</span></div><div class="f-leg-item"><span class="f-leg-cor f-tag-aten"></span><span><b>Amarelo</b> — Atenção: item apontado no checklist</span></div><div class="f-leg-item"><span class="f-leg-cor f-tag-avaria"></span><span><b>Vermelho</b> — Avaria: equipamento bloqueado/quebrado</span></div></div></div></details>'
-
-# --- MÓDULO COMPARATIVO ANUAL ---
-d_res = max(1, (date(hoje_date.year, 12, 31) - hoje_date).days)
-ca_at = forcar_par(1362558.0 + vol_hoje)
-pa_at = forcar_par(1362676.0 + prod_hoje_calc)
-df_pc = forcar_par(abs(pa_at - ca_at))
-
-tv, cv = (f"+{fmt(df_pc)} t (Expedição Superando)", "#00D672") if ca_at >= pa_at else (f"+{fmt(df_pc)} t (Produção Superando)", "#FF9F1C")
-mdc = forcar_par(5200.0 + (max(0.0, estoque_total - 3468.0) / d_res))
-ppf = forcar_par(pa_at + (d_res * 5200.0))
-pcf = forcar_par(ca_at + ((estoque_total + (d_res * 5200.0)) - 3468.0))
-
-h_an = f'<details class="master-box" style="border-left-color:#007BFF;" open><summary><div class="header-layout"><div class="icon-box" style="background-color:rgba(0,123,255,.15); color:#007BFF;">📊</div><div class="master-metric-title">Comparativo Produção vs Expedição</div></div><div class="value-layout"><div class="master-metric-val">{fmt(ca_at)}</div><div class="master-metric-unit">t Expedidas</div></div><div class="master-metric-sub" style="color:#007BFF;">Meta Diária Necessária: {fmt(mdc)} t/dia</div></summary><div class="master-content" style="padding-top:16px;"><div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:12px;"><div style="background-color:#0a101d; border:1px solid #1c2b42; border-radius:8px; padding:10px;"><div style="font-size:0.75rem; color:#007BFF; font-weight:bold;">EXPEDIÇÃO ANUAL</div><div style="font-size:1.4rem; font-weight:bold; color:#fff; margin:4px 0;">{fmt(ca_at)} <span style="font-size:0.8rem; color:#64748b; font-weight:normal;">t</span></div><div style="font-size:0.7rem; color:#64748b;">Proj. 31/12: <span style="color:#007BFF;">{fmt(pcf)} t</span></div></div><div style="background-color:#0a101d; border:1px solid #1c2b42; border-radius:8px; padding:10px;"><div style="font-size:0.75rem; color:#00D672; font-weight:bold;">PRODUÇÃO ANUAL</div><div style="font-size:1.4rem; font-weight:bold; color:#fff; margin:4px 0;">{fmt(pa_at)} <span style="font-size:0.8rem; color:#64748b; font-weight:normal;">t</span></div><div style="font-size:0.7rem; color:#64748b;">Proj. 31/12: <span style="color:#00D672;">{fmt(ppf)} t</span></div></div></div><div style="background-color:#0a101d; border:1px solid #1c2b42; border-radius:8px; padding:12px; font-size:0.82rem; color:#cbd5e1; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;"><span>Variação: <span style="color:{cv}; font-weight:bold;">{tv}</span></span><span>Estoque Meta: <span style="color:#38bdf8; font-weight:bold;">3.468 t</span></span></div></div></details>'
-
-
-# ==============================================================================
-# 🖨️ RENDERIZANDO TODOS OS BLOCOS (ROLAGEM VERTICAL)
-# ==============================================================================
-st.markdown(html_patio, unsafe_allow_html=True)
-st.markdown(html_prod_completo, unsafe_allow_html=True)
-st.markdown(html_exp_completo, unsafe_allow_html=True)
-st.markdown(html_est, unsafe_allow_html=True)
 st.markdown(html_frota, unsafe_allow_html=True)
 
-# Bloco Bafômetro
+# ==============================================================================
+# 🩺 MÓDULO BAFÔMETRO (H&S)
+# ==============================================================================
 c1, c2 = st.columns([3, 1], vertical_alignment="center")
 with c1:
     if not st.session_state.bafometro_autenticado:
@@ -1042,19 +1053,20 @@ if st.session_state.bafometro_autenticado:
     hb += "</div></details>"
     st.markdown(hb.replace('\n', ''), unsafe_allow_html=True)
 
-st.markdown(h_an, unsafe_allow_html=True)
-st.markdown("<br><center><span style='color:#64748b; font-size:0.75rem; letter-spacing:0.5px;'>A.L.O.V.E - Mobile / Developed by Crist Ciriaco</span></center>", unsafe_allow_html=True)
+# ==============================================================================
+# 📊 MÓDULO COMPARATIVO ANUAL (PRODUÇÃO VS EXPEDIÇÃO)
+# ==============================================================================
+d_res = max(1, (date(hoje_date.year, 12, 31) - hoje_date).days)
+ca_at = forcar_par(1362558.0 + vol_hoje)
+pa_at = forcar_par(1362676.0 + prod_hoje_calc)
+df_pc = forcar_par(abs(pa_at - ca_at))
 
-# ==============================================================================
-# 🧭 NAVEGAÇÃO INFERIOR ESTRITA (FIXA VIA CSS PURO)
-# ==============================================================================
-st.markdown("""
-<div class="bottom-nav">
-    <a href="#sec-inicio" target="_self"><span>🏠</span>Início</a>
-    <a href="#sec-patio" target="_self"><span>🚛</span>Pátio</a>
-    <a href="#sec-prod" target="_self"><span>🏭</span>Produção</a>
-    <a href="#sec-exp" target="_self"><span>🚚</span>Exped</a>
-    <a href="#sec-estoque" target="_self"><span>📦</span>Estoque</a>
-    <a href="#sec-frota" target="_self"><span>🚜</span>Frota</a>
-</div>
-""", unsafe_allow_html=True)
+tv, cv = (f"+{fmt(df_pc)} t (Expedição Superando)", "#00D672") if ca_at >= pa_at else (f"+{fmt(df_pc)} t (Produção Superando)", "#FF9F1C")
+mdc = forcar_par(5200.0 + (max(0.0, estoque_total - 3468.0) / d_res))
+ppf = forcar_par(pa_at + (d_res * 5200.0))
+pcf = forcar_par(ca_at + ((estoque_total + (d_res * 5200.0)) - 3468.0))
+
+h_an = f'<details class="master-box" style="border-left-color:#007BFF;" open><summary><div class="header-layout"><div class="icon-box" style="background-color:rgba(0,123,255,.15); color:#007BFF;">📊</div><div class="master-metric-title">Comparativo Produção vs Expedição</div></div><div class="value-layout"><div class="master-metric-val">{fmt(ca_at)}</div><div class="master-metric-unit">t Expedidas</div></div><div class="master-metric-sub" style="color:#007BFF;">Meta Diária Necessária: {fmt(mdc)} t/dia</div></summary><div class="master-content" style="padding-top:16px;"><div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:12px;"><div style="background-color:#0a101d; border:1px solid #1c2b42; border-radius:8px; padding:10px;"><div style="font-size:0.75rem; color:#007BFF; font-weight:bold;">EXPEDIÇÃO ANUAL</div><div style="font-size:1.4rem; font-weight:bold; color:#fff; margin:4px 0;">{fmt(ca_at)} <span style="font-size:0.8rem; color:#64748b; font-weight:normal;">t</span></div><div style="font-size:0.7rem; color:#64748b;">Proj. 31/12: <span style="color:#007BFF;">{fmt(pcf)} t</span></div></div><div style="background-color:#0a101d; border:1px solid #1c2b42; border-radius:8px; padding:10px;"><div style="font-size:0.75rem; color:#00D672; font-weight:bold;">PRODUÇÃO ANUAL</div><div style="font-size:1.4rem; font-weight:bold; color:#fff; margin:4px 0;">{fmt(pa_at)} <span style="font-size:0.8rem; color:#64748b; font-weight:normal;">t</span></div><div style="font-size:0.7rem; color:#64748b;">Proj. 31/12: <span style="color:#00D672;">{fmt(ppf)} t</span></div></div></div><div style="background-color:#0a101d; border:1px solid #1c2b42; border-radius:8px; padding:12px; font-size:0.82rem; color:#cbd5e1; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;"><span>Variação: <span style="color:{cv}; font-weight:bold;">{tv}</span></span><span>Estoque Meta: <span style="color:#38bdf8; font-weight:bold;">3.468 t</span></span></div></div></details>'
+st.markdown(h_an, unsafe_allow_html=True)
+
+st.markdown("<br><center><span style='color:#64748b; font-size:0.75rem; letter-spacing:0.5px;'>A.L.O.V.E - Mobile / Developed by Crist Ciriaco</span></center>", unsafe_allow_html=True)
