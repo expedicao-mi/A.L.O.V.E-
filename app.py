@@ -654,7 +654,7 @@ html_patio = f'''<div class="card-main">
 '''
 
 # 4 Cards principais (PR, 00, 01, FC)
-for tit, chv, df_s, cor, ico in mapa_abas_patio[:4]:
+for tit, chv, df_s, cor, ico, *extra in mapa_abas_patio[:4]:
     lista_destinos = destinos_por_status.get(chv, [])
     v_qtd = dados_patio[chv]["veiculos"]
     v_ton = dados_patio[chv]["peso"]
