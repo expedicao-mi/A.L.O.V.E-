@@ -228,28 +228,34 @@ def carregar_dados_nuvem(worksheet_name: str, cabecalho=0):
 
 @st.cache_data(ttl=20)
 def carregar_tabela_cega(worksheet_name: str, chave: str = "DESTINO"):
-    """Lê abas com colunas irregulares de forma nativa e inquebrável usando urllib."""
-    import urllib.request
-    import csv
-    from io import StringIO
-    
+    """Lê abas com colunas irregulares de forma nativa e inquebrável usando o truque de 100 colunas do Pandas."""
     sheet_encoded = urllib.parse.quote(worksheet_name)
     url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet={sheet_encoded}"
     
     try:
-        # Usa o motor nativo do Python para baixar o CSV (nunca bloqueado)
-        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
-        with urllib.request.urlopen(req, timeout=10) as resp:
-            conteudo = resp.read().decode('utf-8')
-        
-        # O csv.reader lê perfeitamente mesmo que as colunas mudem de tamanho
-        linhas = list(csv.reader(StringIO(conteudo)))
-    except:
+        # 🟢 O TRUQUE DE MESTRE: names=range(100) garante que o Pandas tenha espaço de sobra
+        # para ler todas as colunas de A a Z do Google Sheets sem dar ParserError e sem ser bloqueado!
+        raw = pd.read_csv(url, header=None, names=range(100), dtype=str, keep_default_na=False)
+    except: 
         return pd.DataFrame()
 
-    header_idx = -1
-    # Procura a chave (ex: "PLACA") nas 15 primeiras linhas
-    for i, r in enumerate(linhas[:15]):
+    # Varre as 15 primeiras linhas até achar a linha que contém a "chave" (ex: "PLACA" ou "DESTINO")
+    for idx_linha in range(min(len(raw), 15)):
+        for idx_col in range(min(len(raw.columns), 15)):
+            if str(raw.iloc[idx_linha, idx_col]).strip().upper() == chave.upper():
+                cabecalho = [str(c).strip().upper() for c in raw.iloc[idx_linha].tolist()]
+                corpo = raw.iloc[idx_linha + 1:].copy()
+                corpo.columns = cabecalho
+                
+                # Remove colunas fantasmas geradas pelo range(100)
+                corpo = corpo.loc[:, corpo.columns != ""]
+                
+                # Remove linhas completamente vazias
+                corpo = corpo[~(corpo.astype(str).apply(lambda r: "".join(r).strip() == "", axis=1))]
+                
+                return corpo.reset_index(drop=True)
+                
+    return pd.DataFrame()
         r_upper = [str(c).strip().upper() for c in r]
         if any(chave.upper() == c or chave.upper() in c for c in r_upper):
             header_idx = i
