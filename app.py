@@ -83,7 +83,7 @@ st.markdown("""
         .card-title { color: #fff; font-size: 1rem; font-weight: 800; letter-spacing: .3px; text-transform: uppercase; }
         .badge-novas { margin-left: auto; background: #0d2a4a; border: 1px solid #12506e; color: #38bdf8; font-size: .75rem; font-weight: 700; padding: 3px 10px; border-radius: 999px; }
 
-        /* STATUS (CONECTADO) */
+        /* STATUS */
         [data-testid="stVerticalBlockBorderWrapper"] {
             background: linear-gradient(180deg, #0b1830 0%, #08111f 100%) !important;
             border: 1.5px solid #12506e !important; border-radius: 16px !important;
@@ -109,8 +109,6 @@ st.markdown("""
         .notif-desc { color: #9fb3cc; font-size: .8rem; margin-top: 2px; word-break: break-word; }
         .notif-hora { color: #9fb3cc; font-size: .75rem; white-space: nowrap; }
         .notif-hora i { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-left: 6px; }
-        details.notif-mais > summary { cursor: pointer; padding: 12px 4px 2px 4px; color: #38bdf8; font-weight: 600; font-size: .9rem; display: flex; justify-content: space-between; align-items: center; }
-        details.notif-mais[open] > summary .chev { transform: rotate(90deg); }
 
         /* PÁTIO: KPIs */
         .kpi-duo { display: flex; align-items: center; background: #070f1d; border: 1.5px solid #12506e; border-radius: 14px; padding: 14px 10px; }
@@ -124,13 +122,13 @@ st.markdown("""
         .kpi-sep { width: 1px; align-self: stretch; background: #12506e; margin: 0 6px; }
 
         /* PÁTIO: CARTÕES DE STATUS */
-        details.st-card, div.st-card {
+        details.st-card {
             --c: #38a9ff; background: #0a1424; background: color-mix(in srgb, var(--c) 9%, #0a1424);
             border: 1.5px solid var(--c); border-left: 6px solid var(--c);
             border-radius: 14px; margin-bottom: 10px; overflow: hidden;
         }
-        details.st-card > summary, div.st-card > .st-sum { display: flex; align-items: center; gap: 14px; padding: 12px 14px; cursor: pointer; -webkit-tap-highlight-color: transparent; }
-        div.st-card > .st-sum { cursor: default; }
+        details.st-card > summary { display: flex; align-items: center; gap: 14px; padding: 12px 14px; cursor: pointer; -webkit-tap-highlight-color: transparent; list-style: none; outline: none; }
+        details.st-card > summary::-webkit-details-marker { display: none; }
         .st-ico { width: 52px; height: 52px; border-radius: 50%; border: 2px solid var(--c); display: flex; align-items: center; justify-content: center; font-size: 1.5rem; flex-shrink: 0; background: rgba(255,255,255,0.03); }
         .st-txt { flex: 1; min-width: 0; }
         .st-title { color: #fff; font-weight: 800; font-size: 1.02rem; text-transform: uppercase; letter-spacing: .3px; }
@@ -144,7 +142,6 @@ st.markdown("""
         .dest-row .v { color: #38bdf8; }
         .dest-row .v small { color: #64748b; font-size: .8rem; }
         .dest-row.total { border-bottom: none; border-top: 1px solid #12506e; margin-top: 4px; padding-top: 8px; font-weight: 700; }
-        .dest-aviso { color: #FFD600; font-size: .72rem; padding-top: 6px; }
         .dest-vazio { color: #64748b; font-size: .78rem; padding: 6px 0; }
 
         /* BLOCOS MASTER (ACCORDIONS) */
@@ -180,29 +177,10 @@ st.markdown("""
         #tab_hoje:checked ~ #content_hoje { display: block; }
 
         /* TABS FROTA */
-        .frota-tabs-main { display: flex; gap: 8px; justify-content: center; margin-bottom: 16px; }
-        .frota-tabs-main label { padding: 8px 16px; background-color: #162438; color: #94a3b8; border-radius: 6px; cursor: pointer; border: 1px solid #1c2b42; font-weight: normal; font-size: 0.9rem; transition: 0.2s; }
-        .frota-tabs-sub { display: flex; gap: 6px; justify-content: center; margin-bottom: 14px; }
-        .frota-tabs-sub label { padding: 6px 12px; background-color: #111c2e; color: #64748b; border-radius: 6px; cursor: pointer; border: 1px solid #1c2b42; font-weight: normal; font-size: 0.8rem; transition: 0.2s; }
-
-        .f-rad-main, .f-rad-sub, input[type="radio"] { display: none; }
-        .f-content-dia { display: none; animation: fadeIn 0.3s ease; }
-
-        #frota_dia_ontem:checked ~ .frota-tabs-main .lbl-f-ontem { background-color: #38bdf8; color: #0a101d; border-color: #38bdf8; }
-        #frota_dia_hoje:checked ~ .frota-tabs-main .lbl-f-hoje { background-color: #E67E22; color: #0a101d; border-color: #E67E22; }
-        #frota_dia_ontem:checked ~ #frota_box_ontem { display: block; }
-        #frota_dia_hoje:checked ~ #frota_box_hoje { display: block; }
-
-        .f-content-turno-hoje, .f-content-turno-ontem { display: none; background-color: #05080f; padding: 14px; border-radius: 8px; border: 1px solid #1c2b42; text-align: left; }
-        #frota_h_00:checked ~ .frota-tabs-sub .lbl-h-00, #frota_h_08:checked ~ .frota-tabs-sub .lbl-h-08, #frota_h_16:checked ~ .frota-tabs-sub .lbl-h-16, #frota_o_00:checked ~ .frota-tabs-sub .lbl-o-00, #frota_o_08:checked ~ .frota-tabs-sub .lbl-o-08, #frota_o_16:checked ~ .frota-tabs-sub .lbl-o-16 { background-color: #0d2417; color: #00D672; border-color: #00D672; }
-
-        #frota_h_00:checked ~ #frota_h_content_00, #frota_h_08:checked ~ #frota_h_content_08, #frota_h_16:checked ~ #frota_h_content_16, #frota_o_00:checked ~ #frota_o_content_00, #frota_o_08:checked ~ #frota_o_content_08, #frota_o_16:checked ~ #frota_o_content_16 { display: block; }
-
         .f-tag-ok { background-color: #00D672; color: #0a101d; }
         .f-tag-avaria { background-color: #E74C3C; color: #ffffff; }
         .f-tag-aten { background-color: #FFD600; color: #0a101d; }
         .f-tag-title { font-size: 0.85rem; color: #ffffff; font-weight: normal; margin-bottom: 8px; border-bottom: 1px dashed #1c2b42; padding-bottom: 4px; }
-        .f-tag-container { margin-bottom: 16px; text-align: left; }
         .tag-box { display: inline-block; padding: 6px 10px; margin: 3px; border-radius: 6px; font-weight: normal; font-size: 0.8rem; text-align: center; }
         .f-legenda { margin-top: 14px; background: #05080f; border: 1px solid #1c2b42; border-radius: 8px; padding: 10px 12px; text-align: left; }
         .f-leg-titulo { color: #94a3b8; font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 8px; }
@@ -227,6 +205,17 @@ def fmt(n, casas=0):
     try: s = f"{float(n):,.{casas}f}"
     except Exception: return "0"
     return s.replace(",", "X").replace(".", ",").replace("X", ".")
+
+def safe_to_numeric(val):
+    if pd.isna(val) or val == "" or val is None: return 0.0
+    if isinstance(val, (int, float)): return float(val)
+    s = str(val).strip()
+    if "," in s and "." in s:
+        s = s.replace(".", "").replace(",", ".")
+    elif "," in s:
+        s = s.replace(",", ".")
+    try: return float(s)
+    except: return 0.0
 
 @st.cache_data(ttl=20)
 def carregar_dados_nuvem(worksheet_name: str, cabecalho=0):
@@ -255,17 +244,6 @@ def carregar_tabela_cega(worksheet_name: str, chave: str = "DESTINO"):
                 corpo = corpo[~(corpo.astype(str).apply(lambda r: "".join(r).strip() == "", axis=1))]
                 return corpo.reset_index(drop=True)
     return pd.DataFrame()
-
-def safe_to_numeric(val):
-    if pd.isna(val) or val == "" or val is None: return 0.0
-    if isinstance(val, (int, float)): return float(val)
-    s = str(val).strip()
-    if "," in s and "." in s:
-        s = s.replace(".", "").replace(",", ".")
-    elif "," in s:
-        s = s.replace(",", ".")
-    try: return float(s)
-    except: return 0.0
 
 def parse_robusto(texto):
     if not texto or str(texto).strip() in ["", "None"]: return {}
@@ -302,26 +280,29 @@ df_dash = carregar_dados_nuvem("Mobile_Dashboard", cabecalho=0)
 df_qual = carregar_dados_nuvem("Mobile_Qualidade", cabecalho=0)
 df_alertas = carregar_dados_nuvem("Mobile_Alertas", cabecalho=0)
 df_cache = carregar_dados_nuvem("Cache_Painel", cabecalho=0)
-# 🟢 CARREGA AS 5 ABAS REAIS DO PÁTIO DIRETO DA NUVEM
-df_pr = carregar_tabela_cega("Status_PR", "PLACA")
-df_00 = carregar_tabela_cega("Status_00", "PLACA")
-df_01 = carregar_tabela_cega("Status_01", "PLACA")
-df_fc = carregar_tabela_cega("Status_FC", "PLACA")
-df_tr = carregar_tabela_cega("Status_TR", "PLACA")
 df_status_virada = carregar_dados_nuvem("Status_Virada_Turnos", cabecalho=0)
 df_balanco_dest = carregar_tabela_cega("Balanco_Expedicao_Destino", "DESTINO")
 df_bafometro = carregar_dados_nuvem("Bafometro_Status", cabecalho=0)
 if df_bafometro.empty: df_bafometro = carregar_dados_nuvem("Auditoria_Bafometro", cabecalho=0)
 df_frota = carregar_dados_nuvem("Historico_DKRO", cabecalho=0)
 
+# 🟢 Carrega as 5 abas reais de Pátio
+df_pr = carregar_tabela_cega("Status_PR", "PLACA")
+df_00 = carregar_tabela_cega("Status_00", "PLACA")
+df_01 = carregar_tabela_cega("Status_01", "PLACA")
+df_fc = carregar_tabela_cega("Status_FC", "PLACA")
+df_tr = carregar_tabela_cega("Status_TR", "PLACA")
+
 cache_dict = {str(row.iloc[0]).strip(): str(row.iloc[1]).strip() for _, row in df_cache.iterrows()} if not df_cache.empty else {}
 dados_segregados = parse_robusto(cache_dict.get("dados_segregados", "{}"))
 
+# ==============================================================================
+# ⚙️ PROCESSAMENTO: DASHBOARD & PREVISÕES
+# ==============================================================================
 ultima_att = None
 vol_hoje = vol_ontem = prev_carr = prod_hoje_calc = prev_prod = estoque_total = 0
 status_transbordo = ritmo_torre = "NORMAL"
 
-# 🟢 EXTRAÇÃO BLINDADA DO DASHBOARD (Sem sensibilidade a maiúsculas/espaços)
 if not df_dash.empty:
     df_dash.columns = [str(c).strip().upper() for c in df_dash.columns]
     row_d = df_dash.iloc[0]
@@ -344,7 +325,7 @@ if not df_dash.empty:
     ritmo_torre_bruto = str(pegar_val("RITMO_TORRE", "NORMAL")).upper()
     ritmo_torre = "RITMO DE ATUALIZAÇÃO: RÁPIDO" if "12" in ritmo_torre_bruto or "ACELERADO" in ritmo_torre_bruto else ritmo_torre_bruto
 
-# 🟢 FALLBACK INTELIGENTE CASO A PREVISÃO VENHA ZERADA DO GOOGLE SHEETS
+# Fallback inteligente das previsões de 24h
 if prev_prod == 0 and prod_hoje_calc > 0:
     horas_corridas = max(0.1, agora_br.hour + (agora_br.minute / 60.0))
     prev_prod = forcar_par((prod_hoje_calc / horas_corridas) * 24.0)
@@ -358,18 +339,18 @@ except: dt_att = agora_br
 
 minutos_inativos = (agora_br - dt_att).total_seconds() / 60.0
 
-# 🟢 Regra direta: se tiver até 15 minutos é ATUALIZADO (verde), passou de 15 minutos é DESATUALIZADO (vermelho)
+# 🟢 Regra solicitada: até 15 min é ATUALIZADO (Verde); passou de 15 min é DESATUALIZADO (Vermelho)
 if minutos_inativos <= 15:
     conn_txt = "ATUALIZADO"
-    conn_cor = "#00D672"  # Verde
+    conn_cor = "#00D672"
 else:
     conn_txt = "DESATUALIZADO"
-    conn_cor = "#E74C3C"  # Vermelho
+    conn_cor = "#E74C3C"
 
 conn_hora = dt_att.strftime("%H:%M:%S") if dt_att.date() == hoje_date else dt_att.strftime("%d/%m %H:%M")
 
 # ==============================================================================
-# 🎯 PROCESSAMENTO DO PÁTIO (DIRETO DAS 5 ABAS: PR, 00, 01, FC, TR)
+# ⚙️ PROCESSAMENTO: PÁTIO (DIRETO DAS 5 ABAS)
 # ==============================================================================
 mapa_abas_patio = [
     ("Prog/Chegando", "PR", df_pr, "#38a9ff", "🚙"),
@@ -384,18 +365,15 @@ destinos_por_status = {}
 
 for tit, chv, df_s, cor, ico in mapa_abas_patio:
     if not df_s.empty and "PLACA" in df_s.columns:
-        # Filtra linhas válidas
         df_valido = df_s[df_s["PLACA"].astype(str).str.strip().ne("")].copy()
         v_qtd = len(df_valido)
-        
-        # Converte e soma o peso
+
         if "TONELADAS" in df_valido.columns:
             df_valido["TON_NUM"] = df_valido["TONELADAS"].apply(safe_to_numeric)
             v_ton = forcar_par(df_valido["TON_NUM"].sum())
         else:
             v_ton = 0
 
-        # Agrupa os destinos reais presentes dentro da aba
         dest_list = []
         if "DESTINO" in df_valido.columns and v_qtd > 0:
             df_valido["DEST_LIMPO"] = df_valido["DESTINO"].astype(str).str.strip()
@@ -403,7 +381,7 @@ for tit, chv, df_s, cor, ico in mapa_abas_patio:
                 veic=("PLACA", "count"),
                 ton=("TON_NUM", "sum")
             ).reset_index()
-            
+
             for _, r_d in grp.iterrows():
                 d_nome = r_d["DEST_LIMPO"]
                 if d_nome and d_nome.upper() not in ["NAN", "NONE", ""]:
@@ -412,7 +390,6 @@ for tit, chv, df_s, cor, ico in mapa_abas_patio:
                         "veic": int(r_d["veic"]),
                         "ton": forcar_par(r_d["ton"])
                     })
-            # Ordena com os maiores volumes no topo
             dest_list.sort(key=lambda x: x["veic"], reverse=True)
 
         dados_patio[chv] = {"veiculos": v_qtd, "peso": v_ton}
@@ -421,93 +398,11 @@ for tit, chv, df_s, cor, ico in mapa_abas_patio:
         dados_patio[chv] = {"veiculos": 0, "peso": 0}
         destinos_por_status[chv] = []
 
-# Veículos Físicos no Pátio = Checklist (00) + Apoio (01) + Fila (FC)
 total_veiculos_fisicos = dados_patio["00"]["veiculos"] + dados_patio["01"]["veiculos"] + dados_patio["FC"]["veiculos"]
 vol_patio_disponivel = forcar_par(dados_patio["00"]["peso"] + dados_patio["01"]["peso"] + dados_patio["FC"]["peso"])
 
 # ==============================================================================
-# 📦 RENDERIZAÇÃO DO PÁTIO DA FÁBRICA (SEM ESPAÇOS DE INDENTAÇÃO)
-# ==============================================================================
-html_patio = f'''<div class="card-main">
-<div class="card-head"><div class="icon-sq">🏭</div><div class="card-title">Pátio da Fábrica (Tempo Real)</div></div>
-<div class="kpi-duo">
-<div class="kpi-box">
-<div class="kpi-ico">🚚</div>
-<div>
-<div class="kpi-big">{total_veiculos_fisicos}</div>
-<div class="kpi-lbl">Veículos Físicos</div>
-<div class="kpi-sub">Checklist + Apoio + Fila</div>
-</div>
-</div>
-<div class="kpi-sep"></div>
-<div class="kpi-box">
-<div class="kpi-ico">📦</div>
-<div>
-<div class="kpi-lbl">Carga Disponível</div>
-<div class="kpi-big verde">{fmt(vol_patio_disponivel)} <span>t</span></div>
-</div>
-</div>
-</div>
-</div>
-'''
-
-# 4 Cards Retráteis Principais (PR, 00, 01, FC)
-for tit, chv, df_s, cor, ico in mapa_abas_patio[:4]:
-    lista_destinos = destinos_por_status.get(chv, [])
-    v_qtd = dados_patio[chv]["veiculos"]
-    v_ton = dados_patio[chv]["peso"]
-
-    linhas_dest_html = ""
-    if lista_destinos:
-        for item in lista_destinos:
-            linhas_dest_html += f'<div class="dest-row"><span class="n">{html_lib.escape(item["destino"])}</span><span class="v">{item["veic"]} veíc. <small>({fmt(item["ton"])} t)</small></span></div>'
-        linhas_dest_html += f'<div class="dest-row total"><span class="n">TOTAL</span><span class="v">{v_qtd} veíc. <small>({fmt(v_ton)} t)</small></span></div>'
-    else:
-        linhas_dest_html = '<div class="dest-vazio">Nenhum veículo alocado neste status.</div>'
-
-    html_patio += f'''<details class="st-card" style="--c:{cor};">
-<summary>
-<div class="st-ico">{ico}</div>
-<div class="st-txt">
-<div class="st-title">{tit}</div>
-<div class="st-num">{v_qtd} <span>veíc. / {fmt(v_ton)} t</span></div>
-</div>
-<div class="chev">›</div>
-</summary>
-<div class="st-body">{linhas_dest_html}</div>
-</details>
-'''
-
-# 5º Card: Termo SAP (TR) com lista de destinos
-lista_dest_tr = destinos_por_status.get("TR", [])
-v_qtd_tr = dados_patio["TR"]["veiculos"]
-v_ton_tr = dados_patio["TR"]["peso"]
-
-linhas_tr_html = ""
-if lista_dest_tr:
-    for item in lista_dest_tr:
-        linhas_tr_html += f'<div class="dest-row"><span class="n">{html_lib.escape(item["destino"])}</span><span class="v">{item["veic"]} veíc. <small>({fmt(item["ton"])} t)</small></span></div>'
-    linhas_tr_html += f'<div class="dest-row total"><span class="n">TOTAL</span><span class="v">{v_qtd_tr} veíc. <small>({fmt(v_ton_tr)} t)</small></span></div>'
-else:
-    linhas_tr_html = '<div class="dest-vazio">Nenhum veículo em Termo de Responsabilidade.</div>'
-
-html_patio += f'''<details class="st-card" style="--c:#95A5A6;">
-<summary>
-<div class="st-ico">📄</div>
-<div class="st-txt">
-<div class="st-title">Termo SAP</div>
-<div class="st-num">{v_qtd_tr} <span>veíc. / {fmt(v_ton_tr)} t</span></div>
-</div>
-<div class="chev">›</div>
-</summary>
-<div class="st-body">{linhas_tr_html}</div>
-</details>
-'''
-
-st.markdown(html_patio, unsafe_allow_html=True)
-
-# ==============================================================================
-# 🎯 PROCESSAMENTO PRODUÇÃO E VIRADA DE LINHA
+# ⚙️ PROCESSAMENTO: PRODUÇÃO & VIRADA
 # ==============================================================================
 viradas_info = {}
 if not df_status_virada.empty:
@@ -538,7 +433,7 @@ if not df_qual.empty:
             }
 
 # ==============================================================================
-# 🎯 PROCESSAMENTO EXPEDIÇÃO (BALANÇO DESTINOS)
+# ⚙️ PROCESSAMENTO: EXPEDIÇÃO (BALANÇO DESTINOS)
 # ==============================================================================
 balanco_destinos = []
 total_expedicao_meta, total_expedicao_real = 0.0, 0.0
@@ -564,7 +459,7 @@ if not df_balanco_dest.empty:
             })
 
 # ==============================================================================
-# 🎯 TOPO HTML: BANNER E STATUS (Sempre Visível)
+# 🖨️ RENDERIZAÇÃO 1: TOPO (BANNER E STATUS)
 # ==============================================================================
 st.markdown(f'<div class="topo-banner"><img src="{BANNER_TOPO_URL}"></div>', unsafe_allow_html=True)
 
@@ -584,7 +479,7 @@ with st.container(border=True):
             st.cache_data.clear(); st.rerun()
 
 # ==============================================================================
-# 🔔 ALERTAS GERAIS E NOTIFICAÇÕES (Sempre Visível)
+# 🖨️ RENDERIZAÇÃO 2: NOTIFICAÇÕES (FLEXÍVEL E COM AUTO-FECHAMENTO NO SCROLL)
 # ==============================================================================
 alertas_lista = []
 if not df_alertas.empty:
@@ -599,7 +494,6 @@ if not df_alertas.empty:
 
 ordem_nivel = {"CRITICO": 0, "ATENCAO": 1, "NORMAL": 2}
 alertas_lista.sort(key=lambda a: ordem_nivel.get(a[0], 3))
-n_novas = sum(1 for a in alertas_lista if a[0] in ("CRITICO", "ATENCAO"))
 
 ESTILO_NIVEL = {
     "CRITICO": ("#E74C3C", "rgba(231,76,60,.18)", "🚨", "Alerta crítico"),
@@ -617,14 +511,9 @@ def render_notif(nivel, texto, hora):
         f'</div>'
     )
 
-# 🟢 CARD DE NOTIFICAÇÕES FLEXÍVEL (Inicia fechado, mostra total e fecha ao rolar para baixo)
 total_notifs = len(alertas_lista)
 badge = f'<div class="badge-novas">{total_notifs} novas</div>' if total_notifs > 0 else '<div class="badge-novas" style="color:#00D672;">tudo ok</div>'
-
-if alertas_lista:
-    conteudo_notifs = "".join(render_notif(*a) for a in alertas_lista)
-else:
-    conteudo_notifs = '<div style="color:#64748b; font-size:0.82rem; padding:12px; text-align:center;">Nenhuma notificação ativa no momento.</div>'
+conteudo_notifs = "".join(render_notif(*a) for a in alertas_lista) if alertas_lista else '<div style="color:#64748b; font-size:0.82rem; padding:12px; text-align:center;">Nenhuma notificação ativa no momento.</div>'
 
 html_notif = f"""
 <style>
@@ -684,7 +573,7 @@ html_notif = f"""
 st.markdown(html_notif.replace('\n', ''), unsafe_allow_html=True)
 
 # ==============================================================================
-# 📅 NOVO CARD: PREVISÕES DO DIA (PRODUÇÃO & EXPEDIÇÃO - 24H)
+# 🖨️ RENDERIZAÇÃO 3: PREVISÕES DO FECHAMENTO (24H)
 # ==============================================================================
 html_previsoes_card = f"""
 <div class="card-main" style="border-color: #0084ff; box-shadow: 0 0 16px rgba(0, 132, 255, 0.15);">
@@ -721,40 +610,33 @@ html_previsoes_card = f"""
 st.markdown(html_previsoes_card.replace('\n', ''), unsafe_allow_html=True)
 
 # ==============================================================================
-# 📦 MÓDULO PÁTIO DA FÁBRICA
+# 🖨️ RENDERIZAÇÃO 4: PÁTIO DA FÁBRICA (5 ABAS - SEM CÓDIGO APARECENDO)
 # ==============================================================================
-html_patio = f'''
-<div class="card-main">
-    <div class="card-head"><div class="icon-sq">🏭</div><div class="card-title">Pátio da Fábrica (Tempo Real)</div></div>
-    <div class="kpi-duo">
-        <div class="kpi-box">
-            <div class="kpi-ico">🚚</div>
-            <div>
-                <div class="kpi-big">{total_veiculos_fisicos}</div>
-                <div class="kpi-lbl">Veículos Físicos</div>
-                <div class="kpi-sub">Checklist + Apoio + Fila</div>
-            </div>
-        </div>
-        <div class="kpi-sep"></div>
-        <div class="kpi-box">
-            <div class="kpi-ico">📦</div>
-            <div>
-                <div class="kpi-lbl">Carga Disponível</div>
-                <div class="kpi-big verde">{fmt(vol_patio_disponivel)} <span>t</span></div>
-            </div>
-        </div>
-    </div>
+html_patio = f'''<div class="card-main">
+<div class="card-head"><div class="icon-sq">🏭</div><div class="card-title">Pátio da Fábrica (Tempo Real)</div></div>
+<div class="kpi-duo">
+<div class="kpi-box">
+<div class="kpi-ico">🚚</div>
+<div>
+<div class="kpi-big">{total_veiculos_fisicos}</div>
+<div class="kpi-lbl">Veículos Físicos</div>
+<div class="kpi-sub">Checklist + Apoio + Fila</div>
+</div>
+</div>
+<div class="kpi-sep"></div>
+<div class="kpi-box">
+<div class="kpi-ico">📦</div>
+<div>
+<div class="kpi-lbl">Carga Disponível</div>
+<div class="kpi-big verde">{fmt(vol_patio_disponivel)} <span>t</span></div>
+</div>
+</div>
+</div>
 </div>
 '''
 
-blocos_patio = [
-    ("Prog/Chegando", "PR", "#38a9ff", "🚙"),
-    ("Checklist", "00", "#FFD600", "📋"),
-    ("Apoio", "01", "#E67E22", "🚛"),
-    ("Fila de Carregamento", "FC", "#00D672", "✅"),
-]
-
-for tit, chv, cor, ico in blocos_patio:
+# 4 Cards principais (PR, 00, 01, FC)
+for tit, chv, df_s, cor, ico in mapa_abas_patio[:4]:
     lista_destinos = destinos_por_status.get(chv, [])
     v_qtd = dados_patio[chv]["veiculos"]
     v_ton = dados_patio[chv]["peso"]
@@ -762,52 +644,54 @@ for tit, chv, cor, ico in blocos_patio:
     linhas_dest_html = ""
     if lista_destinos:
         for item in lista_destinos:
-            linhas_dest_html += (
-                f'<div class="dest-row"><span class="n">{html_lib.escape(item["destino"])}</span>'
-                f'<span class="v">{item["veic"]} veíc. <small>({fmt(item["ton"])} t)</small></span></div>'
-            )
-        linhas_dest_html += (
-            f'<div class="dest-row total"><span class="n">TOTAL</span>'
-            f'<span class="v">{v_qtd} veíc. <small>({fmt(v_ton)} t)</small></span></div>'
-        )
-        if dif_status.get(chv, 0) != 0:
-            linhas_dest_html += (
-                f'<div class="dest-aviso">⚠️ A planilha informa {total_planilha[chv]["veiculos"]} veíc. no total '
-                f'(diferença de {abs(dif_status[chv])} não detalhada por destino).</div>'
-            )
+            linhas_dest_html += f'<div class="dest-row"><span class="n">{html_lib.escape(item["destino"])}</span><span class="v">{item["veic"]} veíc. <small>({fmt(item["ton"])} t)</small></span></div>'
+        linhas_dest_html += f'<div class="dest-row total"><span class="n">TOTAL</span><span class="v">{v_qtd} veíc. <small>({fmt(v_ton)} t)</small></span></div>'
     else:
         linhas_dest_html = '<div class="dest-vazio">Nenhum veículo alocado neste status.</div>'
 
-    html_patio += f'''
-    <details class="st-card" style="--c:{cor};">
-        <summary>
-            <div class="st-ico">{ico}</div>
-            <div class="st-txt">
-                <div class="st-title">{tit}</div>
-                <div class="st-num">{v_qtd} <span>veíc. / {fmt(v_ton)} t</span></div>
-            </div>
-            <div class="chev">›</div>
-        </summary>
-        <div class="st-body">{linhas_dest_html}</div>
-    </details>
-    '''
-
-html_patio += f'''
-<div class="st-card" style="--c:#95A5A6;">
-    <div class="st-sum">
-        <div class="st-ico">📄</div>
-        <div class="st-txt">
-            <div class="st-title">Termo SAP</div>
-            <div class="st-num">{dados_patio["TR"]["veiculos"]} <span>veíc. / {fmt(dados_patio["TR"]["peso"])} t</span></div>
-        </div>
-        <div style="color:#64748b; font-size:.72rem; text-align:right;">Fila de<br>Faturamento</div>
-    </div>
+    html_patio += f'''<details class="st-card" style="--c:{cor};">
+<summary>
+<div class="st-ico">{ico}</div>
+<div class="st-txt">
+<div class="st-title">{tit}</div>
+<div class="st-num">{v_qtd} <span>veíc. / {fmt(v_ton)} t</span></div>
 </div>
+<div class="chev">›</div>
+</summary>
+<div class="st-body">{linhas_dest_html}</div>
+</details>
 '''
+
+# 5º Card: Termo SAP (TR)
+lista_dest_tr = destinos_por_status.get("TR", [])
+v_qtd_tr = dados_patio["TR"]["veiculos"]
+v_ton_tr = dados_patio["TR"]["peso"]
+
+linhas_tr_html = ""
+if lista_dest_tr:
+    for item in lista_dest_tr:
+        linhas_tr_html += f'<div class="dest-row"><span class="n">{html_lib.escape(item["destino"])}</span><span class="v">{item["veic"]} veíc. <small>({fmt(item["ton"])} t)</small></span></div>'
+    linhas_tr_html += f'<div class="dest-row total"><span class="n">TOTAL</span><span class="v">{v_qtd_tr} veíc. <small>({fmt(v_ton_tr)} t)</small></span></div>'
+else:
+    linhas_tr_html = '<div class="dest-vazio">Nenhum veículo em Termo de Responsabilidade.</div>'
+
+html_patio += f'''<details class="st-card" style="--c:#95A5A6;">
+<summary>
+<div class="st-ico">📄</div>
+<div class="st-txt">
+<div class="st-title">Termo SAP</div>
+<div class="st-num">{v_qtd_tr} <span>veíc. / {fmt(v_ton_tr)} t</span></div>
+</div>
+<div class="chev">›</div>
+</summary>
+<div class="st-body">{linhas_tr_html}</div>
+</details>
+'''
+
 st.markdown(html_patio, unsafe_allow_html=True)
 
 # ==============================================================================
-# 🏭 MÓDULO PRODUÇÃO DE CELULOSE
+# 🖨️ RENDERIZAÇÃO 5: PRODUÇÃO DE CELULOSE
 # ==============================================================================
 html_prod_content = ""
 for maq in ["MS1", "MS2"]:
@@ -905,7 +789,7 @@ html_prod_completo = f"""
 st.markdown(html_prod_completo, unsafe_allow_html=True)
 
 # ==============================================================================
-# 🚚 MÓDULO EXPEDIÇÃO REALIZADA
+# 🖨️ RENDERIZAÇÃO 6: EXPEDIÇÃO REALIZADA
 # ==============================================================================
 def func_exp_dados(dt_a):
     ls = descobrir_letras_turnos(dt_a)
@@ -1090,7 +974,7 @@ html_exp_completo += f"""
 st.markdown(html_exp_completo, unsafe_allow_html=True)
 
 # ==============================================================================
-# 📦 MÓDULO ESTOQUE FÍSICO
+# 🖨️ RENDERIZAÇÃO 7: ESTOQUE FÍSICO
 # ==============================================================================
 html_est = f'<details class="master-box" style="border-left-color: #9b59b6;" open>'
 html_est += f'''
@@ -1124,7 +1008,7 @@ html_est += "</div></details>"
 st.markdown(html_est, unsafe_allow_html=True)
 
 # ==============================================================================
-# 🚜 MÓDULO FROTA E EQUIPAMENTOS
+# 🖨️ RENDERIZAÇÃO 8: FROTA E EQUIPAMENTOS (DKRO)
 # ==============================================================================
 frota_agr = {"h": {"e": [], "t": []}, "o": {"e": [], "t": []}}
 if not df_frota.empty and len(df_frota.columns) >= 7:
@@ -1168,7 +1052,7 @@ html_frota += '<div class="f-legenda"><div class="f-leg-titulo">🎨 Legenda das
 st.markdown(html_frota, unsafe_allow_html=True)
 
 # ==============================================================================
-# 🩺 MÓDULO BAFÔMETRO (H&S)
+# 🖨️ RENDERIZAÇÃO 9: AUDITORIA BAFÔMETRO (H&S)
 # ==============================================================================
 c1, c2 = st.columns([3, 1], vertical_alignment="center")
 with c1:
@@ -1219,7 +1103,7 @@ if st.session_state.bafometro_autenticado:
     st.markdown(hb.replace('\n', ''), unsafe_allow_html=True)
 
 # ==============================================================================
-# 📊 MÓDULO COMPARATIVO ANUAL (PRODUÇÃO VS EXPEDIÇÃO)
+# 🖨️ RENDERIZAÇÃO 10: COMPARATIVO ANUAL (PRODUÇÃO VS EXPEDIÇÃO)
 # ==============================================================================
 d_res = max(1, (date(hoje_date.year, 12, 31) - hoje_date).days)
 ca_at = forcar_par(1362558.0 + vol_hoje)
