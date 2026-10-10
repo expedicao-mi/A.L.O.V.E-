@@ -347,7 +347,15 @@ try: dt_att = datetime.strptime(ultima_att[:19], "%d/%m/%Y %H:%M:%S")
 except: dt_att = agora_br
 
 minutos_inativos = (agora_br - dt_att).total_seconds() / 60.0
-conn_txt, conn_cor = ("CONECTADO", "#00D672") if minutos_inativos <= 15 else ("ATRASADO", "#FFD600") if minutos_inativos <= 45 else ("DESCONECTADO", "#E74C3C")
+
+# 🟢 Regra direta: se tiver até 15 minutos é ATUALIZADO (verde), passou de 15 minutos é DESATUALIZADO (vermelho)
+if minutos_inativos <= 15:
+    conn_txt = "ATUALIZADO"
+    conn_cor = "#00D672"  # Verde
+else:
+    conn_txt = "DESATUALIZADO"
+    conn_cor = "#E74C3C"  # Vermelho
+
 conn_hora = dt_att.strftime("%H:%M:%S") if dt_att.date() == hoje_date else dt_att.strftime("%d/%m %H:%M")
 
 # ==============================================================================
