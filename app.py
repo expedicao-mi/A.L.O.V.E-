@@ -228,57 +228,60 @@ def carregar_dados_nuvem(worksheet_name: str, cabecalho=0):
 
 @st.cache_data(ttl=20)
 def carregar_tabela_cega(worksheet_name: str, chave: str = "DESTINO"):
-    """Lê abas com colunas irregulares de forma nativa e inquebrável usando o truque de 100 colunas do Pandas."""
+    """Lê abas com colunas irregulares com dupla proteção (Requests + Pandas)."""
+    import urllib.parse
+    import requests
+    import csv
+    from io import StringIO
+    
     sheet_encoded = urllib.parse.quote(worksheet_name)
     url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet={sheet_encoded}"
     
+    # 🟢 PLANO A: Extração imune a erros de colunas via Requests + CSV Reader
     try:
-        # 🟢 O TRUQUE DE MESTRE: names=range(100) garante que o Pandas tenha espaço de sobra
-        # para ler todas as colunas de A a Z do Google Sheets sem dar ParserError e sem ser bloqueado!
+        resp = requests.get(url, timeout=10)
+        resp.encoding = 'utf-8'
+        linhas = list(csv.reader(StringIO(resp.text)))
+        
+        header_idx = -1
+        for i, r in enumerate(linhas[:15]):
+            r_upper = [str(c).strip().upper() for c in r]
+            if any(chave.upper() == c or chave.upper() in c for c in r_upper):
+                header_idx = i
+                break
+
+        if header_idx != -1:
+            headers = [str(c).strip().upper() for c in linhas[header_idx]]
+            cols_validas = [idx for idx, h in enumerate(headers) if h != ""]
+            headers_limpos = [headers[idx] for idx in cols_validas]
+
+            dados = []
+            for r in linhas[header_idx + 1:]:
+                if not any(str(c).strip() for c in r):
+                    continue
+                padded = r + [""] * (len(headers) - len(r)) if len(r) < len(headers) else r
+                dados.append([padded[idx] for idx in cols_validas])
+
+            return pd.DataFrame(dados, columns=headers_limpos)
+    except:
+        pass # Se falhar, passa silenciosamente para o Plano B
+        
+    # 🟢 PLANO B: Extração nativa do Pandas com 100 colunas fantasma (Imune a bloqueios de rede)
+    try:
         raw = pd.read_csv(url, header=None, names=range(100), dtype=str, keep_default_na=False)
-    except: 
-        return pd.DataFrame()
-
-    # Varre as 15 primeiras linhas até achar a linha que contém a "chave" (ex: "PLACA" ou "DESTINO")
-    for idx_linha in range(min(len(raw), 15)):
-        for idx_col in range(min(len(raw.columns), 15)):
-            if str(raw.iloc[idx_linha, idx_col]).strip().upper() == chave.upper():
-                cabecalho = [str(c).strip().upper() for c in raw.iloc[idx_linha].tolist()]
-                corpo = raw.iloc[idx_linha + 1:].copy()
-                corpo.columns = cabecalho
-                
-                # Remove colunas fantasmas geradas pelo range(100)
-                corpo = corpo.loc[:, corpo.columns != ""]
-                
-                # Remove linhas completamente vazias
-                corpo = corpo[~(corpo.astype(str).apply(lambda r: "".join(r).strip() == "", axis=1))]
-                
-                return corpo.reset_index(drop=True)
-                
+        for idx_linha in range(min(len(raw), 15)):
+            for idx_col in range(min(len(raw.columns), 15)):
+                if str(raw.iloc[idx_linha, idx_col]).strip().upper() == chave.upper():
+                    cabecalho = [str(c).strip().upper() for c in raw.iloc[idx_linha].tolist()]
+                    corpo = raw.iloc[idx_linha + 1:].copy()
+                    corpo.columns = cabecalho
+                    corpo = corpo.loc[:, corpo.columns != ""]
+                    corpo = corpo[~(corpo.astype(str).apply(lambda r: "".join(r).strip() == "", axis=1))]
+                    return corpo.reset_index(drop=True)
+    except:
+        pass
+        
     return pd.DataFrame()
-        r_upper = [str(c).strip().upper() for c in r]
-        if any(chave.upper() == c or chave.upper() in c for c in r_upper):
-            header_idx = i
-            break
-
-    if header_idx == -1:
-        return pd.DataFrame()
-
-    # Isola o cabeçalho e descobre quais colunas não estão vazias
-    headers = [str(c).strip().upper() for c in linhas[header_idx]]
-    cols_validas = [idx for idx, h in enumerate(headers) if h != ""]
-    headers_limpos = [headers[idx] for idx in cols_validas]
-
-    # Preenche as linhas de baixo alinhando pelas colunas válidas
-    dados = []
-    for r in linhas[header_idx + 1:]:
-        if not any(str(c).strip() for c in r):
-            continue
-        # Se a linha for mais curta que o cabeçalho, preenche com vazio para não quebrar
-        padded = r + [""] * (len(headers) - len(r)) if len(r) < len(headers) else r
-        dados.append([padded[idx] for idx in cols_validas])
-
-    return pd.DataFrame(dados, columns=headers_limpos)
 
 def parse_robusto(texto):
     if not texto or str(texto).strip() in ["", "None"]: return {}
