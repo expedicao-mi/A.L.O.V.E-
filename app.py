@@ -228,22 +228,38 @@ def carregar_dados_nuvem(worksheet_name: str, cabecalho=0):
 
 @st.cache_data(ttl=20)
 def carregar_tabela_cega(worksheet_name: str, chave: str = "DESTINO"):
+    """Lê linhas com número irregular de colunas sem crashar no ParserError."""
     sheet_encoded = urllib.parse.quote(worksheet_name)
     url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet={sheet_encoded}"
     try:
-        raw = pd.read_csv(url, header=None, dtype=str, keep_default_na=False)
-    except: return pd.DataFrame()
+        resp = requests.get(url, timeout=10)
+        resp.encoding = 'utf-8'
+        linhas = list(csv.reader(StringIO(resp.text)))
+    except:
+        return pd.DataFrame()
 
-    for idx_linha in range(min(len(raw), 10)):
-        for idx_col in range(min(len(raw.columns), 10)):
-            if str(raw.iloc[idx_linha, idx_col]).strip().upper() == chave.upper():
-                cabecalho = [str(c).strip().upper() for c in raw.iloc[idx_linha].tolist()]
-                corpo = raw.iloc[idx_linha + 1:].copy()
-                corpo.columns = cabecalho
-                corpo = corpo.loc[:, ~corpo.columns.str.contains('^UNNAMED', na=False, case=False)]
-                corpo = corpo[~(corpo.astype(str).apply(lambda r: "".join(r).strip() == "", axis=1))]
-                return corpo.reset_index(drop=True)
-    return pd.DataFrame()
+    header_idx = -1
+    for i, r in enumerate(linhas[:15]):
+        r_upper = [str(c).strip().upper() for c in r]
+        if any(chave.upper() == c or chave.upper() in c for c in r_upper):
+            header_idx = i
+            break
+
+    if header_idx == -1:
+        return pd.DataFrame()
+
+    headers = [str(c).strip().upper() for c in linhas[header_idx]]
+    cols_validas = [idx for idx, h in enumerate(headers) if h != ""]
+    headers_limpos = [headers[idx] for idx in cols_validas]
+
+    dados = []
+    for r in linhas[header_idx + 1:]:
+        if not any(str(c).strip() for c in r):
+            continue
+        padded = r + [""] * (len(headers) - len(r)) if len(r) < len(headers) else r
+        dados.append([padded[idx] for idx in cols_validas])
+
+    return pd.DataFrame(dados, columns=headers_limpos)
 
 def parse_robusto(texto):
     if not texto or str(texto).strip() in ["", "None"]: return {}
@@ -350,20 +366,20 @@ else:
 conn_hora = dt_att.strftime("%H:%M:%S") if dt_att.date() == hoje_date else dt_att.strftime("%d/%m %H:%M")
 
 # ==============================================================================
-# ⚙️ PROCESSAMENTO: PÁTIO (DIRETO DAS 5 ABAS)
+# ⚙️ PROCESSAMENTO: PÁTIO (DIRETO DAS 5 ABAS COM FALLBACK)
 # ==============================================================================
 mapa_abas_patio = [
-    ("Prog/Chegando", "PR", df_pr, "#38a9ff", "🚙"),
-    ("Checklist", "00", df_00, "#FFD600", "📋"),
-    ("Apoio", "01", df_01, "#E67E22", "🚛"),
-    ("Fila de Carregamento", "FC", df_fc, "#00D672", "✅"),
-    ("Termo SAP", "TR", df_tr, "#95A5A6", "📄")
+    ("Prog/Chegando", "PR", df_pr, "#38a9ff", "🚙", "PR_VEIC", "PR_TON"),
+    ("Checklist", "00", df_00, "#FFD600", "📋", "00_VEIC", "00_TON"),
+    ("Apoio", "01", df_01, "#E67E22", "🚛", "01_VEIC", "01_TON"),
+    ("Fila de Carregamento", "FC", df_fc, "#00D672", "✅", "FC_VEIC", "FC_TON"),
+    ("Termo SAP", "TR", df_tr, "#95A5A6", "📄", "TR_VEIC", "TR_TON")
 ]
 
 dados_patio = {}
 destinos_por_status = {}
 
-for tit, chv, df_s, cor, ico in mapa_abas_patio:
+for tit, chv, df_s, cor, ico, col_v_fb, col_t_fb in mapa_abas_patio:
     if not df_s.empty and "PLACA" in df_s.columns:
         df_valido = df_s[df_s["PLACA"].astype(str).str.strip().ne("")].copy()
         v_qtd = len(df_valido)
@@ -395,12 +411,14 @@ for tit, chv, df_s, cor, ico in mapa_abas_patio:
         dados_patio[chv] = {"veiculos": v_qtd, "peso": v_ton}
         destinos_por_status[chv] = dest_list
     else:
-        dados_patio[chv] = {"veiculos": 0, "peso": 0}
+        # Fallback para os dados do dashboard se a aba estiver vazia
+        fb_v = int(safe_to_numeric(pegar_val(col_v_fb, 0))) if 'pegar_val' in locals() else 0
+        fb_t = forcar_par(safe_to_numeric(pegar_val(col_t_fb, 0))) if 'pegar_val' in locals() else 0
+        dados_patio[chv] = {"veiculos": fb_v, "peso": fb_t}
         destinos_por_status[chv] = []
 
 total_veiculos_fisicos = dados_patio["00"]["veiculos"] + dados_patio["01"]["veiculos"] + dados_patio["FC"]["veiculos"]
 vol_patio_disponivel = forcar_par(dados_patio["00"]["peso"] + dados_patio["01"]["peso"] + dados_patio["FC"]["peso"])
-
 # ==============================================================================
 # ⚙️ PROCESSAMENTO: PRODUÇÃO & VIRADA
 # ==============================================================================
