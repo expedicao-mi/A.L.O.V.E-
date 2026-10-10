@@ -510,21 +510,71 @@ def render_notif(nivel, texto, hora):
         f'</div>'
     )
 
+# 🟢 CARD DE NOTIFICAÇÕES FLEXÍVEL (Inicia fechado, mostra total e fecha ao rolar para baixo)
+total_notifs = len(alertas_lista)
+badge = f'<div class="badge-novas">{total_notifs} novas</div>' if total_notifs > 0 else '<div class="badge-novas" style="color:#00D672;">tudo ok</div>'
+
 if alertas_lista:
-    primeiras = "".join(render_notif(*a) for a in alertas_lista[:3])
-    restantes = alertas_lista[3:]
-    html_mais = ""
-    if restantes:
-        html_mais = (
-            f'<details class="notif-mais"><summary><span>Ver todas as notificações ({len(alertas_lista)})</span><span class="chev">›</span></summary>'
-            f'<div class="notif-lista" style="margin-top:6px;">{"".join(render_notif(*a) for a in restantes)}</div></details>'
-        )
-    badge = f'<div class="badge-novas">{n_novas} novas</div>' if n_novas else '<div class="badge-novas" style="color:#00D672;">tudo ok</div>'
-    html_notif = (
-        f'<div class="card-main"><div class="card-head"><div class="icon-sq">🔔</div><div class="card-title">Notificações</div>{badge}</div>'
-        f'<div class="notif-lista">{primeiras}</div>{html_mais}</div>'
-    )
-    st.markdown(html_notif.replace('\n', ''), unsafe_allow_html=True)
+    conteudo_notifs = "".join(render_notif(*a) for a in alertas_lista)
+else:
+    conteudo_notifs = '<div style="color:#64748b; font-size:0.82rem; padding:12px; text-align:center;">Nenhuma notificação ativa no momento.</div>'
+
+html_notif = f"""
+<style>
+    details#box-notificacoes summary {{
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        cursor: pointer;
+        list-style: none;
+        outline: none;
+        -webkit-tap-highlight-color: transparent;
+    }}
+    details#box-notificacoes summary::-webkit-details-marker {{ display: none; }}
+    details#box-notificacoes .notif-chev {{
+        color: #38bdf8;
+        font-size: 1.6rem;
+        line-height: 1;
+        transition: transform 0.25s ease;
+        margin-left: 6px;
+    }}
+    details#box-notificacoes[open] .notif-chev {{
+        transform: rotate(90deg);
+    }}
+</style>
+
+<details id="box-notificacoes" class="card-main" style="margin-bottom: 14px;">
+    <summary>
+        <div class="icon-sq">🔔</div>
+        <div class="card-title">Notificações</div>
+        {badge}
+        <div class="notif-chev">›</div>
+    </summary>
+    <div class="notif-lista" style="margin-top: 12px; max-height: 380px; overflow-y: auto;">
+        {conteudo_notifs}
+    </div>
+</details>
+
+<img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" style="display:none;" onerror="
+(function() {
+    if (window._notifScrollWatcher) return;
+    window._notifScrollWatcher = true;
+    var getScrollY = function() {
+        return window.pageYOffset || document.documentElement.scrollTop || (document.querySelector('section.main') ? document.querySelector('section.main').scrollTop : 0) || 0;
+    };
+    var lastY = getScrollY();
+    window.addEventListener('scroll', function() {
+        var box = document.getElementById('box-notificacoes');
+        var currY = getScrollY();
+        if (box && box.hasAttribute('open') && currY > lastY + 30) {
+            box.removeAttribute('open');
+        }
+        lastY = currY;
+    }, true);
+})();
+"/>
+"""
+st.markdown(html_notif.replace('\n', ''), unsafe_allow_html=True)
 
 # ==============================================================================
 # 📅 NOVO CARD: PREVISÕES DO DIA (PRODUÇÃO & EXPEDIÇÃO - 24H)
