@@ -259,7 +259,12 @@ def carregar_tabela_cega(worksheet_name: str, chave: str = "DESTINO"):
 def safe_to_numeric(val):
     if pd.isna(val) or val == "" or val is None: return 0.0
     if isinstance(val, (int, float)): return float(val)
-    try: return float(str(val).strip().replace(".", "").replace(",", "."))
+    s = str(val).strip()
+    if "," in s and "." in s:
+        s = s.replace(".", "").replace(",", ".")
+    elif "," in s:
+        s = s.replace(",", ".")
+    try: return float(s)
     except: return 0.0
 
 def parse_robusto(texto):
@@ -297,7 +302,12 @@ df_dash = carregar_dados_nuvem("Mobile_Dashboard", cabecalho=0)
 df_qual = carregar_dados_nuvem("Mobile_Qualidade", cabecalho=0)
 df_alertas = carregar_dados_nuvem("Mobile_Alertas", cabecalho=0)
 df_cache = carregar_dados_nuvem("Cache_Painel", cabecalho=0)
-df_patio_dest = carregar_tabela_cega("Patio_Destino_Status", "DESTINO")
+# 🟢 CARREGA AS 5 ABAS REAIS DO PÁTIO DIRETO DA NUVEM
+df_pr = carregar_tabela_cega("Status_PR", "PLACA")
+df_00 = carregar_tabela_cega("Status_00", "PLACA")
+df_01 = carregar_tabela_cega("Status_01", "PLACA")
+df_fc = carregar_tabela_cega("Status_FC", "PLACA")
+df_tr = carregar_tabela_cega("Status_TR", "PLACA")
 df_status_virada = carregar_dados_nuvem("Status_Virada_Turnos", cabecalho=0)
 df_balanco_dest = carregar_tabela_cega("Balanco_Expedicao_Destino", "DESTINO")
 df_bafometro = carregar_dados_nuvem("Bafometro_Status", cabecalho=0)
@@ -359,45 +369,142 @@ else:
 conn_hora = dt_att.strftime("%H:%M:%S") if dt_att.date() == hoje_date else dt_att.strftime("%d/%m %H:%M")
 
 # ==============================================================================
-# 🎯 PROCESSAMENTO DO PÁTIO (DESTINOS E STATUS)
+# 🎯 PROCESSAMENTO DO PÁTIO (DIRETO DAS 5 ABAS: PR, 00, 01, FC, TR)
 # ==============================================================================
-STATUS_COLS = {"PR": ("PR_VEIC", "PR_TON"), "00": ("00_VEIC", "00_TON"), "01": ("01_VEIC", "01_TON"), "FC": ("FC_VEIC", "FC_TON")}
-destinos_por_status = {"PR": [], "00": [], "01": [], "FC": [], "TR": []}
-dados_patio = {k: {"veiculos": 0, "peso": 0} for k in ["PR", "00", "01", "FC", "TR"]}
-total_planilha = {k: {"veiculos": 0, "peso": 0} for k in ["PR", "00", "01", "FC"]}
+mapa_abas_patio = [
+    ("Prog/Chegando", "PR", df_pr, "#38a9ff", "🚙"),
+    ("Checklist", "00", df_00, "#FFD600", "📋"),
+    ("Apoio", "01", df_01, "#E67E22", "🚛"),
+    ("Fila de Carregamento", "FC", df_fc, "#00D672", "✅"),
+    ("Termo SAP", "TR", df_tr, "#95A5A6", "📄")
+]
 
-if not df_patio_dest.empty:
-    for _, linha in df_patio_dest.iterrows():
-        dest_nome = str(linha.get("DESTINO", "")).strip()
-        if not dest_nome or dest_nome.upper() in ["NAN", "NONE", "DESTINO"]: continue
+dados_patio = {}
+destinos_por_status = {}
 
-        if "TOTAL" in dest_nome.upper():
-            for chv, (c_v, c_t) in STATUS_COLS.items():
-                total_planilha[chv]["veiculos"] = int(safe_to_numeric(linha.get(c_v, 0)))
-                total_planilha[chv]["peso"] = forcar_par(safe_to_numeric(linha.get(c_t, 0)))
-            continue
+for tit, chv, df_s, cor, ico in mapa_abas_patio:
+    if not df_s.empty and "PLACA" in df_s.columns:
+        # Filtra linhas válidas
+        df_valido = df_s[df_s["PLACA"].astype(str).str.strip().ne("")].copy()
+        v_qtd = len(df_valido)
+        
+        # Converte e soma o peso
+        if "TONELADAS" in df_valido.columns:
+            df_valido["TON_NUM"] = df_valido["TONELADAS"].apply(safe_to_numeric)
+            v_ton = forcar_par(df_valido["TON_NUM"].sum())
+        else:
+            v_ton = 0
 
-        for chv, (c_v, c_t) in STATUS_COLS.items():
-            v = int(safe_to_numeric(linha.get(c_v, 0)))
-            t = forcar_par(safe_to_numeric(linha.get(c_t, 0)))
-            if v > 0 or t > 0:
-                destinos_por_status[chv].append({"destino": dest_nome, "veic": v, "ton": t})
+        # Agrupa os destinos reais presentes dentro da aba
+        dest_list = []
+        if "DESTINO" in df_valido.columns and v_qtd > 0:
+            df_valido["DEST_LIMPO"] = df_valido["DESTINO"].astype(str).str.strip()
+            grp = df_valido.groupby("DEST_LIMPO").agg(
+                veic=("PLACA", "count"),
+                ton=("TON_NUM", "sum")
+            ).reset_index()
+            
+            for _, r_d in grp.iterrows():
+                d_nome = r_d["DEST_LIMPO"]
+                if d_nome and d_nome.upper() not in ["NAN", "NONE", ""]:
+                    dest_list.append({
+                        "destino": d_nome,
+                        "veic": int(r_d["veic"]),
+                        "ton": forcar_par(r_d["ton"])
+                    })
+            # Ordena com os maiores volumes no topo
+            dest_list.sort(key=lambda x: x["veic"], reverse=True)
 
-dif_status = {}
-for chv in STATUS_COLS:
-    lista = destinos_por_status[chv]
-    if lista:
-        dados_patio[chv]["veiculos"] = sum(i["veic"] for i in lista)
-        dados_patio[chv]["peso"] = sum(i["ton"] for i in lista)
-        dif_status[chv] = total_planilha[chv]["veiculos"] - dados_patio[chv]["veiculos"]
+        dados_patio[chv] = {"veiculos": v_qtd, "peso": v_ton}
+        destinos_por_status[chv] = dest_list
     else:
-        dados_patio[chv]["veiculos"], dados_patio[chv]["peso"], dif_status[chv] = total_planilha[chv]["veiculos"], total_planilha[chv]["peso"], 0
+        dados_patio[chv] = {"veiculos": 0, "peso": 0}
+        destinos_por_status[chv] = []
 
-dados_patio["TR"]["veiculos"] = int(safe_to_numeric(df_dash.iloc[0].get("TR_VEIC", 0))) if not df_dash.empty else 0
-dados_patio["TR"]["peso"] = forcar_par(safe_to_numeric(df_dash.iloc[0].get("TR_TON", 0))) if not df_dash.empty else 0
-
+# Veículos Físicos no Pátio = Checklist (00) + Apoio (01) + Fila (FC)
 total_veiculos_fisicos = dados_patio["00"]["veiculos"] + dados_patio["01"]["veiculos"] + dados_patio["FC"]["veiculos"]
 vol_patio_disponivel = forcar_par(dados_patio["00"]["peso"] + dados_patio["01"]["peso"] + dados_patio["FC"]["peso"])
+
+# ==============================================================================
+# 📦 RENDERIZAÇÃO DO PÁTIO DA FÁBRICA (SEM ESPAÇOS DE INDENTAÇÃO)
+# ==============================================================================
+html_patio = f'''<div class="card-main">
+<div class="card-head"><div class="icon-sq">🏭</div><div class="card-title">Pátio da Fábrica (Tempo Real)</div></div>
+<div class="kpi-duo">
+<div class="kpi-box">
+<div class="kpi-ico">🚚</div>
+<div>
+<div class="kpi-big">{total_veiculos_fisicos}</div>
+<div class="kpi-lbl">Veículos Físicos</div>
+<div class="kpi-sub">Checklist + Apoio + Fila</div>
+</div>
+</div>
+<div class="kpi-sep"></div>
+<div class="kpi-box">
+<div class="kpi-ico">📦</div>
+<div>
+<div class="kpi-lbl">Carga Disponível</div>
+<div class="kpi-big verde">{fmt(vol_patio_disponivel)} <span>t</span></div>
+</div>
+</div>
+</div>
+</div>
+'''
+
+# 4 Cards Retráteis Principais (PR, 00, 01, FC)
+for tit, chv, df_s, cor, ico in mapa_abas_patio[:4]:
+    lista_destinos = destinos_por_status.get(chv, [])
+    v_qtd = dados_patio[chv]["veiculos"]
+    v_ton = dados_patio[chv]["peso"]
+
+    linhas_dest_html = ""
+    if lista_destinos:
+        for item in lista_destinos:
+            linhas_dest_html += f'<div class="dest-row"><span class="n">{html_lib.escape(item["destino"])}</span><span class="v">{item["veic"]} veíc. <small>({fmt(item["ton"])} t)</small></span></div>'
+        linhas_dest_html += f'<div class="dest-row total"><span class="n">TOTAL</span><span class="v">{v_qtd} veíc. <small>({fmt(v_ton)} t)</small></span></div>'
+    else:
+        linhas_dest_html = '<div class="dest-vazio">Nenhum veículo alocado neste status.</div>'
+
+    html_patio += f'''<details class="st-card" style="--c:{cor};">
+<summary>
+<div class="st-ico">{ico}</div>
+<div class="st-txt">
+<div class="st-title">{tit}</div>
+<div class="st-num">{v_qtd} <span>veíc. / {fmt(v_ton)} t</span></div>
+</div>
+<div class="chev">›</div>
+</summary>
+<div class="st-body">{linhas_dest_html}</div>
+</details>
+'''
+
+# 5º Card: Termo SAP (TR) com lista de destinos
+lista_dest_tr = destinos_por_status.get("TR", [])
+v_qtd_tr = dados_patio["TR"]["veiculos"]
+v_ton_tr = dados_patio["TR"]["peso"]
+
+linhas_tr_html = ""
+if lista_dest_tr:
+    for item in lista_dest_tr:
+        linhas_tr_html += f'<div class="dest-row"><span class="n">{html_lib.escape(item["destino"])}</span><span class="v">{item["veic"]} veíc. <small>({fmt(item["ton"])} t)</small></span></div>'
+    linhas_tr_html += f'<div class="dest-row total"><span class="n">TOTAL</span><span class="v">{v_qtd_tr} veíc. <small>({fmt(v_ton_tr)} t)</small></span></div>'
+else:
+    linhas_tr_html = '<div class="dest-vazio">Nenhum veículo em Termo de Responsabilidade.</div>'
+
+html_patio += f'''<details class="st-card" style="--c:#95A5A6;">
+<summary>
+<div class="st-ico">📄</div>
+<div class="st-txt">
+<div class="st-title">Termo SAP</div>
+<div class="st-num">{v_qtd_tr} <span>veíc. / {fmt(v_ton_tr)} t</span></div>
+</div>
+<div class="chev">›</div>
+</summary>
+<div class="st-body">{linhas_tr_html}</div>
+</details>
+'''
+
+st.markdown(html_patio, unsafe_allow_html=True)
 
 # ==============================================================================
 # 🎯 PROCESSAMENTO PRODUÇÃO E VIRADA DE LINHA
