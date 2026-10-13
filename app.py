@@ -275,7 +275,23 @@ def carregar_tabela_cega(worksheet_name: str, coluna_chave: str = "DESTINO"):
     except:
         pass
     return pd.DataFrame()
-
+# ==============================================================================
+# 📋 LEITURA BLINDADA DA PRANCHETA (COM GID DIRETO DA ABA)
+# ==============================================================================
+@st.cache_data(ttl=15)
+def carregar_prancheta_direto():
+    """Lê a aba Prancheta_Operacao_Core com garantia total via GID e export CSV."""
+    # GID identificado diretamente na URL da aba Prancheta_Operacao_Core
+    url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv&gid=806839882"
+    try:
+        df = pd.read_csv(url, dtype=str, keep_default_na=False)
+        return df
+    except Exception:
+        # Contingência caso a conexão pelo GID oscile
+        try:
+            return carregar_dados_nuvem("Prancheta_Operacao_Core", cabecalho=0)
+        except Exception:
+            return pd.DataFrame()
 def conectar_planilha_prancheta():
     """Conecta à aba Prancheta_Operacao_Core usando st.secrets do Streamlit Cloud."""
     try:
@@ -337,7 +353,7 @@ df_balanco_dest = carregar_tabela_cega("Balanco_Expedicao_Destino", "DESTINO")
 df_bafometro = carregar_dados_nuvem("Bafometro_Status", cabecalho=0)
 if df_bafometro.empty: df_bafometro = carregar_dados_nuvem("Auditoria_Bafometro", cabecalho=0)
 df_frota = carregar_dados_nuvem("Historico_DKRO", cabecalho=0)
-df_prancheta = carregar_tabela_cega("Prancheta_Operacao_Core", "MENSAGEM")
+df_prancheta = carregar_prancheta_direto()
 
 # 🟢 Carrega diretamente a matriz consolidada de destinos (1 única chamada leve!)
 df_patio_dest = carregar_dados_nuvem("Patio_Destino_Status", cabecalho=2)
@@ -634,21 +650,57 @@ st.markdown(html_notif.replace('\n', ''), unsafe_allow_html=True)
 recados_mobile = []
 if not df_prancheta.empty:
     for idx_df, rp in df_prancheta.iterrows():
-        # Garante a ordem física real das colunas da planilha:
-        # Col 0: ID | Col 1: DATA_INICIO | Col 2: HORA_INICIO | Col 3: DATA_FIM | Col 4: HORA_FIM | Col 5: MENSAGEM | Col 6: AUTOR | Col 7: STATUS
-        r_id    = str(rp.iloc[0]).strip() if len(rp) > 0 else str(idx_df + 1)
-        d_ini   = str(rp.iloc[1]).strip() if len(rp) > 1 else hoje_date.strftime("%d/%m/%Y")
-        h_ini   = str(rp.iloc[2]).strip() if len(rp) > 2 else "00:00"
-        d_fim   = str(rp.iloc[3]).strip() if len(rp) > 3 else hoje_date.strftime("%d/%m/%Y")
-        h_fim   = str(rp.iloc[4]).strip() if len(rp) > 4 else "23:59"
-        msg_val = str(rp.iloc[5]).strip() if len(rp) > 5 else ""
-        aut_val = str(rp.iloc[6]).strip() if len(rp) > 6 else "Operação"
-        st_val  = str(rp.iloc[7]).strip().upper() if len(rp) > 7 else "ATIVO"
-
-        if not msg_val or msg_val.upper() in ("NAN", "NONE"):
+        linha_sheets = idx_df + 2
+        valores_linha = [str(x).strip() for x in rp.tolist()]
+        
+        # Ignora linhas totalmente em branco
+        if not any(valores_linha):
             continue
 
-        linha_sheets = idx_df + 2
+        # Procura onde está o texto da mensagem e o autor na linha
+        msg_val = ""
+        aut_val = "Cristiano"
+        st_val  = "ATIVO"
+        d_ini   = hoje_date.strftime("%d/%m/%Y")
+        h_ini   = "00:00"
+        d_fim   = hoje_date.strftime("%d/%m/%Y")
+        h_fim   = "23:59"
+        r_id    = str(idx_df + 1)
+
+        # Procura status (ATIVO/INATIVO)
+        for v in valores_linha:
+            if v.upper() in ("ATIVO", "INATIVO"):
+                st_val = v.upper()
+                break
+
+        # Extrai horários (formato HH:MM)
+        horarios_achados = [v for v in valores_linha if re.match(r'^\d{1,2}:\d{2}$', v)]
+        if len(horarios_achados) >= 1: h_ini = horarios_achados[0]
+        if len(horarios_achados) >= 2: h_fim = horarios_achados[1]
+
+        # Extrai datas (formato DD/MM ou DD/MM/AAAA)
+        datas_achadas = [v for v in valores_linha if re.match(r'^\d{1,2}/\d{1,2}(/\d{2,4})?$', v)]
+        if len(datas_achadas) >= 1: d_ini = datas_achadas[0]
+        if len(datas_achadas) >= 2: d_fim = datas_achadas[1]
+
+        # A mensagem é o texto mais longo da linha
+        textos_candidatos = [
+            v for v in valores_linha 
+            if v not in horarios_achados and v not in datas_achadas and v.upper() not in ("ATIVO", "INATIVO", "CRISTIANO", "CORE", "OPERACAO", "NAN", "") and not v.isdigit()
+        ]
+        if textos_candidatos:
+            msg_val = max(textos_candidatos, key=len)
+        elif len(rp) > 5 and str(rp.iloc[5]).strip():
+            msg_val = str(rp.iloc[5]).strip()
+
+        # Identifica autor
+        for v in valores_linha:
+            if v.upper() in ("CRISTIANO", "MAYCON", "LÍDER", "CORE", "OPERAÇÃO", "OPERACAO"):
+                aut_val = v
+                break
+
+        if not msg_val:
+            continue
 
         ativo_agora = True
         try:
@@ -660,10 +712,10 @@ if not df_prancheta.empty:
             d_f_corr = pad_data(d_fim)
             dt_i = datetime.strptime(f"{d_i_corr} {h_ini[:5]}", "%d/%m/%Y %H:%M")
             dt_f = datetime.strptime(f"{d_f_corr} {h_fim[:5]}", "%d/%m/%Y %H:%M")
-            if not (dt_i <= datetime.now() <= dt_f) or st_val not in ("ATIVO", "S", "SIM", "1"):
+            if not (dt_i <= datetime.now() <= dt_f) or st_val != "ATIVO":
                 ativo_agora = False
         except Exception:
-            ativo_agora = (st_val in ("ATIVO", "S", "SIM", "1"))
+            ativo_agora = (st_val == "ATIVO")
 
         recados_mobile.append({
             "linha_sheets": linha_sheets,
