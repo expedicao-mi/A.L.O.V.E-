@@ -31,6 +31,11 @@ st_autorefresh(interval=60000, limit=None, key="refresh_mobile")
 if "bafometro_autenticado" not in st.session_state:
     st.session_state.bafometro_autenticado = False
 
+def render_html(html_str: str):
+    """Remove recuos e linhas em branco que fazem o Streamlit achar que o HTML é um bloco de código."""
+    linhas_limpas = [linha.strip() for linha in html_str.splitlines() if linha.strip()]
+    st.markdown(" ".join(linhas_limpas), unsafe_allow_html=True)
+
 # ==============================================================================
 # 🎨 CSS (LAYOUT VERTICAL COM DESIGN DE APP - SEM BARRA INFERIOR)
 # ==============================================================================
@@ -162,15 +167,16 @@ st.markdown("""
         .master-metric-sub { font-size: 0.85rem; font-weight: normal; margin-top: 4px; }
         .master-content { background-color: transparent; padding: 0 16px 16px 16px; }
 
-        /* TABS CSS NATIVO (PARA PRODUÇÃO/EXPEDIÇÃO/FROTA) */
-        .css-tabs-view label { display: inline-block; padding: 8px 20px; background-color: #162438; color: #94a3b8; border-radius: 8px; font-size: 0.9rem; font-weight: normal; margin: 0 4px 14px 4px; cursor: pointer; border: 1px solid #1c2b42; transition: 0.2s; }
+        /* TABS CSS NATIVO (ESCONDE BOLINHA DO RADIO BUTTON) */
+        .css-tabs-view input[type="radio"], .css-tabs-exp input[type="radio"] { display: none !important; }
+        .css-tabs-view label { display: inline-block; padding: 8px 20px; background-color: #162438; color: #94a3b8; border-radius: 8px; font-size: 0.9rem; font-weight: bold; margin: 0 4px 14px 4px; cursor: pointer; border: 1px solid #1c2b42; transition: 0.2s; }
         .css-tabs-view input[type="radio"]#view_turnos:checked + label.lbl-v-turnos { background-color: #00D672; color: #0a101d; border-color: #00D672; }
         .css-tabs-view input[type="radio"]#view_destinos:checked + label.lbl-v-destinos { background-color: #38bdf8; color: #0a101d; border-color: #38bdf8; }
         .view-content-exp { display: none; animation: fadeIn 0.3s ease; }
         #view_turnos:checked ~ #content_view_turnos { display: block; }
         #view_destinos:checked ~ #content_view_destinos { display: block; }
 
-        .css-tabs-exp label { display: inline-block; padding: 6px 16px; background-color: #162438; color: #94a3b8; border-radius: 6px; font-size: 0.85rem; font-weight: normal; margin: 0 4px; cursor: pointer; border: 1px solid #1c2b42; transition: 0.2s; }
+        .css-tabs-exp label { display: inline-block; padding: 6px 16px; background-color: #162438; color: #94a3b8; border-radius: 6px; font-size: 0.85rem; font-weight: bold; margin: 0 4px; cursor: pointer; border: 1px solid #1c2b42; transition: 0.2s; }
         .css-tabs-exp input[type="radio"]#tab_ontem:checked + label.lbl-ontem { background-color: #38bdf8; color: #0a101d; border-color: #38bdf8; }
         .css-tabs-exp input[type="radio"]#tab_hoje:checked + label.lbl-hoje { background-color: #00D672; color: #0a101d; border-color: #00D672; }
         .tab-content-exp { display: none; animation: fadeIn 0.3s ease; }
@@ -210,7 +216,6 @@ def fmt(n, casas=0):
 def safe_to_numeric(val):
     if pd.isna(val) or val == "" or val is None: return 0.0
     if isinstance(val, (int, float)): return float(val)
-    # MODIFICAÇÃO DE SEGURANÇA AQUI: Limpa letras e caracteres ocultos antes da conversão
     s = re.sub(r'[^\d,\.\-]', '', str(val).strip())
     if "," in s and "." in s:
         s = s.replace(".", "").replace(",", ".")
@@ -224,83 +229,69 @@ def carregar_dados_nuvem(worksheet_name: str, cabecalho=0):
     sheet_encoded = urllib.parse.quote(worksheet_name)
     url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet={sheet_encoded}&headers=1"
     try:
-        df = pd.read_csv(url, header=cabecalho)
+        df = pd.read_csv(url, header=cabecalho, on_bad_lines="skip")
         return df.dropna(how="all", axis=1).dropna(how="all", axis=0)
-    except: return pd.DataFrame()
-
-# ==============================================================================
-# ✨ NOVA FUNÇÃO DE EXTRAÇÃO COM BLINDAGEM DUPLA
-# ==============================================================================
-@st.cache_data(ttl=20)
-def carregar_matriz_destinos():
-    """Varre as primeiras linhas até encontrar o cabeçalho DESTINO automaticamente."""
-    import urllib.parse
-    import pandas as pd
-    sheet_encoded = urllib.parse.quote("Patio_Destino_Status")
-    url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet={sheet_encoded}"
-    try:
-        raw = pd.read_csv(url, header=None, dtype=str, keep_default_na=False)
-        header_idx = -1
-        for i in range(min(len(raw), 5)):
-            row_vals = [str(x).strip().upper() for x in raw.iloc[i].tolist()]
-            if "DESTINO" in row_vals:
-                header_idx = i
-                break
-                
-        if header_idx != -1:
-            cabecalho = [str(c).strip().upper() for c in raw.iloc[header_idx].tolist()]
-            corpo = raw.iloc[header_idx + 1:].copy()
-            corpo.columns = cabecalho
-            corpo = corpo.loc[:, corpo.columns != ""]
-            corpo = corpo[~(corpo.astype(str).apply(lambda r: "".join(r).strip() == "", axis=1))]
-            return corpo.reset_index(drop=True)
     except:
-        pass
-    return pd.DataFrame()
+        return pd.DataFrame()
 
-# ==============================================================================
 @st.cache_data(ttl=20)
 def carregar_tabela_cega(worksheet_name: str, coluna_chave: str = "DESTINO"):
-    """Localiza a linha correta do cabeçalho automaticamente."""
+    """
+    Lê a aba via csv.reader tolerando linhas de metadados com menos colunas no topo
+    (Resolve o erro ParserError nas abas Patio_Destino_Status, Balanco_Expedicao_Destino e Status_TR).
+    """
     sheet_encoded = urllib.parse.quote(worksheet_name)
     url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet={sheet_encoded}"
     try:
-        raw = pd.read_csv(url, header=None, dtype=str, keep_default_na=False)
-        for i in range(min(len(raw), 6)):
-            row_vals = [str(x).strip().upper() for x in raw.iloc[i].tolist()]
+        resp = requests.get(url, timeout=10)
+        resp.encoding = "utf-8"
+        linhas = list(csv.reader(StringIO(resp.text)))
+        header_idx = -1
+        for i, row in enumerate(linhas[:10]):
+            row_vals = [str(x).strip().upper() for x in row]
             if coluna_chave.upper() in row_vals:
-                df = raw.iloc[i + 1:].copy()
-                df.columns = [str(c).strip().upper() for c in raw.iloc[i].tolist()]
-                return df.loc[:, df.columns != ""].reset_index(drop=True)
-    except:
+                header_idx = i
+                break
+
+        if header_idx != -1:
+            cabecalho = [str(c).strip().upper() for c in linhas[header_idx]]
+            dados = []
+            for row in linhas[header_idx + 1:]:
+                if not any(str(c).strip() for c in row):
+                    continue
+                if len(row) < len(cabecalho):
+                    row = row + [""] * (len(cabecalho) - len(row))
+                elif len(row) > len(cabecalho):
+                    row = row[:len(cabecalho)]
+                dados.append(row)
+            df = pd.DataFrame(dados, columns=cabecalho)
+            return df.loc[:, df.columns != ""].reset_index(drop=True)
+    except Exception:
         pass
     return pd.DataFrame()
+
 # ==============================================================================
 # 📋 LEITURA BLINDADA DA PRANCHETA (COM GID DIRETO DA ABA)
 # ==============================================================================
 @st.cache_data(ttl=15)
 def carregar_prancheta_direto():
-    """Lê a aba Prancheta_Operacao_Core com garantia total via GID e export CSV."""
-    # GID identificado diretamente na URL da aba Prancheta_Operacao_Core
     url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv&gid=806839882"
     try:
         df = pd.read_csv(url, dtype=str, keep_default_na=False)
         return df
     except Exception:
-        # Contingência caso a conexão pelo GID oscile
         try:
             return carregar_dados_nuvem("Prancheta_Operacao_Core", cabecalho=0)
         except Exception:
             return pd.DataFrame()
+
 def conectar_planilha_prancheta():
-    """Conecta à aba Prancheta_Operacao_Core usando st.secrets do Streamlit Cloud."""
     try:
         if hasattr(st, "secrets") and "gcp_service_account" in st.secrets:
             dados_secret = dict(st.secrets["gcp_service_account"])
             cliente = gspread.service_account_from_dict(dados_secret)
             return cliente.open_by_key(SHEET_ID).worksheet("Prancheta_Operacao_Core")
         
-        # Contingência para teste local se o arquivo físico existir
         import os
         if os.path.exists("credentials.json"):
             cliente = gspread.service_account(filename="credentials.json")
@@ -311,7 +302,6 @@ def conectar_planilha_prancheta():
     except Exception as e:
         st.error(f"⚠️ Erro ao autenticar no Google Sheets: {e}")
         return None
-# ==============================================================================
 
 def parse_robusto(texto):
     if not texto or str(texto).strip() in ["", "None"]: return {}
@@ -355,9 +345,9 @@ if df_bafometro.empty: df_bafometro = carregar_dados_nuvem("Auditoria_Bafometro"
 df_frota = carregar_dados_nuvem("Historico_DKRO", cabecalho=0)
 df_prancheta = carregar_prancheta_direto()
 
-# 🟢 Carrega diretamente a matriz consolidada de destinos (1 única chamada leve!)
-df_patio_dest = carregar_dados_nuvem("Patio_Destino_Status", cabecalho=2)
-
+# 🟢 Carrega a matriz de destinos (PR, 00, 01, FC) e a aba Status_TR (Termo SAP) com leitor blindado
+df_patio_dest = carregar_tabela_cega("Patio_Destino_Status", "DESTINO")
+df_status_tr = carregar_tabela_cega("Status_TR", "PLACA")
 
 cache_dict = {str(row.iloc[0]).strip(): str(row.iloc[1]).strip() for _, row in df_cache.iterrows()} if not df_cache.empty else {}
 dados_segregados = parse_robusto(cache_dict.get("dados_segregados", "{}"))
@@ -391,7 +381,6 @@ if not df_dash.empty:
     ritmo_torre_bruto = str(pegar_val("RITMO_TORRE", "NORMAL")).upper()
     ritmo_torre = "RITMO DE ATUALIZAÇÃO: RÁPIDO" if "12" in ritmo_torre_bruto or "ACELERADO" in ritmo_torre_bruto else ritmo_torre_bruto
 
-# Fallback inteligente das previsões de 24h
 if prev_prod == 0 and prod_hoje_calc > 0:
     horas_corridas = max(0.1, agora_br.hour + (agora_br.minute / 60.0))
     prev_prod = forcar_par((prod_hoje_calc / horas_corridas) * 24.0)
@@ -405,7 +394,6 @@ except: dt_att = agora_br
 
 minutos_inativos = (agora_br - dt_att).total_seconds() / 60.0
 
-# 🟢 Regra solicitada: até 15 min é ATUALIZADO (Verde); passou de 15 min é DESATUALIZADO (Vermelho)
 if minutos_inativos <= 15:
     conn_txt = "ATUALIZADO"
     conn_cor = "#00D672"
@@ -416,7 +404,7 @@ else:
 conn_hora = dt_att.strftime("%H:%M:%S") if dt_att.date() == hoje_date else dt_att.strftime("%d/%m %H:%M")
 
 # ==============================================================================
-# ⚙️ PROCESSAMENTO: PÁTIO (DIRETO DA MATRIZ PATIO_DESTINO_STATUS)
+# ⚙️ PROCESSAMENTO: PÁTIO (MATRIZ PATIO_DESTINO_STATUS + ABA STATUS_TR)
 # ==============================================================================
 mapa_status_colunas = [
     ("Prog/Chegando", "PR", "PR_VEIC", "PR_TON", "#38a9ff", "🚙"),
@@ -437,11 +425,9 @@ for tit, chv, col_v, col_t, cor, ico in mapa_status_colunas:
     v_qtd = 0
     v_ton = 0
 
-    if not df_patio_dest.empty and "DESTINO" in df_patio_dest.columns:
+    if chv != "TR" and not df_patio_dest.empty and "DESTINO" in df_patio_dest.columns:
         for _, row in df_patio_dest.iterrows():
             d_nome = str(row.get("DESTINO", "")).strip()
-            
-            # Ignora linhas vazias ou de total geral da fábrica
             if not d_nome or "TOTAL" in d_nome.upper() or d_nome.upper() in ["NAN", "NONE"]:
                 continue
                 
@@ -454,16 +440,35 @@ for tit, chv, col_v, col_t, cor, ico in mapa_status_colunas:
                     "veic": qtd_carretas,
                     "ton": toneladas
                 })
+    elif chv == "TR" and not df_status_tr.empty and "PLACA" in df_status_tr.columns:
+        # Agrupa os veículos da aba Status_TR por Destino
+        agr_tr = {}
+        for _, r_tr in df_status_tr.iterrows():
+            pl_tr = str(r_tr.get("PLACA", "")).strip()
+            if not pl_tr or pl_tr.upper() in ["NAN", "NONE", "PLACA"]:
+                continue
+            d_tr = str(r_tr.get("DESTINO", "NÃO IDENTIFICADO")).strip()
+            if not d_tr or d_tr.upper() in ["N/I", "NAN", ""]:
+                d_tr = "EM ANÁLISE / N/I"
+            t_tr = safe_to_numeric(r_tr.get("TONELADAS", 45.0))
+            if t_tr <= 0: t_tr = 45.0
+            if d_tr not in agr_tr:
+                agr_tr[d_tr] = {"veic": 0, "ton": 0.0}
+            agr_tr[d_tr]["veic"] += 1
+            agr_tr[d_tr]["ton"] += t_tr
+        for d_k, info_k in agr_tr.items():
+            dest_list.append({
+                "destino": d_k,
+                "veic": info_k["veic"],
+                "ton": forcar_par(info_k["ton"])
+            })
 
-    # Ordena os destinos do maior para o menor em veículos
     dest_list.sort(key=lambda x: x["veic"], reverse=True)
     
-    # Soma total dos veículos e peso do status
     if dest_list:
         v_qtd = sum(x["veic"] for x in dest_list)
         v_ton = forcar_par(sum(x["ton"] for x in dest_list))
     else:
-        # Fallback do Dashboard se a aba estiver vazia
         v_qtd = int(safe_to_numeric(pegar_val(col_v, 0))) if 'pegar_val' in locals() else 0
         v_ton = forcar_par(safe_to_numeric(pegar_val(col_t, 0))) if 'pegar_val' in locals() else 0
 
@@ -483,7 +488,7 @@ if not df_status_virada.empty:
         viradas_info[linha] = {
             "prox_mat": str(row_st.get("PROXIMO_MATERIAL", "--")),
             "prev_virada": str(row_st.get("PREVISAO_VIRADA", "--")),
-            "saldo_rest": forcar_par(safe_to_numeric(row_st.get("SALDO_RESTANTE_T", 0))),
+            "saldo_rest": forcar_par(safe_to_numeric(row_st.get("SALDO_RESTANTE_T", row_st.get("SALDO_RESTANTE", 0)))),
             "status_email": str(row_st.get("STATUS_EMAIL_TROCA", "N/D"))
         }
 
@@ -538,14 +543,14 @@ st.markdown(f'<div class="topo-banner"><img src="{BANNER_TOPO_URL}"></div>', uns
 with st.container(border=True):
     col_status, col_btn = st.columns([3, 2], vertical_alignment="center")
     with col_status:
-        st.markdown(f"""
+        render_html(f"""
             <div style="display:flex; align-items:center;">
                 <span class="conn-dot" style="background:{conn_cor};"></span>
                 <span class="conn-titulo" style="color:{conn_cor};">{conn_txt}</span>
             </div>
             <div class="conn-sub">🕒 Última atualização: {conn_hora}</div>
             <div class="conn-ritmo">🎯 {ritmo_torre}</div>
-        """.replace('\n', ''), unsafe_allow_html=True)
+        """)
     with col_btn:
         if st.button("🔄 Atualizar", use_container_width=True):
             st.cache_data.clear(); st.rerun()
@@ -590,27 +595,16 @@ conteudo_notifs = "".join(render_notif(*a) for a in alertas_lista) if alertas_li
 html_notif = f"""
 <style>
     details#box-notificacoes summary {{
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        cursor: pointer;
-        list-style: none;
-        outline: none;
-        -webkit-tap-highlight-color: transparent;
+        display: flex; align-items: center; gap: 10px; cursor: pointer;
+        list-style: none; outline: none; -webkit-tap-highlight-color: transparent;
     }}
     details#box-notificacoes summary::-webkit-details-marker {{ display: none; }}
     details#box-notificacoes .notif-chev {{
-        color: #38bdf8;
-        font-size: 1.6rem;
-        line-height: 1;
-        transition: transform 0.25s ease;
-        margin-left: 6px;
+        color: #38bdf8; font-size: 1.6rem; line-height: 1;
+        transition: transform 0.25s ease; margin-left: 6px;
     }}
-    details#box-notificacoes[open] .notif-chev {{
-        transform: rotate(90deg);
-    }}
+    details#box-notificacoes[open] .notif-chev {{ transform: rotate(90deg); }}
 </style>
-
 <details id="box-notificacoes" class="card-main" style="margin-bottom: 14px;">
     <summary>
         <div class="icon-sq">🔔</div>
@@ -622,27 +616,8 @@ html_notif = f"""
         {conteudo_notifs}
     </div>
 </details>
-
-<img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" style="display:none;" onerror="
-(function() {{
-    if (window._notifScrollWatcher) return;
-    window._notifScrollWatcher = true;
-    var getScrollY = function() {{
-        return window.pageYOffset || document.documentElement.scrollTop || (document.querySelector('section.main') ? document.querySelector('section.main').scrollTop : 0) || 0;
-    }};
-    var lastY = getScrollY();
-    window.addEventListener('scroll', function() {{
-        var box = document.getElementById('box-notificacoes');
-        var currY = getScrollY();
-        if (box && box.hasAttribute('open') && currY > lastY + 30) {{
-            box.removeAttribute('open');
-        }}
-        lastY = currY;
-    }}, true);
-}})();
-"/>
 """
-st.markdown(html_notif.replace('\n', ''), unsafe_allow_html=True)
+render_html(html_notif)
 
 # ==============================================================================
 # 🖨️ RENDERIZAÇÃO: PRANCHETA OPERACIONAL & COMUNICADOS DO TURNO (INTERATIVA)
@@ -652,12 +627,9 @@ if not df_prancheta.empty:
     for idx_df, rp in df_prancheta.iterrows():
         linha_sheets = idx_df + 2
         valores_linha = [str(x).strip() for x in rp.tolist()]
-        
-        # Ignora linhas totalmente em branco
         if not any(valores_linha):
             continue
 
-        # Procura onde está o texto da mensagem e o autor na linha
         msg_val = ""
         aut_val = "Cristiano"
         st_val  = "ATIVO"
@@ -667,33 +639,28 @@ if not df_prancheta.empty:
         h_fim   = "23:59"
         r_id    = str(idx_df + 1)
 
-        # Procura status (ATIVO/INATIVO)
         for v in valores_linha:
             if v.upper() in ("ATIVO", "INATIVO"):
                 st_val = v.upper()
                 break
 
-        # Extrai horários (formato HH:MM)
         horarios_achados = [v for v in valores_linha if re.match(r'^\d{1,2}:\d{2}$', v)]
         if len(horarios_achados) >= 1: h_ini = horarios_achados[0]
         if len(horarios_achados) >= 2: h_fim = horarios_achados[1]
 
-        # Extrai datas (formato DD/MM ou DD/MM/AAAA)
         datas_achadas = [v for v in valores_linha if re.match(r'^\d{1,2}/\d{1,2}(/\d{2,4})?$', v)]
         if len(datas_achadas) >= 1: d_ini = datas_achadas[0]
         if len(datas_achadas) >= 2: d_fim = datas_achadas[1]
 
-        # A mensagem é o texto mais longo da linha
         textos_candidatos = [
             v for v in valores_linha 
-            if v not in horarios_achados and v not in datas_achadas and v.upper() not in ("ATIVO", "INATIVO", "CRISTIANO", "CORE", "OPERACAO", "NAN", "") and not v.isdigit()
+            if v not in horarios_achados and v not in datas_achadas and v.upper() not in ("ATIVO", "INATIVO", "CRISTIANO", "CORE", "OPERACAO", "NAN", "") and not v.isdigit() and not v.upper().startswith("ATUALIZADO:")
         ]
         if textos_candidatos:
             msg_val = max(textos_candidatos, key=len)
         elif len(rp) > 5 and str(rp.iloc[5]).strip():
             msg_val = str(rp.iloc[5]).strip()
 
-        # Identifica autor
         for v in valores_linha:
             if v.upper() in ("CRISTIANO", "MAYCON", "LÍDER", "CORE", "OPERAÇÃO", "OPERACAO"):
                 aut_val = v
@@ -712,7 +679,7 @@ if not df_prancheta.empty:
             d_f_corr = pad_data(d_fim)
             dt_i = datetime.strptime(f"{d_i_corr} {h_ini[:5]}", "%d/%m/%Y %H:%M")
             dt_f = datetime.strptime(f"{d_f_corr} {h_fim[:5]}", "%d/%m/%Y %H:%M")
-            if not (dt_i <= datetime.now() <= dt_f) or st_val != "ATIVO":
+            if not (dt_i <= agora_br <= dt_f) or st_val != "ATIVO":
                 ativo_agora = False
         except Exception:
             ativo_agora = (st_val == "ATIVO")
@@ -735,7 +702,6 @@ qtd_ativos = sum(1 for r in recados_mobile if r["ativo_agora"])
 with st.expander(f"📋 PRANCHETA OPERACIONAL ({qtd_ativos} Avisos no Ar)", expanded=True):
     st.caption("Comunicados e Passagem de Turno para o Core e Fábrica")
 
-    # --- LISTAGEM DE AVISOS CADASTRADOS ---
     if not recados_mobile:
         st.info("Nenhum comunicado cadastrado na base.")
     else:
@@ -744,20 +710,19 @@ with st.expander(f"📋 PRANCHETA OPERACIONAL ({qtd_ativos} Avisos no Ar)", expa
             badge_txt = "🟢 NO AR" if item["ativo_agora"] else ("⚪ PAUSADO" if item["status"] != "ATIVO" else "⏳ FORA DO HORÁRIO")
             
             with st.container(border=True):
-                st.markdown(f"""
+                render_html(f"""
                     <div style="display:flex; justify-content:space-between; align-items:center;">
-                        <span style="color:#ffffff; font-weight:700; font-size:0.95rem;">📌 {item['msg']}</span>
+                        <span style="color:#ffffff; font-weight:700; font-size:0.95rem;">📌 {html_lib.escape(item['msg'])}</span>
                         <span style="color:{badge_cor}; font-size:0.75rem; font-weight:bold;">{badge_txt}</span>
                     </div>
                     <div style="color:#94a3b8; font-size:0.78rem; margin-top:4px;">
-                        👤 Por: <b style="color:#38bdf8;">{item['autor']}</b> &nbsp;|&nbsp; 
+                        👤 Por: <b style="color:#38bdf8;">{html_lib.escape(item['autor'])}</b> &nbsp;|&nbsp; 
                         🕒 <b>{item['d_ini']} {item['h_ini']}</b> até <b>{item['d_fim']} {item['h_fim']}</b>
                     </div>
-                """, unsafe_allow_html=True)
+                """)
 
                 col_b1, col_b2, col_b3 = st.columns([1, 1, 1])
                 
-                # Botão de Pausar / Reativar
                 with col_b1:
                     novo_st = "INATIVO" if item["status"] == "ATIVO" else "ATIVO"
                     rotulo_st = "⏸️ Pausar" if item["status"] == "ATIVO" else "▶️ Reativar"
@@ -768,11 +733,9 @@ with st.expander(f"📋 PRANCHETA OPERACIONAL ({qtd_ativos} Avisos no Ar)", expa
                             st.cache_data.clear()
                             st.rerun()
 
-                # Botão de Editar
                 with col_b2:
                     mostrar_edit = st.button("✏️ Editar", key=f"btn_ed_{item['linha_sheets']}", use_container_width=True)
 
-                # Botão de Excluir
                 with col_b3:
                     if st.button("🗑️ Excluir", key=f"btn_del_{item['linha_sheets']}", use_container_width=True):
                         aba = conectar_planilha_prancheta()
@@ -781,7 +744,6 @@ with st.expander(f"📋 PRANCHETA OPERACIONAL ({qtd_ativos} Avisos no Ar)", expa
                             st.cache_data.clear()
                             st.rerun()
 
-                # Formulário inline caso tenha clicado em Editar
                 if mostrar_edit or st.session_state.get(f"editando_{item['linha_sheets']}", False):
                     st.session_state[f"editando_{item['linha_sheets']}"] = True
                     with st.form(f"form_ed_{item['linha_sheets']}"):
@@ -810,7 +772,6 @@ with st.expander(f"📋 PRANCHETA OPERACIONAL ({qtd_ativos} Avisos no Ar)", expa
                                 st.session_state[f"editando_{item['linha_sheets']}"] = False
                                 st.rerun()
 
-    # --- FORMULÁRIO DE ADIÇÃO DE NOVO ITEM ---
     st.markdown("---")
     with st.expander("➕ Adicionar Novo Comunicado"):
         with st.form("form_novo_recado_mobile", clear_on_submit=True):
@@ -883,12 +844,12 @@ html_previsoes_card = f"""
     </div>
 </div>
 """
-st.markdown(html_previsoes_card.replace('\n', ''), unsafe_allow_html=True)
+render_html(html_previsoes_card)
 
 # ==============================================================================
-# 🖨️ RENDERIZAÇÃO 4: PÁTIO DA FÁBRICA (AGORA DENTRO DO ACCORDION MASTER)
+# 🖨️ RENDERIZAÇÃO 4: PÁTIO DA FÁBRICA (COM DESTINOS DETALHADOS FUNCIONANDO)
 # ==============================================================================
-html_patio = f'''
+html_patio = f"""
 <details class="master-box" style="border-left-color: #38a9ff;" open>
     <summary>
         <div class="header-layout">
@@ -903,14 +864,12 @@ html_patio = f'''
         <div class="master-metric-sub" style="color: #64748b;">(Checklist + Apoio + Fila)</div>
     </summary>
     <div class="master-content" style="padding-top:16px;">
-'''
+"""
 
-# 4 Cards principais (PR, 00, 01, FC)
-for tit, chv, col_v, col_t, cor, ico in mapa_status_colunas[:4]:
+for tit, chv, col_v, col_t, cor, ico in mapa_status_colunas:
     lista_destinos = destinos_por_status.get(chv, [])
     v_qtd = dados_patio[chv]["veiculos"]
     v_ton = dados_patio[chv]["peso"]
-
 
     linhas_dest_html = ""
     if lista_destinos:
@@ -920,52 +879,25 @@ for tit, chv, col_v, col_t, cor, ico in mapa_status_colunas[:4]:
     else:
         linhas_dest_html = '<div class="dest-vazio">Nenhum veículo alocado neste status.</div>'
 
-    html_patio += f'''<details class="st-card" style="--c:{cor};">
-<summary>
-<div class="st-ico">{ico}</div>
-<div class="st-txt">
-<div class="st-title">{tit}</div>
-<div class="st-num">{v_qtd} <span>veíc. / {fmt(v_ton)} t</span></div>
-</div>
-<div class="chev">›</div>
-</summary>
-<div class="st-body">{linhas_dest_html}</div>
-</details>
-'''
+    html_patio += f"""
+    <details class="st-card" style="--c:{cor};">
+        <summary>
+            <div class="st-ico">{ico}</div>
+            <div class="st-txt">
+                <div class="st-title">{tit}</div>
+                <div class="st-num">{v_qtd} <span>veíc. / {fmt(v_ton)} t</span></div>
+            </div>
+            <div class="chev">›</div>
+        </summary>
+        <div class="st-body">{linhas_dest_html}</div>
+    </details>
+    """
 
-# 5º Card: Termo SAP (TR)
-lista_dest_tr = destinos_por_status.get("TR", [])
-v_qtd_tr = dados_patio["TR"]["veiculos"]
-v_ton_tr = dados_patio["TR"]["peso"]
-
-linhas_tr_html = ""
-if lista_dest_tr:
-    for item in lista_dest_tr:
-        linhas_tr_html += f'<div class="dest-row"><span class="n">{html_lib.escape(item["destino"])}</span><span class="v">{item["veic"]} veíc. <small>({fmt(item["ton"])} t)</small></span></div>'
-    linhas_tr_html += f'<div class="dest-row total"><span class="n">TOTAL</span><span class="v">{v_qtd_tr} veíc. <small>({fmt(v_ton_tr)} t)</small></span></div>'
-else:
-    linhas_tr_html = '<div class="dest-vazio">Nenhum veículo em Termo de Responsabilidade.</div>'
-
-html_patio += f'''<details class="st-card" style="--c:#95A5A6;">
-<summary>
-<div class="st-ico">📄</div>
-<div class="st-txt">
-<div class="st-title">Termo SAP</div>
-<div class="st-num">{v_qtd_tr} <span>veíc. / {fmt(v_ton_tr)} t</span></div>
-</div>
-<div class="chev">›</div>
-</summary>
-<div class="st-body">{linhas_tr_html}</div>
-</details>
-</div>
-</details>
-'''
-
-st.markdown(html_patio, unsafe_allow_html=True)
-
+html_patio += "</div></details>"
+render_html(html_patio)
 
 # ==============================================================================
-# 🖨️ RENDERIZAÇÃO 5: PRODUÇÃO DE CELULOSE
+# 🖨️ RENDERIZAÇÃO 5: PRODUÇÃO DE CELULOSE (SEM CAIXA DE CÓDIGO PRETA)
 # ==============================================================================
 html_prod_content = ""
 for maq in ["MS1", "MS2"]:
@@ -1004,36 +936,34 @@ for maq in ["MS1", "MS2"]:
             else: cor_alerta = "#38bdf8"; txt_alerta = f"📧 {st_em}"
 
             html_virada = f"""
-            <div style='background-color: #070d18; border: 1px solid #1c2b42; border-left: 4px solid {cor_alerta}; padding: 10px; margin-top: 14px; border-radius: 6px;'>
-                <div style='display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;'>
-                    <span style='font-size:0.75rem; color:#64748b; font-weight:normal; text-transform:uppercase;'>Saldo a Produzir ({mat_maq})</span>
-                    <span style='font-size:1.1rem; font-weight:normal; color:#ffffff;'>{fmt(s_rest)} t</span>
+            <div style="background-color: #070d18; border: 1px solid #1c2b42; border-left: 4px solid {cor_alerta}; padding: 10px; margin-top: 14px; border-radius: 6px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                    <span style="font-size:0.75rem; color:#64748b; text-transform:uppercase;">Saldo a Produzir ({mat_maq})</span>
+                    <span style="font-size:1.1rem; color:#ffffff; font-weight:bold;">{fmt(s_rest)} t</span>
                 </div>
-                <div style='display:flex; justify-content:space-between; align-items:center; font-size:0.75rem;'>
-                    <span style='color:#cbd5e1; font-weight:normal;'>🔜 Prox: <span style='color:#38bdf8;'>{p_mat}</span> ({p_prev})</span>
-                    <span style='color:{cor_alerta}; font-weight:normal;'>{txt_alerta}</span>
+                <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.75rem;">
+                    <span style="color:#cbd5e1;">🔜 Prox: <span style="color:#38bdf8; font-weight:bold;">{p_mat}</span> ({p_prev})</span>
+                    <span style="color:{cor_alerta};">{txt_alerta}</span>
                 </div>
             </div>
             """
 
         html_prod_content += f"""
-        <div style='background-color: #0a101d; border: 1.5px solid {cor_card_borda}; border-radius: 8px; padding: 16px; margin-bottom: 12px;'>
-            <div style='display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;'>
-                <span style='color:#ffffff; font-weight:bold; font-size:1.1rem;'>⚙️ {maq}</span>
-                <span style='color:#FF9F1C; font-weight:normal; font-size:1.1rem;'>📦 MAT: {mat_maq}</span>
-                <span style='color:#38bdf8; font-weight:bold; font-size:1.2rem;'>{fmt(p_maq)} t</span>
+        <div style="background-color: #0a101d; border: 1.5px solid {cor_card_borda}; border-radius: 8px; padding: 16px; margin-bottom: 12px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                <span style="color:#ffffff; font-weight:bold; font-size:1.1rem;">⚙️ {maq}</span>
+                <span style="color:#FF9F1C; font-weight:bold; font-size:1.1rem;">📦 MAT: {mat_maq}</span>
+                <span style="color:#38bdf8; font-weight:bold; font-size:1.2rem;">{fmt(p_maq)} t</span>
             </div>
-
-            <div style='display:flex; justify-content:flex-end; gap: 16px; margin-bottom: 12px; font-size: 0.85rem; color: #64748b; font-weight: normal;'>
-                <span>{lbl_l1}: <span style='color:#ffffff;'>{fmt(l1)} t</span></span>
-                <span>{lbl_l2}: <span style='color:#ffffff;'>{fmt(l2)} t</span></span>
+            <div style="display:flex; justify-content:flex-end; gap: 16px; margin-bottom: 12px; font-size: 0.85rem; color: #64748b;">
+                <span>{lbl_l1}: <span style="color:#ffffff; font-weight:bold;">{fmt(l1)} t</span></span>
+                <span>{lbl_l2}: <span style="color:#ffffff; font-weight:bold;">{fmt(l2)} t</span></span>
             </div>
-
-            <div style='display: flex; justify-content: space-between; text-align: center; border-top: 1px dashed #1c2b42; padding-top: 14px;'>
-                <div><div style='font-size:0.7rem; color:#64748b; font-weight:bold;'>ALVURA</div><div style='font-size:1.2rem; font-weight:normal; color:{c_alv}; margin:4px 0;'>{fmt(q_alvura, 2)}%</div><div style='font-size:0.65rem; color:#475569;'>(Mín: 88,5)</div></div>
-                <div><div style='font-size:0.7rem; color:#64748b; font-weight:bold;'>SUJIDADE</div><div style='font-size:1.2rem; font-weight:normal; color:{c_suj}; margin:4px 0;'>{fmt(q_suj, 2)}</div><div style='font-size:0.65rem; color:#475569;'>(Máx: 2,5)</div></div>
-                <div><div style='font-size:0.7rem; color:#64748b; font-weight:bold;'>VISCOSID.</div><div style='font-size:1.2rem; font-weight:normal; color:{c_vis}; margin:4px 0;'>{fmt(q_visc)}</div><div style='font-size:0.65rem; color:#475569;'>(Mín: 650)</div></div>
-                <div><div style='font-size:0.7rem; color:#64748b; font-weight:bold;'>pH</div><div style='font-size:1.2rem; font-weight:normal; color:{c_ph}; margin:4px 0;'>{fmt(q_ph, 1)}</div><div style='font-size:0.65rem; color:#475569;'>(5,5 - 8,5)</div></div>
+            <div style="display: flex; justify-content: space-between; text-align: center; border-top: 1px dashed #1c2b42; padding-top: 14px;">
+                <div><div style="font-size:0.7rem; color:#64748b; font-weight:bold;">ALVURA</div><div style="font-size:1.2rem; font-weight:bold; color:{c_alv}; margin:4px 0;">{fmt(q_alvura, 2)}%</div><div style="font-size:0.65rem; color:#475569;">(Mín: 88,5)</div></div>
+                <div><div style="font-size:0.7rem; color:#64748b; font-weight:bold;">SUJIDADE</div><div style="font-size:1.2rem; font-weight:bold; color:{c_suj}; margin:4px 0;">{fmt(q_suj, 2)}</div><div style="font-size:0.65rem; color:#475569;">(Máx: 2,5)</div></div>
+                <div><div style="font-size:0.7rem; color:#64748b; font-weight:bold;">VISCOSID.</div><div style="font-size:1.2rem; font-weight:bold; color:{c_vis}; margin:4px 0;">{fmt(q_visc)}</div><div style="font-size:0.65rem; color:#475569;">(Mín: 650)</div></div>
+                <div><div style="font-size:0.7rem; color:#64748b; font-weight:bold;">pH</div><div style="font-size:1.2rem; font-weight:bold; color:{c_ph}; margin:4px 0;">{fmt(q_ph, 1)}</div><div style="font-size:0.65rem; color:#475569;">(5,5 - 8,5)</div></div>
             </div>
             {html_virada}
         </div>
@@ -1060,10 +990,10 @@ html_prod_completo = f"""
     </div>
 </details>
 """
-st.markdown(html_prod_completo, unsafe_allow_html=True)
+render_html(html_prod_completo)
 
 # ==============================================================================
-# 🖨️ RENDERIZAÇÃO 6: EXPEDIÇÃO REALIZADA
+# 🖨️ RENDERIZAÇÃO 6: EXPEDIÇÃO REALIZADA (SEM CAIXA DE CÓDIGO E SEM BOLINHA)
 # ==============================================================================
 def func_exp_dados(dt_a):
     ls = descobrir_letras_turnos(dt_a)
@@ -1128,14 +1058,14 @@ if balanco_destinos:
 
     html_destinos += """
     <div style="background-color: #0a101d; border: 1px solid #1c2b42; border-radius: 8px; padding: 10px; overflow-x: auto;">
-        <table style="width: 100%; border-collapse: collapse; font-size: 0.75rem; text-align: center; color: #ffffff; font-weight: normal;">
+        <table style="width: 100%; border-collapse: collapse; font-size: 0.75rem; text-align: center; color: #ffffff;">
             <thead>
-                <tr style="border-bottom: 1px solid #1c2b42; color: #64748b; font-weight: normal;">
-                    <th style="text-align: left; padding: 8px 4px; font-weight: normal;">Destino</th>
-                    <th style="text-align: center; padding: 8px 4px; color: #38bdf8; font-weight: normal;">Plano</th>
-                    <th style="text-align: center; padding: 8px 4px; color: #00D672; font-weight: normal;">Carr.</th>
-                    <th style="text-align: center; padding: 8px 4px; color: #E5B800; font-weight: normal;">Falta</th>
-                    <th style="text-align: center; padding: 8px 4px; font-weight: normal;">%</th>
+                <tr style="border-bottom: 1px solid #1c2b42; color: #64748b;">
+                    <th style="text-align: left; padding: 8px 4px;">Destino</th>
+                    <th style="text-align: center; padding: 8px 4px; color: #38bdf8;">Plano</th>
+                    <th style="text-align: center; padding: 8px 4px; color: #00D672;">Carr.</th>
+                    <th style="text-align: center; padding: 8px 4px; color: #E5B800;">Falta</th>
+                    <th style="text-align: center; padding: 8px 4px;">%</th>
                 </tr>
             </thead>
             <tbody>
@@ -1156,23 +1086,38 @@ if balanco_destinos:
             dest_nome = "MI / LATAM"
         else:
             parts = nome_cru.split('-')
-            if len(parts) >= 2:
-                dest_nome = f"{parts[0].strip()} - {parts[1].strip()}"
-            else:
-                dest_nome = nome_cru
+            dest_nome = f"{parts[0].strip()} - {parts[1].strip()}" if len(parts) >= 2 else nome_cru
 
         html_destinos += f"""
-            <tr style="border-bottom: 1px dashed #1c2b42; font-weight: normal;">
-                <td style="text-align: left; padding: 10px 4px; font-weight: normal;">{dest_nome}</td>
-                <td style="text-align: center; padding: 10px 4px; color: #38bdf8; font-weight: normal;">{fmt(d['meta'])}</td>
-                <td style="text-align: center; padding: 10px 4px; color: #00D672; font-weight: normal;">{fmt(d['realizado'])}</td>
-                <td style="text-align: center; padding: 10px 4px; color: {cor_saldo}; font-weight: normal;">{saldo_str}</td>
-                <td style="text-align: center; padding: 10px 4px; color: {cor_ating}; font-weight: normal;">{ating:.0f}%</td>
+            <tr style="border-bottom: 1px dashed #1c2b42;">
+                <td style="text-align: left; padding: 10px 4px;">{dest_nome}</td>
+                <td style="text-align: center; padding: 10px 4px; color: #38bdf8;">{fmt(d['meta'])}</td>
+                <td style="text-align: center; padding: 10px 4px; color: #00D672;">{fmt(d['realizado'])}</td>
+                <td style="text-align: center; padding: 10px 4px; color: {cor_saldo};">{saldo_str}</td>
+                <td style="text-align: center; padding: 10px 4px; color: {cor_ating};">{ating:.0f}%</td>
             </tr>
         """
     html_destinos += "</tbody></table></div>"
 else:
     html_destinos += '<div style="color:#64748b; font-size:0.8rem; text-align:center;">Nenhum destino ativo reportado.</div>'
+
+cards_ontem_html = ""
+for t in tns_ontem:
+    v_str_o = t.get("str_vol", f"{fmt(t['v'])} t")
+    html_val_o = f"<div style='font-size:0.85rem; color:#E74C3C; padding: 5px 0;'>EM FOLGA</div>" if v_str_o == "EM FOLGA" else f"<div style='font-size:1.1rem; font-weight:bold; color:#ffffff;'>{v_str_o}</div>"
+    cards_ontem_html += f"<div style='flex:1; background-color:#0a101d; border:1px solid #1c2b42; border-radius:8px; padding:8px; text-align:center;'><div style='font-size:0.75rem; font-weight:bold; color:#38bdf8;'>{t['letra']}</div>{html_val_o}<div style='font-size:0.65rem; color:#64748b;'>{t['horario']}</div></div>"
+
+cards_hoje_html = ""
+for i, t in enumerate(tns_hoje):
+    is_atv = False
+    if hoje_date == agora_br.date():
+        if agora_br.hour < 8 and i == 0: is_atv = True
+        elif 8 <= agora_br.hour < 16 and i == 1: is_atv = True
+        elif agora_br.hour >= 16 and i == 2: is_atv = True
+    c_b, c_t = ("#FF9F1C", "#FF9F1C") if is_atv else ("#1c2b42", "#ffffff")
+    v_str = t.get("str_vol", f"{fmt(t['v'])} t")
+    html_val = f"<div style='font-size:0.85rem; color:#E74C3C; padding: 5px 0;'>EM FOLGA</div>" if v_str == "EM FOLGA" else f"<div style='font-size:1.1rem; font-weight:bold; color:#ffffff;'>{v_str}</div>"
+    cards_hoje_html += f"<div style='flex:1; background-color:#0a101d; border:1px solid {c_b}; border-radius:8px; padding:8px; text-align:center;'><div style='font-size:0.75rem; font-weight:bold; color:{c_t};'>{t['letra']}</div>{html_val}<div style='font-size:0.65rem; color:#64748b;'>{t['horario']}{' (ATIVO)' if is_atv else ''}</div></div>"
 
 html_exp_completo = f"""
 <details class="master-box" style="border-left-color: #00D672;" open>
@@ -1192,52 +1137,26 @@ html_exp_completo = f"""
         <div style="text-align: center; margin-bottom: 16px;">
             <input type="radio" name="exp_main_view" id="view_turnos" checked>
             <label for="view_turnos" class="lbl-v-turnos">⏰ Turnos</label>
-
             <input type="radio" name="exp_main_view" id="view_destinos">
             <label for="view_destinos" class="lbl-v-destinos">📍 Destinos</label>
-
             <div class="view-content-exp" id="content_view_turnos" style="margin-top: 14px;">
                 <div class="css-tabs-exp">
                     <div style="text-align: center;">
                         <input type="radio" name="exp_tabs" id="tab_ontem">
                         <label for="tab_ontem" class="lbl-ontem">⏮️ Ontem (D-1)</label>
-
                         <input type="radio" name="exp_tabs" id="tab_hoje" checked>
                         <label for="tab_hoje" class="lbl-hoje">📅 Hoje</label>
-
                         <div class="tab-content-exp" id="content_ontem" style="margin-top: 14px;">
-                            <div style='font-size:0.75rem; font-weight:normal; color:#38bdf8; text-transform:uppercase; margin-bottom:10px; text-align:left;'>Fechamento de Ontem ({ontem_date.strftime('%d/%m')}):</div>
-                            <div style='display:flex; gap:6px; margin-bottom:8px;'>
-"""
-for t in tns_ontem:
-    v_str_o = t.get("str_vol", f"{fmt(t['v'])} t")
-    html_val_o = f"<div style='font-size:0.85rem; font-weight:normal; color:#E74C3C; padding: 5px 0;'>EM FOLGA</div>" if v_str_o == "EM FOLGA" else f"<div style='font-size:1.1rem; font-weight:normal; color:#ffffff;'>{v_str_o}</div>"
-    html_exp_completo += f"<div style='flex:1; background-color:#0a101d; border:1px solid #1c2b42; border-radius:8px; padding:8px; text-align:center;'><div style='font-size:0.75rem; font-weight:bold; color:#38bdf8;'>{t['letra']}</div>{html_val_o}<div style='font-size:0.65rem; color:#64748b;'>{t['horario']}</div></div>"
-html_exp_completo += """
-                            </div>
+                            <div style="font-size:0.75rem; color:#38bdf8; text-transform:uppercase; margin-bottom:10px; text-align:left;">Fechamento de Ontem ({ontem_date.strftime('%d/%m')}):</div>
+                            <div style="display:flex; gap:6px; margin-bottom:8px;">{cards_ontem_html}</div>
                         </div>
-
                         <div class="tab-content-exp" id="content_hoje" style="margin-top: 14px;">
-                            <div style='font-size:0.75rem; font-weight:normal; color:#00D672; text-transform:uppercase; margin-bottom:10px; text-align:left;'>Turnos em Operação Hoje:</div>
-                            <div style='display:flex; gap:6px; margin-bottom:8px;'>
-"""
-for i, t in enumerate(tns_hoje):
-    is_atv = False
-    if hoje_date == agora_br.date():
-        if agora_br.hour < 8 and i == 0: is_atv = True
-        elif 8 <= agora_br.hour < 16 and i == 1: is_atv = True
-        elif agora_br.hour >= 16 and i == 2: is_atv = True
-    c_b, c_t = ("#FF9F1C", "#FF9F1C") if is_atv else ("#1c2b42", "#ffffff")
-    v_str = t.get("str_vol", f"{fmt(t['v'])} t")
-    html_val = f"<div style='font-size:0.85rem; font-weight:normal; color:#E74C3C; padding: 5px 0;'>EM FOLGA</div>" if v_str == "EM FOLGA" else f"<div style='font-size:1.1rem; font-weight:normal; color:#ffffff;'>{v_str}</div>"
-    html_exp_completo += f"<div style='flex:1; background-color:#0a101d; border:1px solid {c_b}; border-radius:8px; padding:8px; text-align:center;'><div style='font-size:0.75rem; font-weight:bold; color:{c_t};'>{t['letra']}</div>{html_val}<div style='font-size:0.65rem; color:#64748b;'>{t['horario']}{' (ATIVO)' if is_atv else ''}</div></div>"
-html_exp_completo += f"""
-                            </div>
+                            <div style="font-size:0.75rem; color:#00D672; text-transform:uppercase; margin-bottom:10px; text-align:left;">Turnos em Operação Hoje:</div>
+                            <div style="display:flex; gap:6px; margin-bottom:8px;">{cards_hoje_html}</div>
                         </div>
                     </div>
                 </div>
             </div>
-
             <div class="view-content-exp" id="content_view_destinos" style="margin-top: 14px; text-align: left;">
                 {html_destinos}
             </div>
@@ -1245,26 +1164,26 @@ html_exp_completo += f"""
     </div>
 </details>
 """
-st.markdown(html_exp_completo, unsafe_allow_html=True)
+render_html(html_exp_completo)
 
 # ==============================================================================
 # 🖨️ RENDERIZAÇÃO 7: ESTOQUE FÍSICO
 # ==============================================================================
-html_est = f'<details class="master-box" style="border-left-color: #9b59b6;" open>'
-html_est += f'''
-<summary>
-    <div class="header-layout">
-        <div class="icon-box" style="background-color: rgba(155, 89, 182, 0.15); color: #9b59b6;">📦</div>
-        <div class="master-metric-title">Estoque Físico no Armazém</div>
-    </div>
-    <div class="value-layout">
-        <div class="master-metric-val">{fmt(estoque_total)}</div>
-        <div class="master-metric-unit">TON</div>
-    </div>
-    <div class="master-metric-sub" style="color: #9b59b6;">Status do Armazém: {status_transbordo}</div>
-</summary>
-<div class="master-content" style="padding-top:16px;">
-'''
+html_est = f"""
+<details class="master-box" style="border-left-color: #9b59b6;" open>
+    <summary>
+        <div class="header-layout">
+            <div class="icon-box" style="background-color: rgba(155, 89, 182, 0.15); color: #9b59b6;">📦</div>
+            <div class="master-metric-title">Estoque Físico no Armazém</div>
+        </div>
+        <div class="value-layout">
+            <div class="master-metric-val">{fmt(estoque_total)}</div>
+            <div class="master-metric-unit">TON</div>
+        </div>
+        <div class="master-metric-sub" style="color: #9b59b6;">Status do Armazém: {status_transbordo}</div>
+    </summary>
+    <div class="master-content" style="padding-top:16px;">
+"""
 
 if dados_segregados:
     df_seg = pd.DataFrame(list(dados_segregados.items()), columns=["Material", "Toneladas"]).sort_values(by="Toneladas", ascending=False)
@@ -1279,7 +1198,7 @@ else:
     html_est += '<div style="color:gray;">Aguardando detalhamento de material...</div>'
 
 html_est += "</div></details>"
-st.markdown(html_est, unsafe_allow_html=True)
+render_html(html_est)
 
 # ==============================================================================
 # 🖨️ RENDERIZAÇÃO 8: FROTA E EQUIPAMENTOS (DKRO)
@@ -1319,11 +1238,38 @@ def rnd_tg(lst):
         r += f"<span class='tag-box {cl}'>{i['eq']}</span> "
     return r
 
-html_frota = f'<details class="master-box" style="border-left-color:#E67E22;"><summary><div class="header-layout"><div class="icon-box" style="background-color:rgba(230,126,34,.15); color:#E67E22;">🚜</div><div class="master-metric-title">Frota e Equipamentos</div></div><div class="value-layout"><div class="master-metric-val">{v_hoje}</div><div class="master-metric-unit">Veículos Logados Hoje</div></div><div class="master-metric-sub" style="color:#E67E22;">Empilhadeiras e Talhas Elétricas</div></summary><div class="master-content" style="padding-top:16px;">'
-html_frota += f"<div style='font-size:0.75rem; font-weight:bold; color:#00D672; text-transform:uppercase; margin-bottom:8px;'>📅 LOGADOS HOJE ({hoje_date.strftime('%d/%m')})</div><div style='background-color:#05080f; padding:12px; border-radius:8px; border:1px solid #1c2b42; margin-bottom:16px;'><div class='f-tag-title'>🟢 Empilhadeiras ({len(frota_agr['h']['e'])})</div><div style='margin-bottom:12px;'>{rnd_tg(frota_agr['h']['e'])}</div><div class='f-tag-title'>🏗️ Talhas / Pontes ({len(frota_agr['h']['t'])})</div><div>{rnd_tg(frota_agr['h']['t'])}</div></div>"
-html_frota += f"<div style='font-size:0.75rem; font-weight:bold; color:#38bdf8; text-transform:uppercase; margin-bottom:8px;'>⏮️ LOGADOS ONTEM ({ontem_date.strftime('%d/%m')})</div><div style='background-color:#05080f; padding:12px; border-radius:8px; border:1px solid #1c2b42; margin-bottom:16px;'><div class='f-tag-title'>🟢 Empilhadeiras ({len(frota_agr['o']['e'])})</div><div style='margin-bottom:12px;'>{rnd_tg(frota_agr['o']['e'])}</div><div class='f-tag-title'>🏗️ Talhas / Pontes ({len(frota_agr['o']['t'])})</div><div>{rnd_tg(frota_agr['o']['t'])}</div></div>"
-html_frota += '<div class="f-legenda"><div class="f-leg-titulo">🎨 Legenda das cores</div><div class="f-leg-item"><span class="f-leg-cor f-tag-ok"></span><span><b>Verde</b> — OK: sem avarias apontadas</span></div><div class="f-leg-item"><span class="f-leg-cor f-tag-aten"></span><span><b>Amarelo</b> — Atenção: item apontado no checklist</span></div><div class="f-leg-item"><span class="f-leg-cor f-tag-avaria"></span><span><b>Vermelho</b> — Avaria: equipamento bloqueado/quebrado</span></div></div></div></details>'
-st.markdown(html_frota, unsafe_allow_html=True)
+html_frota = f"""
+<details class="master-box" style="border-left-color:#E67E22;">
+    <summary>
+        <div class="header-layout"><div class="icon-box" style="background-color:rgba(230,126,34,.15); color:#E67E22;">🚜</div><div class="master-metric-title">Frota e Equipamentos</div></div>
+        <div class="value-layout"><div class="master-metric-val">{v_hoje}</div><div class="master-metric-unit">Veículos Logados Hoje</div></div>
+        <div class="master-metric-sub" style="color:#E67E22;">Empilhadeiras e Talhas Elétricas</div>
+    </summary>
+    <div class="master-content" style="padding-top:16px;">
+        <div style="font-size:0.75rem; font-weight:bold; color:#00D672; text-transform:uppercase; margin-bottom:8px;">📅 LOGADOS HOJE ({hoje_date.strftime('%d/%m')})</div>
+        <div style="background-color:#05080f; padding:12px; border-radius:8px; border:1px solid #1c2b42; margin-bottom:16px;">
+            <div class="f-tag-title">🟢 Empilhadeiras ({len(frota_agr['h']['e'])})</div>
+            <div style="margin-bottom:12px;">{rnd_tg(frota_agr['h']['e'])}</div>
+            <div class="f-tag-title">🏗️ Talhas / Pontes ({len(frota_agr['h']['t'])})</div>
+            <div>{rnd_tg(frota_agr['h']['t'])}</div>
+        </div>
+        <div style="font-size:0.75rem; font-weight:bold; color:#38bdf8; text-transform:uppercase; margin-bottom:8px;">⏮️ LOGADOS ONTEM ({ontem_date.strftime('%d/%m')})</div>
+        <div style="background-color:#05080f; padding:12px; border-radius:8px; border:1px solid #1c2b42; margin-bottom:16px;">
+            <div class="f-tag-title">🟢 Empilhadeiras ({len(frota_agr['o']['e'])})</div>
+            <div style="margin-bottom:12px;">{rnd_tg(frota_agr['o']['e'])}</div>
+            <div class="f-tag-title">🏗️ Talhas / Pontes ({len(frota_agr['o']['t'])})</div>
+            <div>{rnd_tg(frota_agr['o']['t'])}</div>
+        </div>
+        <div class="f-legenda">
+            <div class="f-leg-titulo">🎨 Legenda das cores</div>
+            <div class="f-leg-item"><span class="f-leg-cor f-tag-ok"></span><span><b>Verde</b> — OK: sem avarias apontadas</span></div>
+            <div class="f-leg-item"><span class="f-leg-cor f-tag-aten"></span><span><b>Amarelo</b> — Atenção: item apontado no checklist</span></div>
+            <div class="f-leg-item"><span class="f-leg-cor f-tag-avaria"></span><span><b>Vermelho</b> — Avaria: equipamento bloqueado/quebrado</span></div>
+        </div>
+    </div>
+</details>
+"""
+render_html(html_frota)
 
 # ==============================================================================
 # 🖨️ RENDERIZAÇÃO 9: AUDITORIA BAFÔMETRO (H&S)
@@ -1374,7 +1320,7 @@ if st.session_state.bafometro_autenticado:
         hb += "</tbody></table></div>"
     else: hb += "<div style='color:gray; text-align:center;'>Nenhum registro encontrado.</div>"
     hb += "</div></details>"
-    st.markdown(hb.replace('\n', ''), unsafe_allow_html=True)
+    render_html(hb)
 
 # ==============================================================================
 # 🖨️ RENDERIZAÇÃO 10: COMPARATIVO ANUAL (PRODUÇÃO VS EXPEDIÇÃO)
@@ -1390,6 +1336,6 @@ ppf = forcar_par(pa_at + (d_res * 5200.0))
 pcf = forcar_par(ca_at + ((estoque_total + (d_res * 5200.0)) - 3468.0))
 
 h_an = f'<details class="master-box" style="border-left-color:#007BFF;" open><summary><div class="header-layout"><div class="icon-box" style="background-color:rgba(0,123,255,.15); color:#007BFF;">📊</div><div class="master-metric-title">Comparativo Produção vs Expedição</div></div><div class="value-layout"><div class="master-metric-val">{fmt(ca_at)}</div><div class="master-metric-unit">t Expedidas</div></div><div class="master-metric-sub" style="color:#007BFF;">Meta Diária Necessária: {fmt(mdc)} t/dia</div></summary><div class="master-content" style="padding-top:16px;"><div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:12px;"><div style="background-color:#0a101d; border:1px solid #1c2b42; border-radius:8px; padding:10px;"><div style="font-size:0.75rem; color:#007BFF; font-weight:bold;">EXPEDIÇÃO ANUAL</div><div style="font-size:1.4rem; font-weight:bold; color:#fff; margin:4px 0;">{fmt(ca_at)} <span style="font-size:0.8rem; color:#64748b; font-weight:normal;">t</span></div><div style="font-size:0.7rem; color:#64748b;">Proj. 31/12: <span style="color:#007BFF;">{fmt(pcf)} t</span></div></div><div style="background-color:#0a101d; border:1px solid #1c2b42; border-radius:8px; padding:10px;"><div style="font-size:0.75rem; color:#00D672; font-weight:bold;">PRODUÇÃO ANUAL</div><div style="font-size:1.4rem; font-weight:bold; color:#fff; margin:4px 0;">{fmt(pa_at)} <span style="font-size:0.8rem; color:#64748b; font-weight:normal;">t</span></div><div style="font-size:0.7rem; color:#64748b;">Proj. 31/12: <span style="color:#00D672;">{fmt(ppf)} t</span></div></div></div><div style="background-color:#0a101d; border:1px solid #1c2b42; border-radius:8px; padding:12px; font-size:0.82rem; color:#cbd5e1; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;"><span>Variação: <span style="color:{cv}; font-weight:bold;">{tv}</span></span><span>Estoque Meta: <span style="color:#38bdf8; font-weight:bold;">3.468 t</span></span></div></div></details>'
-st.markdown(h_an, unsafe_allow_html=True)
+render_html(h_an)
 
 st.markdown("<br><center><span style='color:#64748b; font-size:0.75rem; letter-spacing:0.5px;'>A.L.O.V.E - Mobile / Developed by Crist Ciriaco</span></center>", unsafe_allow_html=True)
