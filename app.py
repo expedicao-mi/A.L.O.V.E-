@@ -11,7 +11,10 @@ import re
 import html as html_lib
 from streamlit_autorefresh import st_autorefresh
 import gspread
-from oauth2client.service_account import ServiceAccountCredentials
+try:
+    from google.oauth2.service_account import Credentials as ServiceCredentials
+except Exception:
+    ServiceCredentials = None
 
 # ==============================================================================
 # ⚙️ CONFIGURAÇÃO DA PÁGINA
@@ -278,20 +281,27 @@ def carregar_tabela_cega(worksheet_name: str, coluna_chave: str = "DESTINO"):
     return pd.DataFrame()
 
 def conectar_planilha_prancheta():
-    """Conecta à aba Prancheta_Operacao_Core para gravação via credenciais locais ou st.secrets."""
+    """Conecta à aba Prancheta_Operacao_Core usando st.secrets ou credentials.json local."""
     try:
-        try:
-            if "gcp_service_account" in st.secrets:
-                cliente = gspread.service_account_from_dict(dict(st.secrets["gcp_service_account"]))
-                return cliente.open_by_key(SHEET_ID).worksheet("Prancheta_Operacao_Core")
-        except Exception:
-            pass
-        escopo = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-        creds = ServiceAccountCredentials.from_json_keyfile_name("credentials.json", escopo)
-        cliente = gspread.authorize(creds)
-        return cliente.open_by_key(SHEET_ID).worksheet("Prancheta_Operacao_Core")
+        # 1. Tenta autenticar pelas credenciais salvas nos Secrets do Streamlit Cloud
+        if "gcp_service_account" in st.secrets:
+            cliente = gspread.service_account_from_dict(dict(st.secrets["gcp_service_account"]))
+            return cliente.open_by_key(SHEET_ID).worksheet("Prancheta_Operacao_Core")
+        
+        # 2. Se tiver arquivo credentials.json na raiz do projeto
+        escopo = [
+            "https://www.googleapis.com/auth/spreadsheets",
+            "https://www.googleapis.com/auth/drive"
+        ]
+        if ServiceCredentials:
+            creds = ServiceCredentials.from_service_account_file("credentials.json", scopes=escopo)
+            cliente = gspread.authorize(creds)
+            return cliente.open_by_key(SHEET_ID).worksheet("Prancheta_Operacao_Core")
+        else:
+            cliente = gspread.service_account(filename="credentials.json")
+            return cliente.open_by_key(SHEET_ID).worksheet("Prancheta_Operacao_Core")
     except Exception as e:
-        st.error(f"⚠️ Erro ao conectar para salvar/editar: {e}")
+        st.error(f"⚠️ Erro ao autenticar no Google Sheets: {e}")
         return None
 # ==============================================================================
 
