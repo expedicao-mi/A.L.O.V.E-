@@ -258,7 +258,22 @@ def carregar_matriz_destinos():
     return pd.DataFrame()
 
 # ==============================================================================
-
+@st.cache_data(ttl=20)
+def carregar_tabela_cega(worksheet_name: str, coluna_chave: str = "DESTINO"):
+    """Localiza a linha correta do cabeçalho automaticamente."""
+    sheet_encoded = urllib.parse.quote(worksheet_name)
+    url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet={sheet_encoded}"
+    try:
+        raw = pd.read_csv(url, header=None, dtype=str, keep_default_na=False)
+        for i in range(min(len(raw), 6)):
+            row_vals = [str(x).strip().upper() for x in raw.iloc[i].tolist()]
+            if coluna_chave.upper() in row_vals:
+                df = raw.iloc[i + 1:].copy()
+                df.columns = [str(c).strip().upper() for c in raw.iloc[i].tolist()]
+                return df.loc[:, df.columns != ""].reset_index(drop=True)
+    except:
+        pass
+    return pd.DataFrame()
 # ==============================================================================
 
 def parse_robusto(texto):
@@ -301,6 +316,7 @@ df_balanco_dest = carregar_tabela_cega("Balanco_Expedicao_Destino", "DESTINO")
 df_bafometro = carregar_dados_nuvem("Bafometro_Status", cabecalho=0)
 if df_bafometro.empty: df_bafometro = carregar_dados_nuvem("Auditoria_Bafometro", cabecalho=0)
 df_frota = carregar_dados_nuvem("Historico_DKRO", cabecalho=0)
+df_prancheta = carregar_tabela_cega("Prancheta_Operacao_Core", "MENSAGEM")
 
 # 🟢 Carrega diretamente a matriz consolidada de destinos (1 única chamada leve!)
 df_patio_dest = carregar_dados_nuvem("Patio_Destino_Status", cabecalho=2)
@@ -590,6 +606,82 @@ html_notif = f"""
 "/>
 """
 st.markdown(html_notif.replace('\n', ''), unsafe_allow_html=True)
+
+# ==============================================================================
+# 🖨️ RENDERIZAÇÃO: PRANCHETA OPERACIONAL & COMUNICADOS DO TURNO
+# ==============================================================================
+recados_mobile = []
+if not df_prancheta.empty:
+    for _, rp in df_prancheta.iterrows():
+        st_val = str(rp.get("STATUS", "")).strip().upper()
+        msg_val = str(rp.get("MENSAGEM", "")).strip()
+        aut_val = str(rp.get("AUTOR", "Operação")).strip()
+        d_ini = str(rp.get("DATA_INICIO", "")).strip()
+        h_ini = str(rp.get("HORA_INICIO", "")).strip()
+        d_fim = str(rp.get("DATA_FIM", "")).strip()
+        h_fim = str(rp.get("HORA_FIM", "")).strip()
+
+        if not msg_val or st_val not in ("ATIVO", "S", "SIM", "1", ""):
+            continue
+
+        # Validação da janela temporal
+        ativo_agora = True
+        try:
+            # Trata anos com 2 ou 4 dígitos
+            def pad_data(ds):
+                p = ds.split("/")
+                return f"{p[0].zfill(2)}/{p[1].zfill(2)}/{hoje_date.year}" if len(p) == 2 else ds
+            
+            d_i_corr = pad_data(d_ini)
+            d_f_corr = pad_data(d_fim)
+            dt_i = datetime.strptime(f"{d_i_corr} {h_ini[:5]}", "%d/%m/%Y %H:%M")
+            dt_f = datetime.strptime(f"{d_f_corr} {h_fim[:5]}", "%d/%m/%Y %H:%M")
+            if not (dt_i <= datetime.now() <= dt_f):
+                ativo_agora = False
+        except:
+            ativo_agora = True
+
+        if ativo_agora:
+            recados_mobile.append({
+                "msg": msg_val,
+                "autor": aut_val,
+                "horario": f"{h_ini} às {h_fim}"
+            })
+
+conteudo_prancheta_html = ""
+if recados_mobile:
+    for item in recados_mobile:
+        conteudo_prancheta_html += f"""
+        <div style="background:#070f1d; border:1px solid #12506e; border-left:4px solid #38bdf8; border-radius:10px; padding:10px 12px; margin-bottom:8px;">
+            <div style="color:#ffffff; font-size:0.88rem; font-weight:700;">📌 {html_lib.escape(item['msg'])}</div>
+            <div style="display:flex; justify-content:space-between; color:#64748b; font-size:0.75rem; margin-top:4px;">
+                <span>👤 Por: <b style="color:#9fb3cc;">{html_lib.escape(item['autor'])}</b></span>
+                <span>🕒 {item['horario']}</span>
+            </div>
+        </div>
+        """
+else:
+    conteudo_prancheta_html = '<div style="color:#64748b; font-size:0.8rem; text-align:center; padding:10px;">Nenhum recado ou aviso pendente para este horário.</div>'
+
+html_prancheta_card = f"""
+<details class="master-box" style="border-left-color: #38bdf8;" open>
+    <summary>
+        <div class="header-layout">
+            <div class="icon-box" style="background-color: rgba(56, 189, 248, 0.15); color: #38bdf8;">📋</div>
+            <div class="master-metric-title">Prancheta Operacional</div>
+        </div>
+        <div class="value-layout">
+            <div class="master-metric-val">{len(recados_mobile)}</div>
+            <div class="master-metric-unit">Avisos no Ar</div>
+        </div>
+        <div class="master-metric-sub" style="color: #38bdf8;">Comunicados e Passagem de Turno</div>
+    </summary>
+    <div class="master-content" style="padding-top:14px;">
+        {conteudo_prancheta_html}
+    </div>
+</details>
+"""
+st.markdown(html_prancheta_card.replace('\n', ''), unsafe_allow_html=True)
 
 # ==============================================================================
 # 🖨️ RENDERIZAÇÃO 3: PREVISÕES DO FECHAMENTO (24H)
