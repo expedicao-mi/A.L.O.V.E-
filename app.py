@@ -11,10 +11,6 @@ import re
 import html as html_lib
 from streamlit_autorefresh import st_autorefresh
 import gspread
-try:
-    from google.oauth2.service_account import Credentials as ServiceCredentials
-except Exception:
-    ServiceCredentials = None
 
 # ==============================================================================
 # ⚙️ CONFIGURAÇÃO DA PÁGINA
@@ -281,25 +277,21 @@ def carregar_tabela_cega(worksheet_name: str, coluna_chave: str = "DESTINO"):
     return pd.DataFrame()
 
 def conectar_planilha_prancheta():
-    """Conecta à aba Prancheta_Operacao_Core usando st.secrets ou credentials.json local."""
+    """Conecta à aba Prancheta_Operacao_Core usando st.secrets do Streamlit Cloud."""
     try:
-        # 1. Tenta autenticar pelas credenciais salvas nos Secrets do Streamlit Cloud
-        if "gcp_service_account" in st.secrets:
-            cliente = gspread.service_account_from_dict(dict(st.secrets["gcp_service_account"]))
+        if hasattr(st, "secrets") and "gcp_service_account" in st.secrets:
+            dados_secret = dict(st.secrets["gcp_service_account"])
+            cliente = gspread.service_account_from_dict(dados_secret)
             return cliente.open_by_key(SHEET_ID).worksheet("Prancheta_Operacao_Core")
         
-        # 2. Se tiver arquivo credentials.json na raiz do projeto
-        escopo = [
-            "https://www.googleapis.com/auth/spreadsheets",
-            "https://www.googleapis.com/auth/drive"
-        ]
-        if ServiceCredentials:
-            creds = ServiceCredentials.from_service_account_file("credentials.json", scopes=escopo)
-            cliente = gspread.authorize(creds)
-            return cliente.open_by_key(SHEET_ID).worksheet("Prancheta_Operacao_Core")
-        else:
+        # Contingência para teste local se o arquivo físico existir
+        import os
+        if os.path.exists("credentials.json"):
             cliente = gspread.service_account(filename="credentials.json")
             return cliente.open_by_key(SHEET_ID).worksheet("Prancheta_Operacao_Core")
+
+        st.error("⚠️ Segredo [gcp_service_account] não localizado nos Secrets do Streamlit.")
+        return None
     except Exception as e:
         st.error(f"⚠️ Erro ao autenticar no Google Sheets: {e}")
         return None
@@ -642,33 +634,22 @@ st.markdown(html_notif.replace('\n', ''), unsafe_allow_html=True)
 recados_mobile = []
 if not df_prancheta.empty:
     for idx_df, rp in df_prancheta.iterrows():
-        # Blindagem: se o cabeçalho mudou de nome, busca por posição das colunas
-        def obter_val(col_nome, col_idx, def_val=""):
-            for c in df_prancheta.columns:
-                if col_nome.upper() in str(c).upper():
-                    v = str(rp.get(c, "")).strip()
-                    if v and v.upper() != "NAN": return v
-            if len(rp) > col_idx:
-                v = str(rp.iloc[col_idx]).strip()
-                if v and v.upper() != "NAN": return v
-            return def_val
+        # Garante a ordem física real das colunas da planilha:
+        # Col 0: ID | Col 1: DATA_INICIO | Col 2: HORA_INICIO | Col 3: DATA_FIM | Col 4: HORA_FIM | Col 5: MENSAGEM | Col 6: AUTOR | Col 7: STATUS
+        r_id    = str(rp.iloc[0]).strip() if len(rp) > 0 else str(idx_df + 1)
+        d_ini   = str(rp.iloc[1]).strip() if len(rp) > 1 else hoje_date.strftime("%d/%m/%Y")
+        h_ini   = str(rp.iloc[2]).strip() if len(rp) > 2 else "00:00"
+        d_fim   = str(rp.iloc[3]).strip() if len(rp) > 3 else hoje_date.strftime("%d/%m/%Y")
+        h_fim   = str(rp.iloc[4]).strip() if len(rp) > 4 else "23:59"
+        msg_val = str(rp.iloc[5]).strip() if len(rp) > 5 else ""
+        aut_val = str(rp.iloc[6]).strip() if len(rp) > 6 else "Operação"
+        st_val  = str(rp.iloc[7]).strip().upper() if len(rp) > 7 else "ATIVO"
 
-        r_id    = obter_val("ID", 0, str(idx_df + 1))
-        d_ini   = obter_val("DATA_INICIO", 1, hoje_date.strftime("%d/%m/%Y"))
-        h_ini   = obter_val("HORA_INICIO", 2, "00:00")
-        d_fim   = obter_val("DATA_FIM", 3, hoje_date.strftime("%d/%m/%Y"))
-        h_fim   = obter_val("HORA_FIM", 4, "23:59")
-        msg_val = obter_val("MENSAGEM", 5, "")
-        aut_val = obter_val("AUTOR", 6, "Operação")
-        st_val  = obter_val("STATUS", 7, "ATIVO").upper()
-
-        if not msg_val:
+        if not msg_val or msg_val.upper() in ("NAN", "NONE"):
             continue
 
-        # Linha real na planilha do Sheets (Linha 1 é cabeçalho, dados começam na Linha 2)
         linha_sheets = idx_df + 2
 
-        # Validação temporal
         ativo_agora = True
         try:
             def pad_data(ds):
