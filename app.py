@@ -234,41 +234,68 @@ def carregar_dados_nuvem(worksheet_name: str, cabecalho=0):
     except:
         return pd.DataFrame()
 
-@st.cache_data(ttl=20)
+@st.cache_data(ttl=15)
 def carregar_tabela_cega(worksheet_name: str, coluna_chave: str = "DESTINO"):
     """
-    Lê a aba via csv.reader tolerando linhas de metadados com menos colunas no topo
-    (Resolve o erro ParserError nas abas Patio_Destino_Status, Balanco_Expedicao_Destino e Status_TR).
+    Lê qualquer aba do Google Sheets ignorando metadados e linhas vazias no topo.
+    Localiza o cabeçalho correto e resgata carimbos de atualização da Linha 1 se existirem.
     """
     sheet_encoded = urllib.parse.quote(worksheet_name)
-    url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet={sheet_encoded}"
-    try:
-        resp = requests.get(url, timeout=10)
-        resp.encoding = "utf-8"
-        linhas = list(csv.reader(StringIO(resp.text)))
-        header_idx = -1
-        for i, row in enumerate(linhas[:10]):
-            row_vals = [str(x).strip().upper() for x in row]
-            if coluna_chave.upper() in row_vals:
-                header_idx = i
-                break
+    # headers=0 força o Google a entregar todo o conteúdo bruto sem quebrar em tabelas irregulares
+    urls_tentativas = [
+        f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet={sheet_encoded}&headers=0",
+        f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv&sheet={sheet_encoded}"
+    ]
+    
+    linhas = []
+    for u in urls_tentativas:
+        try:
+            resp = requests.get(u, timeout=8)
+            if resp.status_code == 200 and len(resp.text) > 10:
+                linhas = list(csv.reader(StringIO(resp.text)))
+                if linhas:
+                    break
+        except Exception:
+            continue
 
-        if header_idx != -1:
-            cabecalho = [str(c).strip().upper() for c in linhas[header_idx]]
-            dados = []
-            for row in linhas[header_idx + 1:]:
-                if not any(str(c).strip() for c in row):
-                    continue
-                if len(row) < len(cabecalho):
-                    row = row + [""] * (len(cabecalho) - len(row))
-                elif len(row) > len(cabecalho):
-                    row = row[:len(cabecalho)]
-                dados.append(row)
-            df = pd.DataFrame(dados, columns=cabecalho)
-            return df.loc[:, df.columns != ""].reset_index(drop=True)
+    if not linhas:
+        return pd.DataFrame(), None
+
+    # 1. Resgata carimbo de atualização se estiver na Linha 1 (ex: ATUALIZADO_EM na célula A1 e data na B1)
+    carimbo_att = None
+    try:
+        if len(linhas) > 0 and len(linhas[0]) >= 2:
+            if "ATUALIZADO" in str(linhas[0][0]).upper():
+                carimbo_att = str(linhas[0][1]).strip()
     except Exception:
         pass
-    return pd.DataFrame()
+
+    # 2. Localiza a linha do cabeçalho que contém a coluna_chave (ex: "DESTINO" ou "PLACA")
+    header_idx = -1
+    for i, row in enumerate(linhas[:10]):
+        row_vals = [str(x).strip().upper() for x in row]
+        if coluna_chave.upper() in row_vals:
+            header_idx = i
+            break
+
+    if header_idx != -1:
+        cabecalho = [str(c).strip().upper() for c in linhas[header_idx]]
+        dados = []
+        for row in linhas[header_idx + 1:]:
+            if not any(str(c).strip() for c in row):
+                continue
+            # Normaliza o tamanho das linhas com o cabeçalho
+            if len(row) < len(cabecalho):
+                row = row + [""] * (len(cabecalho) - len(row))
+            elif len(row) > len(cabecalho):
+                row = row[:len(cabecalho)]
+            dados.append(row)
+        
+        df = pd.DataFrame(dados, columns=cabecalho)
+        df = df.loc[:, df.columns != ""].reset_index(drop=True)
+        return df, carimbo_att
+
+    return pd.DataFrame(), carimbo_att
 
 # ==============================================================================
 # 📋 LEITURA BLINDADA DA PRANCHETA (COM GID DIRETO DA ABA)
@@ -339,15 +366,15 @@ df_qual = carregar_dados_nuvem("Mobile_Qualidade", cabecalho=0)
 df_alertas = carregar_dados_nuvem("Mobile_Alertas", cabecalho=0)
 df_cache = carregar_dados_nuvem("Cache_Painel", cabecalho=0)
 df_status_virada = carregar_dados_nuvem("Status_Virada_Turnos", cabecalho=0)
-df_balanco_dest = carregar_tabela_cega("Balanco_Expedicao_Destino", "DESTINO")
+df_balanco_dest, _ = carregar_tabela_cega("Balanco_Expedicao_Destino", "DESTINO")
 df_bafometro = carregar_dados_nuvem("Bafometro_Status", cabecalho=0)
 if df_bafometro.empty: df_bafometro = carregar_dados_nuvem("Auditoria_Bafometro", cabecalho=0)
 df_frota = carregar_dados_nuvem("Historico_DKRO", cabecalho=0)
 df_prancheta = carregar_prancheta_direto()
 
 # 🟢 Carrega a matriz de destinos (PR, 00, 01, FC) e a aba Status_TR (Termo SAP) com leitor blindado
-df_patio_dest = carregar_tabela_cega("Patio_Destino_Status", "DESTINO")
-df_status_tr = carregar_tabela_cega("Status_TR", "PLACA")
+df_patio_dest, hora_att_patio = carregar_tabela_cega("Patio_Destino_Status", "DESTINO")
+df_status_tr, _ = carregar_tabela_cega("Status_TR", "PLACA")
 
 cache_dict = {str(row.iloc[0]).strip(): str(row.iloc[1]).strip() for _, row in df_cache.iterrows()} if not df_cache.empty else {}
 dados_segregados = parse_robusto(cache_dict.get("dados_segregados", "{}"))
@@ -849,12 +876,14 @@ render_html(html_previsoes_card)
 # ==============================================================================
 # 🖨️ RENDERIZAÇÃO 4: PÁTIO DA FÁBRICA (COM DESTINOS DETALHADOS FUNCIONANDO)
 # ==============================================================================
+txt_att_patio = f" | 🕒 Base: {hora_att_patio.split(' ')[1][:5]}" if hora_att_patio and " " in hora_att_patio else ""
+
 html_patio = f"""
 <details class="master-box" style="border-left-color: #38a9ff;" open>
     <summary>
         <div class="header-layout">
             <div class="icon-box" style="background-color: rgba(56, 169, 255, 0.15); color: #38a9ff;">🏭</div>
-            <div class="master-metric-title">Pátio da Fábrica (Tempo Real)</div>
+            <div class="master-metric-title">Pátio da Fábrica (Tempo Real{txt_att_patio})</div>
         </div>
         <div class="value-layout">
             <div class="master-metric-val">{total_veiculos_fisicos}</div>
