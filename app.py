@@ -237,65 +237,59 @@ def carregar_dados_nuvem(worksheet_name: str, cabecalho=0):
 @st.cache_data(ttl=15)
 def carregar_tabela_cega(worksheet_name: str, coluna_chave: str = "DESTINO"):
     """
-    Lê qualquer aba do Google Sheets ignorando metadados e linhas vazias no topo.
-    Localiza o cabeçalho correto e resgata carimbos de atualização da Linha 1 se existirem.
+    Lê abas do Google Sheets de forma 100% segura usando gspread,
+    identificando a linha do cabeçalho e extraindo o carimbo da Linha 1.
     """
-    sheet_encoded = urllib.parse.quote(worksheet_name)
-    # headers=0 força o Google a entregar todo o conteúdo bruto sem quebrar em tabelas irregulares
-    urls_tentativas = [
-        f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet={sheet_encoded}&headers=0",
-        f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv&sheet={sheet_encoded}"
-    ]
-    
-    linhas = []
-    for u in urls_tentativas:
-        try:
-            resp = requests.get(u, timeout=8)
-            if resp.status_code == 200 and len(resp.text) > 10:
-                linhas = list(csv.reader(StringIO(resp.text)))
-                if linhas:
-                    break
-        except Exception:
-            continue
-
-    if not linhas:
-        return pd.DataFrame(), None
-
-    # 1. Resgata carimbo de atualização se estiver na Linha 1 (ex: ATUALIZADO_EM na célula A1 e data na B1)
-    carimbo_att = None
     try:
+        if hasattr(st, "secrets") and "gcp_service_account" in st.secrets:
+            dados_secret = dict(st.secrets["gcp_service_account"])
+            cliente = gspread.service_account_from_dict(dados_secret)
+        elif os.path.exists("credentials.json"):
+            cliente = gspread.service_account(filename="credentials.json")
+        else:
+            return pd.DataFrame(), None
+
+        planilha = cliente.open_by_key(SHEET_ID)
+        aba = planilha.worksheet(worksheet_name)
+        linhas = aba.get_all_values()
+
+        if not linhas:
+            return pd.DataFrame(), None
+
+        # 1. Resgata carimbo de atualização se estiver na Linha 1
+        carimbo_att = None
         if len(linhas) > 0 and len(linhas[0]) >= 2:
             if "ATUALIZADO" in str(linhas[0][0]).upper():
                 carimbo_att = str(linhas[0][1]).strip()
-    except Exception:
-        pass
 
-    # 2. Localiza a linha do cabeçalho que contém a coluna_chave (ex: "DESTINO" ou "PLACA")
-    header_idx = -1
-    for i, row in enumerate(linhas[:10]):
-        row_vals = [str(x).strip().upper() for x in row]
-        if coluna_chave.upper() in row_vals:
-            header_idx = i
-            break
+        # 2. Localiza a linha do cabeçalho que contém a coluna_chave
+        header_idx = -1
+        for i, row in enumerate(linhas[:10]):
+            row_vals = [str(x).strip().upper() for x in row]
+            if coluna_chave.upper() in row_vals:
+                header_idx = i
+                break
 
-    if header_idx != -1:
-        cabecalho = [str(c).strip().upper() for c in linhas[header_idx]]
-        dados = []
-        for row in linhas[header_idx + 1:]:
-            if not any(str(c).strip() for c in row):
-                continue
-            # Normaliza o tamanho das linhas com o cabeçalho
-            if len(row) < len(cabecalho):
-                row = row + [""] * (len(cabecalho) - len(row))
-            elif len(row) > len(cabecalho):
-                row = row[:len(cabecalho)]
-            dados.append(row)
-        
-        df = pd.DataFrame(dados, columns=cabecalho)
-        df = df.loc[:, df.columns != ""].reset_index(drop=True)
-        return df, carimbo_att
+        if header_idx != -1:
+            cabecalho = [str(c).strip().upper() for c in linhas[header_idx]]
+            dados = []
+            for row in linhas[header_idx + 1:]:
+                if not any(str(c).strip() for c in row):
+                    continue
+                if len(row) < len(cabecalho):
+                    row = row + [""] * (len(cabecalho) - len(row))
+                elif len(row) > len(cabecalho):
+                    row = row[:len(cabecalho)]
+                dados.append(row)
+            
+            df = pd.DataFrame(dados, columns=cabecalho)
+            df = df.loc[:, df.columns != ""].reset_index(drop=True)
+            return df, carimbo_att
 
-    return pd.DataFrame(), carimbo_att
+    except Exception as e:
+        st.warning(f"⚠️ Erro ao ler aba {worksheet_name}: {e}")
+
+    return pd.DataFrame(), None
 
 # ==============================================================================
 # 📋 LEITURA BLINDADA DA PRANCHETA (COM GID DIRETO DA ABA)
