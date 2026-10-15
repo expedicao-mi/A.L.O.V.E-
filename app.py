@@ -654,7 +654,7 @@ html_notif = f"""
 render_html(html_notif)
 
 # ==============================================================================
-# 🖨️ RENDERIZAÇÃO: PRANCHETA OPERACIONAL & COMUNICADOS DO TURNO (CONTAINER BLINDADO)
+# 🖨️ RENDERIZAÇÃO: PRANCHETA OPERACIONAL & COMUNICADOS DO TURNO (RETRÁTIL & ESTILIZADO)
 # ==============================================================================
 recados_mobile = []
 if not df_prancheta.empty:
@@ -706,16 +706,35 @@ if not df_prancheta.empty:
         })
 
 qtd_ativos = sum(1 for r in recados_mobile if r["ativo_agora"])
-badge_prancheta = f'{qtd_ativos} no ar' if qtd_ativos > 0 else 'vazio'
+rotulo_prancheta = f"📋  PRANCHETA OPERACIONAL  —  {qtd_ativos} no ar"
 
-# Container que garante que todo o conteúdo permaneça encapsulado
-with st.container(border=True):
-    render_html(f"""
-        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
-            <div class="icon-sq" style="background:#091e38; border-color:#0084ff;">📋</div>
-            <div class="card-title" style="color:#38bdf8; font-size:1rem; font-weight:800;">Prancheta Operacional</div>
-            <div class="badge-novas" style="margin-left: auto;">{badge_prancheta}</div>
-        </div>
+# Injeta estilo para transformar o expander principal no Card Padrão da aplicação
+st.markdown("""
+<style>
+    div[data-testid="stExpander"]:has(summary:contains("PRANCHETA OPERACIONAL")) {
+        background: linear-gradient(180deg, #0b1830 0%, #08111f 100%) !important;
+        border: 1.5px solid #12506e !important;
+        border-left: 6px solid #38bdf8 !important;
+        border-radius: 16px !important;
+        box-shadow: 0 0 14px rgba(0, 180, 255, 0.10) !important;
+        margin-bottom: 14px !important;
+    }
+    div[data-testid="stExpander"]:has(summary:contains("PRANCHETA OPERACIONAL")) > details > summary {
+        color: #38bdf8 !important;
+        font-weight: 800 !important;
+        font-size: 0.95rem !important;
+        letter-spacing: 0.3px !important;
+        padding: 12px 14px !important;
+    }
+    div[data-testid="stExpander"]:has(summary:contains("PRANCHETA OPERACIONAL")) > details > summary:hover {
+        color: #ffffff !important;
+    }
+</style>
+""", unsafe_allow_html=True)
+
+# 🔽 Expander principal que abre e fecha com um toque (inicia fechado para ficar limpo)
+with st.expander(rotulo_prancheta, expanded=False):
+    render_html("""
         <div style="color:#94a3b8; font-size:0.78rem; margin-bottom:12px; border-bottom:1px solid #12304a; padding-bottom:8px;">
             Toque nos comunicados abaixo para gerenciar (Editar ou Excluir):
         </div>
