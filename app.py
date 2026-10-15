@@ -355,20 +355,33 @@ agora_br = datetime.utcnow() - timedelta(hours=4)
 hoje_date = agora_br.date()
 ontem_date = hoje_date - timedelta(days=1)
 
-df_dash = carregar_dados_nuvem("Mobile_Dashboard", cabecalho=0)
-df_qual = carregar_dados_nuvem("Mobile_Qualidade", cabecalho=0)
-df_alertas = carregar_dados_nuvem("Mobile_Alertas", cabecalho=0)
-df_cache = carregar_dados_nuvem("Cache_Painel", cabecalho=0)
-df_status_virada = carregar_dados_nuvem("Status_Virada_Turnos", cabecalho=0)
-df_balanco_dest, _ = carregar_tabela_cega("Balanco_Expedicao_Destino", "DESTINO")
-df_bafometro = carregar_dados_nuvem("Bafometro_Status", cabecalho=0)
-if df_bafometro.empty: df_bafometro = carregar_dados_nuvem("Auditoria_Bafometro", cabecalho=0)
-df_frota = carregar_dados_nuvem("Historico_DKRO", cabecalho=0)
-df_prancheta = carregar_prancheta_direto()
+# ==============================================================================
+# 🚀 CARREGANDO TODOS OS DADOS DA NUVEM (COM CACHE OTIMIZADO CONTRA ESTOURO 429)
+# ==============================================================================
+agora_br = datetime.utcnow() - timedelta(hours=4)
+hoje_date = agora_br.date()
+ontem_date = hoje_date - timedelta(days=1)
 
-# 🟢 Carrega a matriz de destinos (PR, 00, 01, FC) e a aba Status_TR (Termo SAP) com leitor blindado
-df_patio_dest, hora_att_patio = carregar_tabela_cega("Patio_Destino_Status", "DESTINO")
-df_status_tr, _ = carregar_tabela_cega("Status_TR", "PLACA")
+# Aumentamos o TTL para 60 segundos para respeitar o limite de requisições do Google Sheets
+@st.cache_data(ttl=60)
+def carregar_dados_mobile_otimizados():
+    d_dash = carregar_dados_nuvem("Mobile_Dashboard", cabecalho=0)
+    d_qual = carregar_dados_nuvem("Mobile_Qualidade", cabecalho=0)
+    d_alert = carregar_dados_nuvem("Mobile_Alertas", cabecalho=0)
+    d_cache = carregar_dados_nuvem("Cache_Painel", cabecalho=0)
+    d_virada = carregar_dados_nuvem("Status_Virada_Turnos", cabecalho=0)
+    d_baf = carregar_dados_nuvem("Bafometro_Status", cabecalho=0)
+    if d_baf.empty: d_baf = carregar_dados_nuvem("Auditoria_Bafometro", cabecalho=0)
+    d_frot = carregar_dados_nuvem("Historico_DKRO", cabecalho=0)
+    
+    d_bal, _ = carregar_tabela_cega("Balanco_Expedicao_Destino", "DESTINO")
+    d_pat, h_pat = carregar_tabela_cega("Patio_Destino_Status", "DESTINO")
+    d_tr, _ = carregar_tabela_cega("Status_TR", "PLACA")
+    d_pran = carregar_prancheta_direto()
+    
+    return d_dash, d_qual, d_alert, d_cache, d_virada, d_bal, d_baf, d_frot, d_pran, d_pat, h_pat, d_tr
+
+df_dash, df_qual, df_alertas, df_cache, df_status_virada, df_balanco_dest, df_bafometro, df_frota, df_prancheta, df_patio_dest, hora_att_patio, df_status_tr = carregar_dados_mobile_otimizados()
 
 cache_dict = {str(row.iloc[0]).strip(): str(row.iloc[1]).strip() for _, row in df_cache.iterrows()} if not df_cache.empty else {}
 dados_segregados = parse_robusto(cache_dict.get("dados_segregados", "{}"))
@@ -641,7 +654,7 @@ html_notif = f"""
 render_html(html_notif)
 
 # ==============================================================================
-# 🖨️ RENDERIZAÇÃO: PRANCHETA OPERACIONAL & COMUNICADOS DO TURNO (INTERATIVA)
+# 🖨️ RENDERIZAÇÃO: PRANCHETA OPERACIONAL & COMUNICADOS DO TURNO (FLUIDA & LIMPA)
 # ==============================================================================
 recados_mobile = []
 if not df_prancheta.empty:
@@ -651,14 +664,8 @@ if not df_prancheta.empty:
         if not any(valores_linha):
             continue
 
-        msg_val = ""
-        aut_val = "Cristiano"
-        st_val  = "ATIVO"
-        d_ini   = hoje_date.strftime("%d/%m/%Y")
-        h_ini   = "00:00"
-        d_fim   = hoje_date.strftime("%d/%m/%Y")
-        h_fim   = "23:59"
-        r_id    = str(idx_df + 1)
+        msg_val, aut_val, st_val = "", "Cristiano", "ATIVO"
+        d_ini, h_ini, d_fim, h_fim, r_id = hoje_date.strftime("%d/%m/%Y"), "00:00", hoje_date.strftime("%d/%m/%Y"), "23:59", str(idx_df + 1)
 
         for v in valores_linha:
             if v.upper() in ("ATIVO", "INATIVO"):
@@ -687,146 +694,112 @@ if not df_prancheta.empty:
                 aut_val = v
                 break
 
-        if not msg_val:
-            continue
+        if not msg_val: continue
 
         ativo_agora = True
         try:
             def pad_data(ds):
                 p = ds.split("/")
                 return f"{p[0].zfill(2)}/{p[1].zfill(2)}/{hoje_date.year}" if len(p) == 2 else ds
-            
-            d_i_corr = pad_data(d_ini)
-            d_f_corr = pad_data(d_fim)
-            dt_i = datetime.strptime(f"{d_i_corr} {h_ini[:5]}", "%d/%m/%Y %H:%M")
-            dt_f = datetime.strptime(f"{d_f_corr} {h_fim[:5]}", "%d/%m/%Y %H:%M")
+            dt_i = datetime.strptime(f"{pad_data(d_ini)} {h_ini[:5]}", "%d/%m/%Y %H:%M")
+            dt_f = datetime.strptime(f"{pad_data(d_fim)} {h_fim[:5]}", "%d/%m/%Y %H:%M")
             if not (dt_i <= agora_br <= dt_f) or st_val != "ATIVO":
                 ativo_agora = False
-        except Exception:
+        except:
             ativo_agora = (st_val == "ATIVO")
 
         recados_mobile.append({
-            "linha_sheets": linha_sheets,
-            "id": r_id,
-            "msg": msg_val,
-            "autor": aut_val,
-            "d_ini": d_ini,
-            "h_ini": h_ini,
-            "d_fim": d_fim,
-            "h_fim": h_fim,
-            "status": st_val,
-            "ativo_agora": ativo_agora
+            "linha_sheets": linha_sheets, "id": r_id, "msg": msg_val, "autor": aut_val,
+            "d_ini": d_ini, "h_ini": h_ini, "d_fim": d_fim, "h_fim": h_fim,
+            "status": st_val, "ativo_agora": ativo_agora
         })
 
 qtd_ativos = sum(1 for r in recados_mobile if r["ativo_agora"])
 
-with st.expander(f"📋 PRANCHETA OPERACIONAL ({qtd_ativos} Avisos no Ar)", expanded=True):
-    st.caption("Comunicados e Passagem de Turno para o Core e Fábrica")
+with st.expander(f"📋 PRANCHETA OPERACIONAL ({qtd_ativos} Avisos no Ar)", expanded=False):
+    st.caption("Toque em qualquer comunicado abaixo para gerenciar (Editar ou Excluir)")
 
     if not recados_mobile:
         st.info("Nenhum comunicado cadastrado na base.")
     else:
         for item in recados_mobile:
             badge_cor = "#00D672" if item["ativo_agora"] else "#64748b"
-            badge_txt = "🟢 NO AR" if item["ativo_agora"] else ("⚪ PAUSADO" if item["status"] != "ATIVO" else "⏳ FORA DO HORÁRIO")
+            badge_txt = "🟢 NO AR" if item["ativo_agora"] else ("⚪ PAUSADO" if item["status"] != "ATIVO" else "⏳ FORA")
             
-            with st.container(border=True):
+            # Cada tarefa agora é um mini-card colapsável limpo e fluido
+            with st.expander(f"📌 {item['msg'][:45]}... [{badge_txt}]"):
                 render_html(f"""
-                    <div style="display:flex; justify-content:space-between; align-items:center;">
-                        <span style="color:#ffffff; font-weight:700; font-size:0.95rem;">📌 {html_lib.escape(item['msg'])}</span>
-                        <span style="color:{badge_cor}; font-size:0.75rem; font-weight:bold;">{badge_txt}</span>
-                    </div>
-                    <div style="color:#94a3b8; font-size:0.78rem; margin-top:4px;">
-                        👤 Por: <b style="color:#38bdf8;">{html_lib.escape(item['autor'])}</b> &nbsp;|&nbsp; 
-                        🕒 <b>{item['d_ini']} {item['h_ini']}</b> até <b>{item['d_fim']} {item['h_fim']}</b>
+                    <div style="color:#94a3b8; font-size:0.8rem; margin-bottom:10px;">
+                        <b>Mensagem Completa:</b> {html_lib.escape(item['msg'])}<br>
+                        👤 Por: <b style="color:#38bdf8;">{html_lib.escape(item['autor'])}</b> | 🕒 <b>{item['d_ini']} {item['h_ini']}</b> até <b>{item['d_fim']} {item['h_fim']}</b>
                     </div>
                 """)
 
-                col_b1, col_b2, col_b3 = st.columns([1, 1, 1])
-                
-                with col_b1:
+                # Ações rápidas isoladas dentro do expander da tarefa
+                c_acao1, c_acao2, c_acao3 = st.columns(3)
+                with c_acao1:
                     novo_st = "INATIVO" if item["status"] == "ATIVO" else "ATIVO"
-                    rotulo_st = "⏸️ Pausar" if item["status"] == "ATIVO" else "▶️ Reativar"
-                    if st.button(rotulo_st, key=f"btn_st_{item['linha_sheets']}", use_container_width=True):
+                    rotulo_st = "⏸️ Pausar" if item["status"] == "ATIVO" else "▶️ Ativar"
+                    if st.button(rotulo_st, key=f"st_{item['linha_sheets']}", use_container_width=True):
                         aba = conectar_planilha_prancheta()
                         if aba:
                             aba.update_cell(item["linha_sheets"], 8, novo_st)
                             st.cache_data.clear()
                             st.rerun()
-
-                with col_b2:
-                    mostrar_edit = st.button("✏️ Editar", key=f"btn_ed_{item['linha_sheets']}", use_container_width=True)
-
-                with col_b3:
-                    if st.button("🗑️ Excluir", key=f"btn_del_{item['linha_sheets']}", use_container_width=True):
+                with c_acao2:
+                    if st.button("🗑️ Excluir", key=f"del_{item['linha_sheets']}", use_container_width=True):
                         aba = conectar_planilha_prancheta()
                         if aba:
                             aba.delete_rows(item["linha_sheets"])
                             st.cache_data.clear()
                             st.rerun()
+                with c_acao3:
+                    toggle_edit = st.toggle("✏️ Editar", key=f"tg_ed_{item['linha_sheets']}")
 
-                if mostrar_edit or st.session_state.get(f"editando_{item['linha_sheets']}", False):
-                    st.session_state[f"editando_{item['linha_sheets']}"] = True
+                if toggle_edit:
                     with st.form(f"form_ed_{item['linha_sheets']}"):
                         nova_msg = st.text_area("Editar Mensagem", value=item["msg"])
-                        c_ed1, c_ed2 = st.columns(2)
-                        with c_ed1:
-                            novo_autor = st.text_input("Autor", value=item["autor"])
-                            nova_h_ini = st.text_input("Hora Início (HH:MM)", value=item["h_ini"])
-                        with c_ed2:
-                            nova_h_fim = st.text_input("Hora Fim (HH:MM)", value=item["h_fim"])
+                        ce1, ce2 = st.columns(2)
+                        with ce1: nova_hi = st.text_input("Início (HH:MM)", value=item["h_ini"])
+                        with ce2: nova_hf = st.text_input("Fim (HH:MM)", value=item["h_fim"])
                         
-                        b_salv, b_canc = st.columns(2)
-                        with b_salv:
-                            if st.form_submit_button("💾 Salvar Alterações", use_container_width=True):
-                                aba = conectar_planilha_prancheta()
-                                if aba:
-                                    aba.update_cell(item["linha_sheets"], 3, nova_h_ini)
-                                    aba.update_cell(item["linha_sheets"], 5, nova_h_fim)
-                                    aba.update_cell(item["linha_sheets"], 6, nova_msg)
-                                    aba.update_cell(item["linha_sheets"], 7, novo_autor)
-                                    st.session_state[f"editando_{item['linha_sheets']}"] = False
-                                    st.cache_data.clear()
-                                    st.rerun()
-                        with b_canc:
-                            if st.form_submit_button("❌ Cancelar", use_container_width=True):
-                                st.session_state[f"editando_{item['linha_sheets']}"] = False
+                        if st.form_submit_button("💾 Salvar Alterações", use_container_width=True):
+                            aba = conectar_planilha_prancheta()
+                            if aba:
+                                aba.update_cell(item["linha_sheets"], 3, nova_hi)
+                                aba.update_cell(item["linha_sheets"], 5, nova_hf)
+                                aba.update_cell(item["linha_sheets"], 6, nova_msg)
+                                st.cache_data.clear()
                                 st.rerun()
 
     st.markdown("---")
     with st.expander("➕ Adicionar Novo Comunicado"):
         with st.form("form_novo_recado_mobile", clear_on_submit=True):
-            in_msg = st.text_area("Mensagem do Comunicado", placeholder="Ex: Doca 04 em manutenção. Direcionar para docas 01 a 03.")
-            
-            f_c1, f_c2 = st.columns(2)
-            with f_c1:
-                in_d_ini = st.date_input("Data de Início", datetime.today(), format="DD/MM/YYYY")
-                in_h_ini = st.time_input("Hora de Início", datetime.now().time())
-                in_autor = st.text_input("Autor / Liderança", value="Cristiano")
-            with f_c2:
-                in_d_fim = st.date_input("Data de Fim", datetime.today() + timedelta(days=1), format="DD/MM/YYYY")
-                in_h_fim = st.time_input("Hora de Fim", datetime.strptime("23:59", "%H:%M").time())
-                in_status = st.selectbox("Status Inicial", ["ATIVO", "INATIVO"], index=0)
+            in_msg = st.text_area("Mensagem do Comunicado", placeholder="Ex: Doca 04 em manutenção...")
+            fc1, fc2 = st.columns(2)
+            with fc1:
+                in_d_ini = st.date_input("Data Início", datetime.today(), format="DD/MM/YYYY")
+                in_h_ini = st.time_input("Hora Início", datetime.now().time())
+                in_autor = st.text_input("Autor", value="Cristiano")
+            with fc2:
+                in_d_fim = st.date_input("Data Fim", datetime.today() + timedelta(days=1), format="DD/MM/YYYY")
+                in_h_fim = st.time_input("Hora Fim", datetime.strptime("23:59", "%H:%M").time())
+                in_status = st.selectbox("Status", ["ATIVO", "INATIVO"], index=0)
 
-            if st.form_submit_button("🚀 Gravar e Exibir na TV", use_container_width=True):
+            if st.form_submit_button("🚀 Gravar e Exibir", use_container_width=True):
                 if not in_msg.strip():
-                    st.warning("⚠️ Digite uma mensagem antes de salvar!")
+                    st.warning("⚠️ Digite uma mensagem!")
                 else:
                     aba = conectar_planilha_prancheta()
                     if aba:
                         proximo_id = len(recados_mobile) + 1
                         nova_linha = [
-                            str(proximo_id),
-                            in_d_ini.strftime("%d/%m/%Y"),
-                            in_h_ini.strftime("%H:%M"),
-                            in_d_fim.strftime("%d/%m/%Y"),
-                            in_h_fim.strftime("%H:%M"),
-                            in_msg.strip(),
-                            in_autor.strip(),
-                            in_status
+                            str(proximo_id), in_d_ini.strftime("%d/%m/%Y"), in_h_ini.strftime("%H:%M"),
+                            in_d_fim.strftime("%d/%m/%Y"), in_h_fim.strftime("%H:%M"), in_msg.strip(),
+                            in_autor.strip(), in_status
                         ]
                         aba.append_row(nova_linha)
-                        st.success("✅ Comunicado gravado com sucesso!")
+                        st.success("✅ Gravado com sucesso!")
                         st.cache_data.clear()
                         st.rerun()
 
