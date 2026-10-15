@@ -654,7 +654,7 @@ html_notif = f"""
 render_html(html_notif)
 
 # ==============================================================================
-# 🖨️ RENDERIZAÇÃO: PRANCHETA OPERACIONAL & COMUNICADOS DO TURNO (PADRÃO VISUAL DO APP)
+# 🖨️ RENDERIZAÇÃO: PRANCHETA OPERACIONAL & COMUNICADOS DO TURNO (100% ENCAIXADO)
 # ==============================================================================
 recados_mobile = []
 if not df_prancheta.empty:
@@ -708,7 +708,7 @@ if not df_prancheta.empty:
 qtd_ativos = sum(1 for r in recados_mobile if r["ativo_agora"])
 badge_prancheta = f'<div class="badge-novas">{qtd_ativos} no ar</div>' if qtd_ativos > 0 else '<div class="badge-novas" style="color:#64748b;">vazio</div>'
 
-# Bloco principal no mesmo padrão visual (Card Main com borda estilizada)
+# Abre o card principal
 html_prancheta_topo = f"""
 <style>
     details#box-prancheta summary {{
@@ -734,6 +734,7 @@ html_prancheta_topo = f"""
 """
 render_html(html_prancheta_topo)
 
+# Renderiza os itens dentro do card
 if not recados_mobile:
     render_html('<div style="color:#64748b; font-size:0.82rem; padding:12px; text-align:center;">Nenhum comunicado cadastrado na base.</div>')
 else:
@@ -817,6 +818,7 @@ with st.expander("➕ Adicionar Novo Comunicado"):
                     st.cache_data.clear()
                     st.rerun()
 
+# AGORA SIM: Fecha a tag details principal corretamente no final
 render_html("</div></details>")
 
 # ==============================================================================
