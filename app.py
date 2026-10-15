@@ -654,23 +654,20 @@ html_notif = f"""
 render_html(html_notif)
 
 # ==============================================================================
-# 🖨️ RENDERIZAÇÃO: PRANCHETA OPERACIONAL & COMUNICADOS DO TURNO (FLUIDA & LIMPA)
+# 🖨️ RENDERIZAÇÃO: PRANCHETA OPERACIONAL & COMUNICADOS DO TURNO (PADRÃO VISUAL DO APP)
 # ==============================================================================
 recados_mobile = []
 if not df_prancheta.empty:
     for idx_df, rp in df_prancheta.iterrows():
         linha_sheets = idx_df + 2
         valores_linha = [str(x).strip() for x in rp.tolist()]
-        if not any(valores_linha):
-            continue
+        if not any(valores_linha): continue
 
         msg_val, aut_val, st_val = "", "Cristiano", "ATIVO"
         d_ini, h_ini, d_fim, h_fim, r_id = hoje_date.strftime("%d/%m/%Y"), "00:00", hoje_date.strftime("%d/%m/%Y"), "23:59", str(idx_df + 1)
 
         for v in valores_linha:
-            if v.upper() in ("ATIVO", "INATIVO"):
-                st_val = v.upper()
-                break
+            if v.upper() in ("ATIVO", "INATIVO"): st_val = v.upper(); break
 
         horarios_achados = [v for v in valores_linha if re.match(r'^\d{1,2}:\d{2}$', v)]
         if len(horarios_achados) >= 1: h_ini = horarios_achados[0]
@@ -684,15 +681,11 @@ if not df_prancheta.empty:
             v for v in valores_linha 
             if v not in horarios_achados and v not in datas_achadas and v.upper() not in ("ATIVO", "INATIVO", "CRISTIANO", "CORE", "OPERACAO", "NAN", "") and not v.isdigit() and not v.upper().startswith("ATUALIZADO:")
         ]
-        if textos_candidatos:
-            msg_val = max(textos_candidatos, key=len)
-        elif len(rp) > 5 and str(rp.iloc[5]).strip():
-            msg_val = str(rp.iloc[5]).strip()
+        if textos_candidatos: msg_val = max(textos_candidatos, key=len)
+        elif len(rp) > 5 and str(rp.iloc[5]).strip(): msg_val = str(rp.iloc[5]).strip()
 
         for v in valores_linha:
-            if v.upper() in ("CRISTIANO", "MAYCON", "LÍDER", "CORE", "OPERAÇÃO", "OPERACAO"):
-                aut_val = v
-                break
+            if v.upper() in ("CRISTIANO", "MAYCON", "LÍDER", "CORE", "OPERAÇÃO", "OPERACAO"): aut_val = v; break
 
         if not msg_val: continue
 
@@ -703,10 +696,8 @@ if not df_prancheta.empty:
                 return f"{p[0].zfill(2)}/{p[1].zfill(2)}/{hoje_date.year}" if len(p) == 2 else ds
             dt_i = datetime.strptime(f"{pad_data(d_ini)} {h_ini[:5]}", "%d/%m/%Y %H:%M")
             dt_f = datetime.strptime(f"{pad_data(d_fim)} {h_fim[:5]}", "%d/%m/%Y %H:%M")
-            if not (dt_i <= agora_br <= dt_f) or st_val != "ATIVO":
-                ativo_agora = False
-        except:
-            ativo_agora = (st_val == "ATIVO")
+            if not (dt_i <= agora_br <= dt_f) or st_val != "ATIVO": ativo_agora = False
+        except: ativo_agora = (st_val == "ATIVO")
 
         recados_mobile.append({
             "linha_sheets": linha_sheets, "id": r_id, "msg": msg_val, "autor": aut_val,
@@ -715,93 +706,118 @@ if not df_prancheta.empty:
         })
 
 qtd_ativos = sum(1 for r in recados_mobile if r["ativo_agora"])
+badge_prancheta = f'<div class="badge-novas">{qtd_ativos} no ar</div>' if qtd_ativos > 0 else '<div class="badge-novas" style="color:#64748b;">vazio</div>'
 
-with st.expander(f"📋 PRANCHETA OPERACIONAL ({qtd_ativos} Avisos no Ar)", expanded=False):
-    st.caption("Toque em qualquer comunicado abaixo para gerenciar (Editar ou Excluir)")
+# Bloco principal no mesmo padrão visual (Card Main com borda estilizada)
+html_prancheta_topo = f"""
+<style>
+    details#box-prancheta summary {{
+        display: flex; align-items: center; gap: 10px; cursor: pointer;
+        list-style: none; outline: none; -webkit-tap-highlight-color: transparent;
+    }}
+    details#box-prancheta summary::-webkit-details-marker {{ display: none; }}
+    details#box-prancheta .prancheta-chev {{
+        color: #38bdf8; font-size: 1.6rem; line-height: 1;
+        transition: transform 0.25s ease; margin-left: auto;
+    }}
+    details#box-prancheta[open] .prancheta-chev {{ transform: rotate(90deg); }}
+</style>
+<details id="box-prancheta" class="card-main" style="border-left: 6px solid #38bdf8; margin-bottom: 14px;">
+    <summary>
+        <div class="icon-sq" style="background:#091e38; border-color:#0084ff;">📋</div>
+        <div class="card-title" style="color:#38bdf8;">Prancheta Operacional</div>
+        {badge_prancheta}
+        <div class="prancheta-chev">›</div>
+    </summary>
+    <div style="margin-top: 14px; border-top: 1px solid #12304a; padding-top: 12px;">
+        <div style="color:#94a3b8; font-size:0.78rem; margin-bottom:12px;">Toque em qualquer comunicado abaixo para gerenciar (Editar ou Excluir):</div>
+"""
+render_html(html_prancheta_topo)
 
-    if not recados_mobile:
-        st.info("Nenhum comunicado cadastrado na base.")
-    else:
-        for item in recados_mobile:
-            badge_cor = "#00D672" if item["ativo_agora"] else "#64748b"
-            badge_txt = "🟢 NO AR" if item["ativo_agora"] else ("⚪ PAUSADO" if item["status"] != "ATIVO" else "⏳ FORA")
-            
-            # Cada tarefa agora é um mini-card colapsável limpo e fluido
-            with st.expander(f"📌 {item['msg'][:45]}... [{badge_txt}]"):
-                render_html(f"""
-                    <div style="color:#94a3b8; font-size:0.8rem; margin-bottom:10px;">
-                        <b>Mensagem Completa:</b> {html_lib.escape(item['msg'])}<br>
-                        👤 Por: <b style="color:#38bdf8;">{html_lib.escape(item['autor'])}</b> | 🕒 <b>{item['d_ini']} {item['h_ini']}</b> até <b>{item['d_fim']} {item['h_fim']}</b>
-                    </div>
-                """)
+if not recados_mobile:
+    render_html('<div style="color:#64748b; font-size:0.82rem; padding:12px; text-align:center;">Nenhum comunicado cadastrado na base.</div>')
+else:
+    for item in recados_mobile:
+        badge_cor = "#00D672" if item["ativo_agora"] else "#64748b"
+        badge_txt = "🟢 NO AR" if item["ativo_agora"] else ("⚪ PAUSADO" if item["status"] != "ATIVO" else "⏳ FORA")
+        
+        with st.expander(f"📌 {item['msg'][:40]}... [{badge_txt}]"):
+            render_html(f"""
+                <div style="color:#cbd5e1; font-size:0.82rem; line-height:1.4; margin-bottom:10px;">
+                    <b>Mensagem:</b> {html_lib.escape(item['msg'])}<br>
+                    👤 Por: <b style="color:#38bdf8;">{html_lib.escape(item['autor'])}</b> &nbsp;|&nbsp; 🕒 <b>{item['d_ini']} {item['h_ini']}</b> até <b>{item['d_fim']} {item['h_fim']}</b>
+                </div>
+            """)
 
-                # Ações rápidas isoladas dentro do expander da tarefa
-                c_acao1, c_acao2, c_acao3 = st.columns(3)
-                with c_acao1:
-                    novo_st = "INATIVO" if item["status"] == "ATIVO" else "ATIVO"
-                    rotulo_st = "⏸️ Pausar" if item["status"] == "ATIVO" else "▶️ Ativar"
-                    if st.button(rotulo_st, key=f"st_{item['linha_sheets']}", use_container_width=True):
-                        aba = conectar_planilha_prancheta()
-                        if aba:
-                            aba.update_cell(item["linha_sheets"], 8, novo_st)
-                            st.cache_data.clear()
-                            st.rerun()
-                with c_acao2:
-                    if st.button("🗑️ Excluir", key=f"del_{item['linha_sheets']}", use_container_width=True):
-                        aba = conectar_planilha_prancheta()
-                        if aba:
-                            aba.delete_rows(item["linha_sheets"])
-                            st.cache_data.clear()
-                            st.rerun()
-                with c_acao3:
-                    toggle_edit = st.toggle("✏️ Editar", key=f"tg_ed_{item['linha_sheets']}")
-
-                if toggle_edit:
-                    with st.form(f"form_ed_{item['linha_sheets']}"):
-                        nova_msg = st.text_area("Editar Mensagem", value=item["msg"])
-                        ce1, ce2 = st.columns(2)
-                        with ce1: nova_hi = st.text_input("Início (HH:MM)", value=item["h_ini"])
-                        with ce2: nova_hf = st.text_input("Fim (HH:MM)", value=item["h_fim"])
-                        
-                        if st.form_submit_button("💾 Salvar Alterações", use_container_width=True):
-                            aba = conectar_planilha_prancheta()
-                            if aba:
-                                aba.update_cell(item["linha_sheets"], 3, nova_hi)
-                                aba.update_cell(item["linha_sheets"], 5, nova_hf)
-                                aba.update_cell(item["linha_sheets"], 6, nova_msg)
-                                st.cache_data.clear()
-                                st.rerun()
-
-    st.markdown("---")
-    with st.expander("➕ Adicionar Novo Comunicado"):
-        with st.form("form_novo_recado_mobile", clear_on_submit=True):
-            in_msg = st.text_area("Mensagem do Comunicado", placeholder="Ex: Doca 04 em manutenção...")
-            fc1, fc2 = st.columns(2)
-            with fc1:
-                in_d_ini = st.date_input("Data Início", datetime.today(), format="DD/MM/YYYY")
-                in_h_ini = st.time_input("Hora Início", datetime.now().time())
-                in_autor = st.text_input("Autor", value="Cristiano")
-            with fc2:
-                in_d_fim = st.date_input("Data Fim", datetime.today() + timedelta(days=1), format="DD/MM/YYYY")
-                in_h_fim = st.time_input("Hora Fim", datetime.strptime("23:59", "%H:%M").time())
-                in_status = st.selectbox("Status", ["ATIVO", "INATIVO"], index=0)
-
-            if st.form_submit_button("🚀 Gravar e Exibir", use_container_width=True):
-                if not in_msg.strip():
-                    st.warning("⚠️ Digite uma mensagem!")
-                else:
+            c_acao1, c_acao2, c_acao3 = st.columns(3)
+            with c_acao1:
+                novo_st = "INATIVO" if item["status"] == "ATIVO" else "ATIVO"
+                rotulo_st = "⏸️ Pausar" if item["status"] == "ATIVO" else "▶️ Ativar"
+                if st.button(rotulo_st, key=f"st_{item['linha_sheets']}", use_container_width=True):
                     aba = conectar_planilha_prancheta()
                     if aba:
-                        proximo_id = len(recados_mobile) + 1
-                        nova_linha = [
-                            str(proximo_id), in_d_ini.strftime("%d/%m/%Y"), in_h_ini.strftime("%H:%M"),
-                            in_d_fim.strftime("%d/%m/%Y"), in_h_fim.strftime("%H:%M"), in_msg.strip(),
-                            in_autor.strip(), in_status
-                        ]
-                        aba.append_row(nova_linha)
-                        st.success("✅ Gravado com sucesso!")
+                        aba.update_cell(item["linha_sheets"], 8, novo_st)
                         st.cache_data.clear()
                         st.rerun()
+            with c_acao2:
+                if st.button("🗑️ Excluir", key=f"del_{item['linha_sheets']}", use_container_width=True):
+                    aba = conectar_planilha_prancheta()
+                    if aba:
+                        aba.delete_rows(item["linha_sheets"])
+                        st.cache_data.clear()
+                        st.rerun()
+            with c_acao3:
+                toggle_edit = st.toggle("✏️ Editar", key=f"tg_ed_{item['linha_sheets']}")
+
+            if toggle_edit:
+                with st.form(f"form_ed_{item['linha_sheets']}"):
+                    nova_msg = st.text_area("Editar Mensagem", value=item["msg"])
+                    ce1, ce2 = st.columns(2)
+                    with ce1: nova_hi = st.text_input("Início (HH:MM)", value=item["h_ini"])
+                    with ce2: nova_hf = st.text_input("Fim (HH:MM)", value=item["h_fim"])
+                    
+                    if st.form_submit_button("💾 Salvar Alterações", use_container_width=True):
+                        aba = conectar_planilha_prancheta()
+                        if aba:
+                            aba.update_cell(item["linha_sheets"], 3, nova_hi)
+                            aba.update_cell(item["linha_sheets"], 5, nova_hf)
+                            aba.update_cell(item["linha_sheets"], 6, nova_msg)
+                            st.cache_data.clear()
+                            st.rerun()
+
+st.markdown("<div style='margin: 14px 0; border-top: 1px dashed #1c2b42;'></div>", unsafe_allow_html=True)
+
+with st.expander("➕ Adicionar Novo Comunicado"):
+    with st.form("form_novo_recado_mobile", clear_on_submit=True):
+        in_msg = st.text_area("Mensagem do Comunicado", placeholder="Ex: Doca 04 em manutenção...")
+        fc1, fc2 = st.columns(2)
+        with fc1:
+            in_d_ini = st.date_input("Data Início", datetime.today(), format="DD/MM/YYYY")
+            in_h_ini = st.time_input("Hora Início", datetime.now().time())
+            in_autor = st.text_input("Autor", value="Cristiano")
+        with fc2:
+            in_d_fim = st.date_input("Data Fim", datetime.today() + timedelta(days=1), format="DD/MM/YYYY")
+            in_h_fim = st.time_input("Hora Fim", datetime.strptime("23:59", "%H:%M").time())
+            in_status = st.selectbox("Status", ["ATIVO", "INATIVO"], index=0)
+
+        if st.form_submit_button("🚀 Gravar e Exibir", use_container_width=True):
+            if not in_msg.strip():
+                st.warning("⚠️ Digite uma mensagem!")
+            else:
+                aba = conectar_planilha_prancheta()
+                if aba:
+                    proximo_id = len(recados_mobile) + 1
+                    nova_linha = [
+                        str(proximo_id), in_d_ini.strftime("%d/%m/%Y"), in_h_ini.strftime("%H:%M"),
+                        in_d_fim.strftime("%d/%m/%Y"), in_h_fim.strftime("%H:%M"), in_msg.strip(),
+                        in_autor.strip(), in_status
+                    ]
+                    aba.append_row(nova_linha)
+                    st.success("✅ Gravado com sucesso!")
+                    st.cache_data.clear()
+                    st.rerun()
+
+render_html("</div></details>")
 
 # ==============================================================================
 # 🖨️ RENDERIZAÇÃO 3: PREVISÕES DO FECHAMENTO (24H)
