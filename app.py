@@ -1018,7 +1018,7 @@ render_html(html_prod_completo)
 
 
 # ==============================================================================
-# 🖨️ RENDERIZAÇÃO 6: EXPEDIÇÃO REALIZADA (PÍLULAS AJUSTADAS E SEM EMOJIS)
+# 🖨️ RENDERIZAÇÃO 6: EXPEDIÇÃO REALIZADA (COMPLETO / MOBILE BLINDADO)
 # ==============================================================================
 def func_exp_dados(dt_a):
     ls = descobrir_letras_turnos(dt_a)
@@ -1066,7 +1066,7 @@ tns_ontem = func_exp_dados(ontem_date)
 pct_prog = min(100.0, max(0.0, (vol_hoje / prev_carr * 100.0))) if prev_carr > 0 else 0.0
 
 # ----------------------------------------------------
-# CARDS DOS TURNOS DE HOJE (SEM EMOJIS)
+# CARDS DOS TURNOS DE HOJE (SEM EMOJIS POLUÍDOS)
 # ----------------------------------------------------
 cards_hoje_html = ""
 for i, t in enumerate(tns_hoje):
@@ -1099,7 +1099,7 @@ for i, t in enumerate(tns_hoje):
         """
 
 # ----------------------------------------------------
-# CARDS DOS TURNOS DE ONTEM (D-1) (SEM EMOJIS)
+# CARDS DOS TURNOS DE ONTEM (D-1)
 # ----------------------------------------------------
 cards_ontem_html = ""
 for t in tns_ontem:
@@ -1184,7 +1184,7 @@ totais_rodape_html = f"""
 html_destinos = f"{tabela_linhas_html}{totais_rodape_html}"
 
 # ----------------------------------------------------
-# MONTAGEM MASTER (CSS DE PÍLULAS AJUSTADAS À ESQUERDA)
+# MONTAGEM MASTER (CSS DE PÍLULAS EQUILIBRADAS E BOTÕES CENTRAIS)
 # ----------------------------------------------------
 html_exp_completo = f"""
 <style>
@@ -1203,8 +1203,8 @@ html_exp_completo = f"""
         flex: 1;
         max-width: 180px;
         text-align: center;
-        padding: 9px 12px;
-        font-size: 0.82rem;
+        padding: 9px 10px;
+        font-size: 0.80rem;
         font-weight: 800;
         color: #94a3b8;
         background: #070d18;
@@ -1212,6 +1212,7 @@ html_exp_completo = f"""
         border-radius: 10px;
         cursor: pointer;
         transition: all 0.2s ease;
+        white-space: nowrap;
     }}
     #nav_turnos:checked ~ details .lbl-turnos {{
         background: #00D672 !important;
@@ -1226,24 +1227,24 @@ html_exp_completo = f"""
         box-shadow: 0 0 10px rgba(56, 189, 248, 0.35);
     }}
 
-        /* PÍLULAS: VISÍVEIS SÓ QUANDO ABERTO, ESGUIAS E SEM QUEBRA DE LINHA */
-    details:not([open]) .pill-day-box {
+    /* PÍLULAS: OCULTAS QUANDO FECHADO, FINAS E SEM QUEBRA DE LINHA QUANDO ABERTO */
+    details:not([open]) .pill-day-box {{
         display: none !important;
-    }
-    details[open] .pill-day-box {
+    }}
+    details[open] .pill-day-box {{
         display: inline-flex !important;
         align-items: center !important;
-        gap: 5px !important;
-        margin-right: 20px !important;
+        gap: 4px !important;
+        margin-right: 24px !important;
         flex-shrink: 0 !important;
         white-space: nowrap !important;
-    }
-    .pill-day-box label {
+    }}
+    .pill-day-box label {{
         display: inline-flex !important;
         align-items: center !important;
         justify-content: center !important;
-        gap: 4px !important;
-        padding: 4px 8px !important;
+        gap: 3px !important;
+        padding: 4px 7px !important;
         border-radius: 999px !important;
         font-size: 0.68rem !important;
         font-weight: 700 !important;
@@ -1255,12 +1256,11 @@ html_exp_completo = f"""
         border: 1px solid #1c2b42;
         transition: 0.2s;
         flex-shrink: 0 !important;
-    }
-
+    }}
     #day_hoje:checked ~ details .lbl-d-hoje {{ background: #00D672 !important; color: #0a101d !important; border-color: #00D672 !important; }}
     #day_ontem:checked ~ details .lbl-d-ontem {{ background: #00D672 !important; color: #0a101d !important; border-color: #00D672 !important; }}
 
-    /* QUANDO 'PLANO VS EXP.' ESTIVER SELECIONADO: DESATIVA E APAGA A PÍLULA D-1 */
+    /* QUANDO 'PLANO VS EXP.' ESTIVER ATIVO: DESATIVA A PÍLULA D-1 */
     #nav_destinos:checked ~ details .lbl-d-ontem {{
         opacity: 0.22 !important;
         pointer-events: none !important;
@@ -1288,11 +1288,11 @@ html_exp_completo = f"""
 
     <details class="master-box" style="border-left-color: #00D672;" open>
         <summary>
-            <!-- CABEÇALHO COM TÍTULO E PÍLULAS POSICIONADAS À ESQUERDA DA SETA -->
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-                <div class="header-layout" style="margin-bottom:0;">
-                    <div class="icon-box" style="background-color: rgba(0, 214, 114, 0.15); color: #00D672;">🚚</div>
-                    <div class="master-metric-title">Expedição Realizada</div>
+            <!-- CABEÇALHO COM TÍTULO E PÍLULAS AJUSTADAS -->
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; gap:4px;">
+                <div class="header-layout" style="margin-bottom:0; min-width:0; flex-shrink:1;">
+                    <div class="icon-box" style="background-color: rgba(0, 214, 114, 0.15); color: #00D672; flex-shrink:0;">🚚</div>
+                    <div class="master-metric-title" style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Expedição Realizada</div>
                 </div>
                 <div class="pill-day-box" onclick="event.stopPropagation();">
                     <label for="day_hoje" class="lbl-d-hoje">Hoje 📅</label>
@@ -1364,6 +1364,7 @@ html_exp_completo = f"""
 </div>
 """
 render_html(html_exp_completo)
+
 
 
 
