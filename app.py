@@ -602,113 +602,128 @@ if not df_balanco_dest.empty:
             })
 
 # ==============================================================================
-# 🖨️ RENDERIZAÇÃO 1: TOPO (STATUS HORIZONTAL, SEMÁFORO CORE & COMUNICADOS DUO)
+# 🖨️ RENDERIZAÇÃO 1: TOPO (STATUS E SEMÁFORO UNIFICADOS EM ACORDEON)
 # ==============================================================================
 st.markdown(f'<div class="topo-banner"><img src="{BANNER_TOPO_URL}"></div>', unsafe_allow_html=True)
 
-# CSS específico para travar o botão Atualizar ao lado do texto no iPhone sem quebrar linha
+# Usamos colunas nativas para posicionar o botão à direita e CSS para puxar o HTML para debaixo dele
 st.markdown("""
     <style>
-        .status-box-wrap div[data-testid="stHorizontalBlock"] {
-            display: flex !important;
-            flex-direction: row !important;
-            flex-wrap: nowrap !important;
-            align-items: center !important;
-            justify-content: space-between !important;
-            gap: 8px !important;
-        }
-        .status-box-wrap div[data-testid="column"]:first-child {
-            flex: 3 !important;
-            min-width: 0 !important;
-        }
-        .status-box-wrap div[data-testid="column"]:last-child {
-            flex: 1.4 !important;
-            min-width: 0 !important;
-        }
-        .status-box-wrap .stButton > button {
+        /* Estilo do botão de Atualizar Quadrado (Primary) */
+        button[kind="primary"] {
             background: #070d18 !important;
+            border: 1px solid #38bdf8 !important;
+            border-radius: 8px !important;
             color: #ffffff !important;
-            font-size: 0.72rem !important;
-            font-weight: 800 !important;
-            border: 1.5px solid #00b4ff !important;
-            border-radius: 999px !important;
-            min-height: 2rem !important;
-            height: 32px !important;
-            padding: 0 8px !important;
-            box-shadow: 0 0 10px rgba(0, 180, 255, 0.35) !important;
-            white-space: nowrap !important;
-            margin: 0 !important;
+            font-size: 1.3rem !important;
+            height: 42px !important;
+            padding: 0 !important;
+            box-shadow: 0 0 10px rgba(56, 189, 248, 0.15) !important;
+            margin-top: 8px !important;
+        }
+        button[kind="primary"]:active {
+            background: #0c1a30 !important;
+            border-color: #00D672 !important;
+        }
+        
+        /* Puxa o bloco HTML para cima e encaixa com o botão */
+        .status-pull-up {
+            margin-top: -62px;
+            position: relative;
+            z-index: 1;
+        }
+        
+        /* Garante que o botão fique por cima do HTML e clicável */
+        div[data-testid="stHorizontalBlock"] {
+            position: relative;
+            z-index: 10;
+            pointer-events: none; /* Deixa o clique passar no espaço vazio */
+        }
+        div[data-testid="stHorizontalBlock"] button {
+            pointer-events: auto; /* Reativa o clique apenas no botão */
         }
     </style>
 """, unsafe_allow_html=True)
 
-# 1. CARD DE STATUS COMPACTO (LADO A LADO)
-with st.container(border=True):
-    st.markdown('<div class="status-box-wrap">', unsafe_allow_html=True)
-    col_status_txt, col_status_btn = st.columns([3, 1.4], vertical_alignment="center")
-    with col_status_txt:
-        render_html(f"""
-            <div style="display:flex; align-items:center; margin-bottom:2px;">
-                <span class="conn-dot" style="background:{conn_cor};"></span>
-                <span class="conn-titulo" style="color:{conn_cor}; font-size:1.1rem; font-weight:800;">{conn_txt}</span>
-            </div>
-            <div class="conn-sub" style="font-size:0.8rem; color:#9fb3cc;">🕒 Última atualização: {conn_hora}</div>
-        """)
-    with col_status_btn:
-        if st.button("🔄 Atualizar", key="btn_topo_horizontal", use_container_width=True):
-            st.cache_data.clear()
-            st.rerun()
-    st.markdown('</div>', unsafe_allow_html=True)
+# Cria as colunas, jogando o botão para o canto direito (peso 1)
+col_space, col_btn = st.columns([4.5, 1])
+with col_btn:
+    if st.button("🔄", type="primary", use_container_width=True):
+        st.cache_data.clear()
+        st.rerun()
 
-# 2. SEMÁFORO DOS SISTEMAS (CORE VERDE / RESTANTE VERMELHO)
+# Cores fixadas (CORE Verde, Restante Vermelho)
 led_core = "#00D672"
 borda_core = "#00D672"
-
 led_off = "#E74C3C"
 borda_off = "#1c2b42"
 
-html_semaforo = f"""
-<div class="card-main" style="margin-bottom: 12px; padding: 10px 8px; border-color: #12506e;">
-    <div style="display: flex; justify-content: space-between; align-items: center; gap: 6px;">
-        <!-- CORE (ONLINE 🟢) -->
-        <div style="flex: 1; background: #070d18; border: 1.5px solid {borda_core}; border-radius: 12px; padding: 10px 2px; text-align: center; box-shadow: 0 0 10px rgba(0, 214, 114, 0.15);">
-            <div style="display: flex; justify-content: center; align-items: center; gap: 6px; margin-bottom: 4px;">
-                <span style="font-size: 1.45rem;">🤖</span>
-                <span style="width: 9px; height: 9px; border-radius: 50%; background: {led_core}; box-shadow: 0 0 8px {led_core}; display: inline-block;"></span>
+html_status_semaforo = f"""
+<div class="status-pull-up">
+    <!-- Repare que removemos o "open", então ele inicia FECHADO -->
+    <details class="master-box" style="border: 1.5px solid #1c2b42; border-radius: 12px; margin-bottom: 14px; background: #070d18; overflow: hidden;">
+        <summary style="padding: 16px 14px; padding-right: 65px; border-bottom: none;">
+            <!-- BARRA VERDE ESQUERDA + TÍTULO -->
+            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+                <div style="width: 4px; height: 18px; background: #00D672; border-radius: 4px;"></div>
+                <div style="color: #ffffff; font-size: 1.1rem; font-weight: 800; letter-spacing: 0.5px;">STATUS DO SISTEMA</div>
             </div>
-            <div style="color: #ffffff; font-size: 0.72rem; font-weight: 800; letter-spacing: 0.5px;">CORE</div>
-        </div>
+            
+            <!-- SUBTÍTULO (BOLINHA VERDE ATUALIZADO + HORA) -->
+            <div style="display: flex; align-items: center; gap: 12px; font-size: 0.78rem;">
+                <div style="color: #00D672; font-weight: 800; display: flex; align-items: center; gap: 5px;">
+                    <span style="width: 12px; height: 12px; border-radius: 50%; background: #00D672; display: inline-block; box-shadow: 0 0 6px #00D672;"></span>
+                    ATUALIZADO
+                </div>
+                <div style="color: #9fb3cc; font-weight: 500;">🕒 Última atualização: {conn_hora}</div>
+            </div>
+        </summary>
+        
+        <!-- O SEMÁFORO QUE SÓ APARECE QUANDO VOCÊ EXPANDIR -->
+        <div class="master-content" style="padding: 16px 12px; border-top: 1px solid #1c2b42; background: #050911;">
+            <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
+                <!-- CORE (ONLINE 🟢) -->
+                <div style="flex: 1; background: #070d18; border: 1.5px solid {borda_core}; border-radius: 10px; padding: 12px 2px; text-align: center; box-shadow: 0 0 12px rgba(0, 214, 114, 0.15);">
+                    <div style="display: flex; justify-content: center; align-items: center; gap: 6px; margin-bottom: 6px;">
+                        <span style="font-size: 1.5rem; color:#fff;">🤖</span>
+                        <span style="width: 9px; height: 9px; border-radius: 50%; background: {led_core}; box-shadow: 0 0 8px {led_core}; display: inline-block;"></span>
+                    </div>
+                    <div style="color: #ffffff; font-size: 0.75rem; font-weight: 800; letter-spacing: 0.5px;">CORE</div>
+                </div>
 
-        <!-- TORRE (OFFLINE 🔴) -->
-        <div style="flex: 1; background: #070d18; border: 1.5px solid {borda_off}; border-radius: 12px; padding: 10px 2px; text-align: center;">
-            <div style="display: flex; justify-content: center; align-items: center; gap: 6px; margin-bottom: 4px;">
-                <span style="font-size: 1.45rem;">📡</span>
-                <span style="width: 9px; height: 9px; border-radius: 50%; background: {led_off}; box-shadow: 0 0 8px {led_off}; display: inline-block;"></span>
-            </div>
-            <div style="color: #64748b; font-size: 0.72rem; font-weight: 800; letter-spacing: 0.5px;">TORRE</div>
-        </div>
+                <!-- TORRE (OFFLINE 🔴) -->
+                <div style="flex: 1; background: #070d18; border: 1.5px solid {borda_off}; border-radius: 10px; padding: 12px 2px; text-align: center;">
+                    <div style="display: flex; justify-content: center; align-items: center; gap: 6px; margin-bottom: 6px;">
+                        <span style="font-size: 1.5rem;">📡</span>
+                        <span style="width: 9px; height: 9px; border-radius: 50%; background: {led_off}; box-shadow: 0 0 8px {led_off}; display: inline-block;"></span>
+                    </div>
+                    <div style="color: #64748b; font-size: 0.75rem; font-weight: 800; letter-spacing: 0.5px;">TORRE</div>
+                </div>
 
-        <!-- TOTEM (OFFLINE 🔴) -->
-        <div style="flex: 1; background: #070d18; border: 1.5px solid {borda_off}; border-radius: 12px; padding: 10px 2px; text-align: center;">
-            <div style="display: flex; justify-content: center; align-items: center; gap: 6px; margin-bottom: 4px;">
-                <span style="font-size: 1.45rem;">📱</span>
-                <span style="width: 9px; height: 9px; border-radius: 50%; background: {led_off}; box-shadow: 0 0 8px {led_off}; display: inline-block;"></span>
-            </div>
-            <div style="color: #64748b; font-size: 0.72rem; font-weight: 800; letter-spacing: 0.5px;">TOTEM</div>
-        </div>
+                <!-- TOTEM (OFFLINE 🔴) -->
+                <div style="flex: 1; background: #070d18; border: 1.5px solid {borda_off}; border-radius: 10px; padding: 12px 2px; text-align: center;">
+                    <div style="display: flex; justify-content: center; align-items: center; gap: 6px; margin-bottom: 6px;">
+                        <span style="font-size: 1.5rem;">📱</span>
+                        <span style="width: 9px; height: 9px; border-radius: 50%; background: {led_off}; box-shadow: 0 0 8px {led_off}; display: inline-block;"></span>
+                    </div>
+                    <div style="color: #64748b; font-size: 0.75rem; font-weight: 800; letter-spacing: 0.5px;">TOTEM</div>
+                </div>
 
-        <!-- TV (OFFLINE 🔴) -->
-        <div style="flex: 1; background: #070d18; border: 1.5px solid {borda_off}; border-radius: 12px; padding: 10px 2px; text-align: center;">
-            <div style="display: flex; justify-content: center; align-items: center; gap: 6px; margin-bottom: 4px;">
-                <span style="font-size: 1.45rem;">📺</span>
-                <span style="width: 9px; height: 9px; border-radius: 50%; background: {led_off}; box-shadow: 0 0 8px {led_off}; display: inline-block;"></span>
+                <!-- TV (OFFLINE 🔴) -->
+                <div style="flex: 1; background: #070d18; border: 1.5px solid {borda_off}; border-radius: 10px; padding: 12px 2px; text-align: center;">
+                    <div style="display: flex; justify-content: center; align-items: center; gap: 6px; margin-bottom: 6px;">
+                        <span style="font-size: 1.5rem;">📺</span>
+                        <span style="width: 9px; height: 9px; border-radius: 50%; background: {led_off}; box-shadow: 0 0 8px {led_off}; display: inline-block;"></span>
+                    </div>
+                    <div style="color: #64748b; font-size: 0.75rem; font-weight: 800; letter-spacing: 0.5px;">TV</div>
+                </div>
             </div>
-            <div style="color: #64748b; font-size: 0.72rem; font-weight: 800; letter-spacing: 0.5px;">TV</div>
         </div>
-    </div>
+    </details>
 </div>
 """
-render_html(html_semaforo)
+render_html(html_status_semaforo)
+
 
 # ==============================================================================
 # 🖨️ ANIMAÇÃO DE CARREGAMENTO (A.L.O.V.E TYPING EFFECT) E TELA CHEIA
