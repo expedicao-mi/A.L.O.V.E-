@@ -711,7 +711,33 @@ html_semaforo = f"""
 render_html(html_semaforo)
 
 # ==============================================================================
-# 🖨️ RENDERIZAÇÃO 2: NOTIFICAÇÕES & PRANCHETA (LADO A LADO, ABRE E FECHA)
+# 🖨️ ANIMAÇÃO DE CARREGAMENTO (A.L.O.V.E TYPING EFFECT)
+# ==============================================================================
+st.markdown("""
+    <style>
+        .alove-loader-bg {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            background: radial-gradient(ellipse at center, #0c1a33 0%, #050911 100%);
+            z-index: 999999; display: flex; justify-content: center; align-items: center;
+            animation: loaderFadeOut 0.4s 1.5s forwards; pointer-events: none;
+        }
+        .alove-loader-text {
+            font-size: 2.5rem; font-weight: 900; color: #00D672;
+            letter-spacing: 6px; text-shadow: 0 0 20px rgba(0,214,114,0.6);
+            overflow: hidden; white-space: nowrap;
+            border-right: 4px solid #00D672;
+            width: 0;
+            animation: loaderTyping 1s steps(7, end) forwards, loaderBlink 0.5s step-end infinite alternate;
+        }
+        @keyframes loaderTyping { from { width: 0 } to { width: 5.5em } }
+        @keyframes loaderBlink { 50% { border-color: transparent } }
+        @keyframes loaderFadeOut { to { opacity: 0; visibility: hidden; display: none; } }
+    </style>
+    <div class="alove-loader-bg"><div class="alove-loader-text">A.L.O.V.E</div></div>
+""", unsafe_allow_html=True)
+
+# ==============================================================================
+# 🖨️ RENDERIZAÇÃO 2: AVISOS & PRANCHETA (BLOCO MESTRE ACORDEON)
 # ==============================================================================
 # 1. Processamento das Notificações
 alertas_lista = []
@@ -818,495 +844,71 @@ else:
         </div>
         """
 
-# 3. COMPONENTE LADO A LADO QUE ABRE E FECHA (TOGGLE VIA CHECKBOX)
-html_notif_prancheta_duo = f"""
+# 3. MONTAGEM DO ACORDEON MESTRE (IGUAL EXPEDIÇÃO)
+html_avisos = f"""
 <style>
-    .duo-box-wrap input[type="checkbox"] {{ display: none !important; }}
-
-    .duo-btn-bar {{
-        display: flex;
-        justify-content: center;
-        gap: 8px;
-        margin-bottom: 12px;
+    .np-wrapper input[type="radio"] {{ display: none !important; }}
+    .np-tab-bar {{ display: flex; justify-content: center; gap: 10px; margin-bottom: 14px; padding: 0 4px; }}
+    .np-tab-bar label {{
+        flex: 1; text-align: center; padding: 10px; font-size: 0.82rem; font-weight: 800; color: #94a3b8;
+        background: #070d18; border: 1.5px solid #1c2b42; border-radius: 10px; cursor: pointer; transition: 0.2s;
     }}
-    .duo-btn-bar label {{
-        flex: 1;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 8px;
-        padding: 10px 6px;
-        font-size: 0.80rem;
-        font-weight: 800;
-        color: #94a3b8;
-        background: #070d18;
-        border: 1.5px solid #1c2b42;
-        border-radius: 12px;
-        cursor: pointer;
-        transition: all 0.2s ease;
-        white-space: nowrap;
-        box-shadow: 0 2px 6px rgba(0,0,0,0.25);
-    }}
-    .duo-badge-pill {{
-        background: #0d2a4a;
-        border: 1px solid #12506e;
-        color: #38bdf8;
-        font-size: 0.68rem;
-        font-weight: 700;
-        padding: 2px 7px;
-        border-radius: 999px;
-    }}
-
-    /* EFEITO AO ABRIR (ATIVO) */
-    #chk_notif:checked ~ .duo-btn-bar .lbl-btn-notif {{
-        background: #0c1a30 !important;
-        color: #38bdf8 !important;
-        border-color: #38bdf8 !important;
-        box-shadow: 0 0 10px rgba(56, 189, 248, 0.35);
-    }}
-    #chk_pran:checked ~ .duo-btn-bar .lbl-btn-pran {{
-        background: #0c1a30 !important;
-        color: #00D672 !important;
-        border-color: #00D672 !important;
-        box-shadow: 0 0 10px rgba(0, 214, 114, 0.35);
-    }}
-
-    /* INICIAM FECHADOS (DISPLAY NONE) E SÓ ABREM SE O CHECKBOX ESTIVER MARCADO */
-    .duo-painel-notif, .duo-painel-pran {{
-        display: none;
-    }}
-    #chk_notif:checked ~ .duo-painel-notif {{
-        display: block !important;
-    }}
-    #chk_pran:checked ~ .duo-painel-pran {{
-        display: block !important;
-    }}
-
-    .duo-fechar-btn {{
-        background: #14243b;
-        color: #94a3b8;
-        font-size: 0.70rem;
-        font-weight: 700;
-        padding: 3px 8px;
-        border-radius: 6px;
-        cursor: pointer;
-        border: 1px solid #1c2b42;
-    }}
+    #nav_notif:checked ~ details .lbl-notif {{ background: #FF9F1C !important; color: #0a101d !important; border-color: #FF9F1C !important; box-shadow: 0 0 10px rgba(255, 159, 28, 0.35); }}
+    #nav_pran:checked ~ details .lbl-pran {{ background: #00D672 !important; color: #0a101d !important; border-color: #00D672 !important; box-shadow: 0 0 10px rgba(0, 214, 114, 0.35); }}
+    
+    .np-view-notif, .np-view-pran {{ display: none; }}
+    #nav_notif:checked ~ details .np-view-notif {{ display: block; }}
+    #nav_pran:checked ~ details .np-view-pran {{ display: block; }}
 </style>
 
-<div class="duo-box-wrap">
-    <input type="checkbox" id="chk_notif">
-    <input type="checkbox" id="chk_pran">
+<div class="np-wrapper">
+    <input type="radio" name="np_view" id="nav_notif" checked>
+    <input type="radio" name="np_view" id="nav_pran">
 
-    <!-- OS 2 BOTÕES LADO A LADO -->
-    <div class="duo-btn-bar">
-        <label for="chk_notif" class="lbl-btn-notif">
-            <span style="font-size: 1.1rem;">🔔</span>
-            <span>NOTIFICAÇÕES</span>
-            <span class="duo-badge-pill">{total_notifs}</span>
-        </label>
-        <label for="chk_pran" class="lbl-btn-pran">
-            <span style="font-size: 1.1rem;">📋</span>
-            <span>PRANCHETA</span>
-            <span class="duo-badge-pill" style="color: #00D672; border-color: #00D672;">{qtd_ativos}</span>
-        </label>
-    </div>
+    <details class="master-box" style="border-left-color: #38bdf8; margin-bottom: 14px;">
+        <summary>
+            <!-- CABEÇALHO -->
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <div class="header-layout" style="margin-bottom:0;">
+                    <div class="icon-box" style="background-color: rgba(56, 189, 248, 0.15); color: #38bdf8;">🔔</div>
+                    <div class="master-metric-title">Avisos & Prancheta</div>
+                </div>
+            </div>
+            
+            <!-- BADGES DE RESUMO (Ficam visíveis mesmo com o bloco fechado) -->
+            <div style="display:flex; gap:8px; margin-top:8px;">
+                <span style="background:#E74C3C; color:#fff; font-size:0.75rem; font-weight:bold; padding:4px 10px; border-radius:6px;">🚨 {total_notifs} Alertas</span>
+                <span style="background:#00D672; color:#0a101d; font-size:0.75rem; font-weight:bold; padding:4px 10px; border-radius:6px;">📋 {qtd_ativos} Recados</span>
+            </div>
+        </summary>
 
-    <!-- PAINEL NOTIFICAÇÕES (ABRE E FECHA) -->
-    <div class="duo-painel-notif card-main" style="margin-bottom: 14px;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-            <span style="font-size: 0.8rem; font-weight: 800; color: #38bdf8;">🔔 NOTIFICAÇÕES ATIVAS</span>
-            <label for="chk_notif" class="duo-fechar-btn">✕ Fechar</label>
-        </div>
-        <div class="notif-lista" style="max-height: 320px; overflow-y: auto;">
-            {conteudo_notifs}
-        </div>
-    </div>
+        <div class="master-content" style="padding-top: 16px;">
+            <!-- BOTÕES LADO A LADO -->
+            <div class="np-tab-bar">
+                <label for="nav_notif" class="lbl-notif">🚨 Alertas</label>
+                <label for="nav_pran" class="lbl-pran">📋 Prancheta</label>
+            </div>
 
-    <!-- PAINEL PRANCHETA (ABRE E FECHA) -->
-    <div class="duo-painel-pran card-main" style="margin-bottom: 14px;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-            <span style="font-size: 0.8rem; font-weight: 800; color: #00D672;">📋 COMUNICADOS OPERACIONAIS</span>
-            <label for="chk_pran" class="duo-fechar-btn">✕ Fechar</label>
+            <!-- PAINEL 1: NOTIFICAÇÕES -->
+            <div class="np-view-notif">
+                <div class="notif-lista" style="max-height: 350px; overflow-y: auto;">
+                    {conteudo_notifs}
+                </div>
+            </div>
+
+            <!-- PAINEL 2: PRANCHETA -->
+            <div class="np-view-pran">
+                <div style="max-height: 350px; overflow-y: auto;">
+                    {linhas_recados_html}
+                </div>
+            </div>
         </div>
-        <div style="max-height: 320px; overflow-y: auto;">
-            {linhas_recados_html}
-        </div>
-    </div>
+    </details>
 </div>
 """
-render_html(html_notif_prancheta_duo)
+render_html(html_avisos)
 
-
-# ==============================================================================
-# 🖨️ RENDERIZAÇÃO 2: NOTIFICAÇÕES & PRANCHETA LADO A LADO EM 2 BLOCOS
-# ==============================================================================
-# Processamento de Notificações
-alertas_lista = []
-if not df_alertas.empty:
-    for _, ra in df_alertas.iterrows():
-        nivel = str(ra.get("NIVEL", "")).strip().upper()
-        texto = str(ra.get("ALERTA", "")).strip()
-        if not texto or texto.lower() == "nan": continue
-        dh = str(ra.get("DATA_HORA", "")).strip()
-        hora = dh.split(" ")[1][:5] if " " in dh else "--:--"
-        texto_limpo = re.sub(r'^[^\w\[\(]+', '', texto)
-        alertas_lista.append((nivel, texto_limpo, hora))
-
-ordem_nivel = {"CRITICO": 0, "ATENCAO": 1, "NORMAL": 2}
-alertas_lista.sort(key=lambda a: ordem_nivel.get(a[0], 3))
-
-ESTILO_NIVEL = {
-    "CRITICO": ("#E74C3C", "rgba(231,76,60,.18)", "🚨", "Alerta crítico"),
-    "ATENCAO": ("#FFD600", "rgba(255,214,0,.16)", "⚠️", "Atenção"),
-    "NORMAL":  ("#00D672", "rgba(0,214,114,.16)", "✅", "Operação normal"),
-}
-
-def render_notif(nivel, texto, hora):
-    cor, bg, ico, titulo = ESTILO_NIVEL.get(nivel, ESTILO_NIVEL["ATENCAO"])
-    return (
-        f'<div class="notif-item">'
-        f'<div class="notif-ico" style="background:{bg}; color:{cor};">{ico}</div>'
-        f'<div class="notif-txt"><div class="notif-tit">{titulo}</div><div class="notif-desc">{html_lib.escape(texto)}</div></div>'
-        f'<div class="notif-hora">{hora}<i style="background:{cor};"></i></div>'
-        f'</div>'
-    )
-
-conteudo_notifs = "".join(render_notif(*a) for a in alertas_lista) if alertas_lista else '<div style="color:#64748b; font-size:0.82rem; padding:12px; text-align:center;">Nenhuma notificação ativa no momento.</div>'
-total_notifs = len(alertas_lista)
-
-# Processamento da Prancheta Operacional
-recados_mobile = []
-if not df_prancheta.empty:
-    for idx_df, rp in df_prancheta.iterrows():
-        linha_sheets = idx_df + 2
-        valores_linha = [str(x).strip() for x in rp.tolist()]
-        if not any(valores_linha): continue
-
-        msg_val, aut_val, st_val = "", "Cristiano", "ATIVO"
-        d_ini, h_ini, d_fim, h_fim, r_id = hoje_date.strftime("%d/%m/%Y"), "00:00", hoje_date.strftime("%d/%m/%Y"), "23:59", str(idx_df + 1)
-
-        for v in valores_linha:
-            if v.upper() in ("ATIVO", "INATIVO"): st_val = v.upper(); break
-
-        horarios_achados = [v for v in valores_linha if re.match(r'^\d{1,2}:\d{2}$', v)]
-        if len(horarios_achados) >= 1: h_ini = horarios_achados[0]
-        if len(horarios_achados) >= 2: h_fim = horarios_achados[1]
-
-        datas_achadas = [v for v in valores_linha if re.match(r'^\d{1,2}/\d{1,2}(/\d{2,4})?$', v)]
-        if len(datas_achadas) >= 1: d_ini = datas_achadas[0]
-        if len(datas_achadas) >= 2: d_fim = datas_achadas[1]
-
-        textos_candidatos = [
-            v for v in valores_linha 
-            if v not in horarios_achados and v not in datas_achadas and v.upper() not in ("ATIVO", "INATIVO", "CRISTIANO", "CORE", "OPERACAO", "NAN", "") and not v.isdigit() and not v.upper().startswith("ATUALIZADO:")
-        ]
-        if textos_candidatos: msg_val = max(textos_candidatos, key=len)
-        elif len(rp) > 5 and str(rp.iloc[5]).strip(): msg_val = str(rp.iloc[5]).strip()
-
-        for v in valores_linha:
-            if v.upper() in ("CRISTIANO", "MAYCON", "LÍDER", "CORE", "OPERAÇÃO", "OPERACAO"): aut_val = v; break
-
-        if not msg_val: continue
-
-        ativo_agora = True
-        try:
-            def pad_data(ds):
-                p = ds.split("/")
-                return f"{p[0].zfill(2)}/{p[1].zfill(2)}/{hoje_date.year}" if len(p) == 2 else ds
-            dt_i = datetime.strptime(f"{pad_data(d_ini)} {h_ini[:5]}", "%d/%m/%Y %H:%M")
-            dt_f = datetime.strptime(f"{pad_data(d_fim)} {h_fim[:5]}", "%d/%m/%Y %H:%M")
-            if not (dt_i <= agora_br <= dt_f) or st_val != "ATIVO": ativo_agora = False
-        except: ativo_agora = (st_val == "ATIVO")
-
-        recados_mobile.append({
-            "linha_sheets": linha_sheets, "id": r_id, "msg": msg_val, "autor": aut_val,
-            "d_ini": d_ini, "h_ini": h_ini, "d_fim": d_fim, "h_fim": h_fim,
-            "status": st_val, "ativo_agora": ativo_agora
-        })
-
-qtd_ativos = sum(1 for r in recados_mobile if r["ativo_agora"])
-
-linhas_recados_html = ""
-if not recados_mobile:
-    linhas_recados_html = '<div style="color:#64748b; font-size:0.82rem; padding:12px; text-align:center;">Nenhum comunicado cadastrado na base.</div>'
-else:
-    for item in recados_mobile:
-        cor_st = "#00D672" if item["ativo_agora"] else "#64748b"
-        txt_st = "NO AR" if item["ativo_agora"] else ("PAUSADO" if item["status"] != "ATIVO" else "FORA HORÁRIO")
-        linhas_recados_html += f"""
-        <div style="background:#070f1d; border:1px solid #16365c; border-left:3px solid {cor_st}; border-radius:10px; padding:10px 12px; margin-bottom:8px;">
-            <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px;">
-                <div style="color:#ffffff; font-weight:700; font-size:0.85rem; line-height:1.3;">📌 {html_lib.escape(item['msg'])}</div>
-                <span style="background:#0d2a4a; border:1px solid {cor_st}; color:{cor_st}; font-size:0.65rem; font-weight:bold; padding:2px 6px; border-radius:4px; white-space:nowrap;">{txt_st}</span>
-            </div>
-            <div style="color:#94a3b8; font-size:0.75rem; margin-top:6px;">
-                👤 <b style="color:#38bdf8;">{html_lib.escape(item['autor'])}</b> &nbsp;|&nbsp; 🕒 <b>{item['d_ini']} {item['h_ini']}</b> até <b>{item['d_fim']} {item['h_fim']}</b>
-            </div>
-        </div>
-        """
-
-# 3. HTML DOS 2 BLOCOS LADO A LADO ESTILO SELETOR COM PAINEL ACIONÁVEL
-html_notif_prancheta_duo = f"""
-<style>
-    .duo-wrapper input[type="radio"] {{ display: none !important; }}
-
-    .duo-tab-bar {{
-        display: flex;
-        justify-content: center;
-        gap: 8px;
-        margin-bottom: 10px;
-    }}
-    .duo-tab-bar label {{
-        flex: 1;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 8px;
-        padding: 10px 8px;
-        font-size: 0.82rem;
-        font-weight: 800;
-        color: #94a3b8;
-        background: #070d18;
-        border: 1.5px solid #1c2b42;
-        border-radius: 12px;
-        cursor: pointer;
-        transition: all 0.2s ease;
-        white-space: nowrap;
-        box-shadow: 0 2px 6px rgba(0,0,0,0.25);
-    }}
-    .duo-badge {{
-        background: #0d2a4a;
-        border: 1px solid #12506e;
-        color: #38bdf8;
-        font-size: 0.68rem;
-        font-weight: 700;
-        padding: 2px 7px;
-        border-radius: 999px;
-    }}
-
-    #tab_notif:checked ~ .duo-tab-bar .lbl-notif {{
-        background: #0c1a30 !important;
-        color: #38bdf8 !important;
-        border-color: #38bdf8 !important;
-        box-shadow: 0 0 10px rgba(56, 189, 248, 0.35);
-    }}
-    #tab_pran:checked ~ .duo-tab-bar .lbl-pran {{
-        background: #0c1a30 !important;
-        color: #00D672 !important;
-        border-color: #00D672 !important;
-        box-shadow: 0 0 10px rgba(0, 214, 114, 0.35);
-    }}
-
-    .duo-view-notif, .duo-view-pran {{ display: none; }}
-    #tab_notif:checked ~ .duo-view-notif {{ display: block; }}
-    #tab_pran:checked ~ .duo-view-pran {{ display: block; }}
-</style>
-
-<div class="duo-wrapper">
-    <input type="radio" name="duo_select" id="tab_notif" checked>
-    <input type="radio" name="duo_select" id="tab_pran">
-
-    <!-- OS 2 BLOCOS LADO A LADO -->
-    <div class="duo-tab-bar">
-        <label for="tab_notif" class="lbl-notif">
-            <span style="font-size: 1.1rem;">🔔</span>
-            <span>NOTIFICAÇÕES</span>
-            <span class="duo-badge">{total_notifs}</span>
-        </label>
-        <label for="tab_pran" class="lbl-pran">
-            <span style="font-size: 1.1rem;">📋</span>
-            <span>PRANCHETA</span>
-            <span class="duo-badge" style="color: #00D672; border-color: #00D672;">{qtd_ativos}</span>
-        </label>
-    </div>
-
-    <!-- PAINEL 1: NOTIFICAÇÕES -->
-    <div class="duo-view-notif card-main" style="margin-bottom: 14px;">
-        <div class="notif-lista" style="max-height: 340px; overflow-y: auto;">
-            {conteudo_notifs}
-        </div>
-    </div>
-
-    <!-- PAINEL 2: PRANCHETA OPERACIONAL -->
-    <div class="duo-view-pran card-main" style="margin-bottom: 14px;">
-        <div style="max-height: 340px; overflow-y: auto;">
-            {linhas_recados_html}
-        </div>
-    </div>
-</div>
-"""
-render_html(html_notif_prancheta_duo)
-
-
-
-# ==============================================================================
-# 🖨️ RENDERIZAÇÃO 2: NOTIFICAÇÕES (FLEXÍVEL E COM AUTO-FECHAMENTO NO SCROLL)
-# ==============================================================================
-alertas_lista = []
-if not df_alertas.empty:
-    for _, ra in df_alertas.iterrows():
-        nivel = str(ra.get("NIVEL", "")).strip().upper()
-        texto = str(ra.get("ALERTA", "")).strip()
-        if not texto or texto.lower() == "nan": continue
-        dh = str(ra.get("DATA_HORA", "")).strip()
-        hora = dh.split(" ")[1][:5] if " " in dh else "--:--"
-        texto_limpo = re.sub(r'^[^\w\[\(]+', '', texto)
-        alertas_lista.append((nivel, texto_limpo, hora))
-
-ordem_nivel = {"CRITICO": 0, "ATENCAO": 1, "NORMAL": 2}
-alertas_lista.sort(key=lambda a: ordem_nivel.get(a[0], 3))
-
-ESTILO_NIVEL = {
-    "CRITICO": ("#E74C3C", "rgba(231,76,60,.18)", "🚨", "Alerta crítico"),
-    "ATENCAO": ("#FFD600", "rgba(255,214,0,.16)", "⚠️", "Atenção"),
-    "NORMAL":  ("#00D672", "rgba(0,214,114,.16)", "✅", "Operação normal"),
-}
-
-def render_notif(nivel, texto, hora):
-    cor, bg, ico, titulo = ESTILO_NIVEL.get(nivel, ESTILO_NIVEL["ATENCAO"])
-    return (
-        f'<div class="notif-item">'
-        f'<div class="notif-ico" style="background:{bg}; color:{cor};">{ico}</div>'
-        f'<div class="notif-txt"><div class="notif-tit">{titulo}</div><div class="notif-desc">{html_lib.escape(texto)}</div></div>'
-        f'<div class="notif-hora">{hora}<i style="background:{cor};"></i></div>'
-        f'</div>'
-    )
-
-total_notifs = len(alertas_lista)
-badge = f'<div class="badge-novas">{total_notifs} novas</div>' if total_notifs > 0 else '<div class="badge-novas" style="color:#00D672;">tudo ok</div>'
-conteudo_notifs = "".join(render_notif(*a) for a in alertas_lista) if alertas_lista else '<div style="color:#64748b; font-size:0.82rem; padding:12px; text-align:center;">Nenhuma notificação ativa no momento.</div>'
-
-html_notif = f"""
-<style>
-    details#box-notificacoes summary {{
-        display: flex; align-items: center; gap: 10px; cursor: pointer;
-        list-style: none; outline: none; -webkit-tap-highlight-color: transparent;
-    }}
-    details#box-notificacoes summary::-webkit-details-marker {{ display: none; }}
-    details#box-notificacoes .notif-chev {{
-        color: #38bdf8; font-size: 1.6rem; line-height: 1;
-        transition: transform 0.25s ease; margin-left: 6px;
-    }}
-    details#box-notificacoes[open] .notif-chev {{ transform: rotate(90deg); }}
-</style>
-<details id="box-notificacoes" class="card-main" style="margin-bottom: 14px;">
-    <summary>
-        <div class="icon-sq">🔔</div>
-        <div class="card-title">Notificações</div>
-        {badge}
-        <div class="notif-chev">›</div>
-    </summary>
-    <div class="notif-lista" style="margin-top: 12px; max-height: 380px; overflow-y: auto;">
-        {conteudo_notifs}
-    </div>
-</details>
-"""
-render_html(html_notif)
-
-# ==============================================================================
-# 🖨️ RENDERIZAÇÃO: PRANCHETA OPERACIONAL (IDÊNTICO AO CARD DE NOTIFICAÇÕES)
-# ==============================================================================
-recados_mobile = []
-if not df_prancheta.empty:
-    for idx_df, rp in df_prancheta.iterrows():
-        linha_sheets = idx_df + 2
-        valores_linha = [str(x).strip() for x in rp.tolist()]
-        if not any(valores_linha): continue
-
-        msg_val, aut_val, st_val = "", "Cristiano", "ATIVO"
-        d_ini, h_ini, d_fim, h_fim, r_id = hoje_date.strftime("%d/%m/%Y"), "00:00", hoje_date.strftime("%d/%m/%Y"), "23:59", str(idx_df + 1)
-
-        for v in valores_linha:
-            if v.upper() in ("ATIVO", "INATIVO"): st_val = v.upper(); break
-
-        horarios_achados = [v for v in valores_linha if re.match(r'^\d{1,2}:\d{2}$', v)]
-        if len(horarios_achados) >= 1: h_ini = horarios_achados[0]
-        if len(horarios_achados) >= 2: h_fim = horarios_achados[1]
-
-        datas_achadas = [v for v in valores_linha if re.match(r'^\d{1,2}/\d{1,2}(/\d{2,4})?$', v)]
-        if len(datas_achadas) >= 1: d_ini = datas_achadas[0]
-        if len(datas_achadas) >= 2: d_fim = datas_achadas[1]
-
-        textos_candidatos = [
-            v for v in valores_linha 
-            if v not in horarios_achados and v not in datas_achadas and v.upper() not in ("ATIVO", "INATIVO", "CRISTIANO", "CORE", "OPERACAO", "NAN", "") and not v.isdigit() and not v.upper().startswith("ATUALIZADO:")
-        ]
-        if textos_candidatos: msg_val = max(textos_candidatos, key=len)
-        elif len(rp) > 5 and str(rp.iloc[5]).strip(): msg_val = str(rp.iloc[5]).strip()
-
-        for v in valores_linha:
-            if v.upper() in ("CRISTIANO", "MAYCON", "LÍDER", "CORE", "OPERAÇÃO", "OPERACAO"): aut_val = v; break
-
-        if not msg_val: continue
-
-        ativo_agora = True
-        try:
-            def pad_data(ds):
-                p = ds.split("/")
-                return f"{p[0].zfill(2)}/{p[1].zfill(2)}/{hoje_date.year}" if len(p) == 2 else ds
-            dt_i = datetime.strptime(f"{pad_data(d_ini)} {h_ini[:5]}", "%d/%m/%Y %H:%M")
-            dt_f = datetime.strptime(f"{pad_data(d_fim)} {h_fim[:5]}", "%d/%m/%Y %H:%M")
-            if not (dt_i <= agora_br <= dt_f) or st_val != "ATIVO": ativo_agora = False
-        except: ativo_agora = (st_val == "ATIVO")
-
-        recados_mobile.append({
-            "linha_sheets": linha_sheets, "id": r_id, "msg": msg_val, "autor": aut_val,
-            "d_ini": d_ini, "h_ini": h_ini, "d_fim": d_fim, "h_fim": h_fim,
-            "status": st_val, "ativo_agora": ativo_agora
-        })
-
-qtd_ativos = sum(1 for r in recados_mobile if r["ativo_agora"])
-badge_pran = f'<div class="badge-novas">{qtd_ativos} no ar</div>' if qtd_ativos > 0 else '<div class="badge-novas" style="color:#64748b;">vazio</div>'
-
-# Monta a lista de recados com design idêntico ao de notificações
-linhas_recados_html = ""
-if not recados_mobile:
-    linhas_recados_html = '<div style="color:#64748b; font-size:0.82rem; padding:12px; text-align:center;">Nenhum comunicado cadastrado na base.</div>'
-else:
-    for item in recados_mobile:
-        cor_st = "#00D672" if item["ativo_agora"] else "#64748b"
-        txt_st = "NO AR" if item["ativo_agora"] else ("PAUSADO" if item["status"] != "ATIVO" else "FORA HORÁRIO")
-        linhas_recados_html += f"""
-        <div style="background:#070f1d; border:1px solid #16365c; border-left:3px solid {cor_st}; border-radius:10px; padding:10px 12px; margin-bottom:8px;">
-            <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px;">
-                <div style="color:#ffffff; font-weight:700; font-size:0.85rem; line-height:1.3;">📌 {html_lib.escape(item['msg'])}</div>
-                <span style="background:#0d2a4a; border:1px solid {cor_st}; color:{cor_st}; font-size:0.65rem; font-weight:bold; padding:2px 6px; border-radius:4px; white-space:nowrap;">{txt_st}</span>
-            </div>
-            <div style="color:#94a3b8; font-size:0.75rem; margin-top:6px;">
-                👤 <b style="color:#38bdf8;">{html_lib.escape(item['autor'])}</b> &nbsp;|&nbsp; 🕒 <b>{item['d_ini']} {item['h_ini']}</b> até <b>{item['d_fim']} {item['h_fim']}</b>
-            </div>
-        </div>
-        """
-
-html_prancheta_card = f"""
-<style>
-    details#box-prancheta summary {{
-        display: flex; align-items: center; gap: 10px; cursor: pointer;
-        list-style: none; outline: none; -webkit-tap-highlight-color: transparent;
-    }}
-    details#box-prancheta summary::-webkit-details-marker {{ display: none; }}
-    details#box-prancheta .pran-chev {{
-        color: #38bdf8; font-size: 1.6rem; line-height: 1;
-        transition: transform 0.25s ease; margin-left: 6px;
-    }}
-    details#box-prancheta[open] .pran-chev {{ transform: rotate(90deg); }}
-</style>
-<details id="box-prancheta" class="card-main" style="margin-bottom: 14px;">
-    <summary>
-        <div class="icon-sq">📋</div>
-        <div class="card-title">Prancheta Operacional</div>
-        {badge_pran}
-        <div class="pran-chev">›</div>
-    </summary>
-    <div style="margin-top: 12px; border-top: 1px solid #12304a; padding-top: 12px;">
-        {linhas_recados_html}
-    </div>
-</details>
-"""
-render_html(html_prancheta_card)
-
-# Formulário para adicionar comunicado logo abaixo (ou gerenciar), sem quebrar o layout
+# Formulário para adicionar comunicado logo abaixo (sem quebrar layout)
 with st.expander("➕ Gerenciar / Adicionar Novo Comunicado"):
     with st.form("form_novo_recado_mobile", clear_on_submit=True):
         in_msg = st.text_area("Mensagem do Comunicado", placeholder="Ex: Doca 04 em manutenção. Direcionar carretas para docas 01 a 03.")
@@ -1336,6 +938,7 @@ with st.expander("➕ Gerenciar / Adicionar Novo Comunicado"):
                     st.success("✅ Gravado com sucesso!")
                     st.cache_data.clear()
                     st.rerun()
+
                     
 # ==============================================================================
 # 🖨️ RENDERIZAÇÃO 3.5: PREVISÕES DO DIA (PRODUÇÃO & CARREGAMENTO)
