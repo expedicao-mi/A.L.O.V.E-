@@ -1334,26 +1334,31 @@ with st.expander("🛠️ Console de Telemetria & Logs do Core (Dev)", expanded=
         except Exception:
             minutos_atras = 0.0
 
-        # 2. Contador de Erros nas últimas voltas
-        erros_df = df_logs[df_logs["EVENTO"].astype(str).str.contains("❌|🚨|ERRO|CRÍTICO|Falha|Lock", case=False, na=False)]
+                # Função para identificar APENAS falhas e erros reais do Core
+        def eh_erro_ou_alerta_real(texto):
+            t = str(texto).upper()
+            # Se for log de sincronização rotineira do SAP, IGNORA (é fluxo normal!)
+            if "SINCRONIZAÇÃO CONCLUÍDA" in t or "SINCRONIZACAO CONCLUIDA" in t:
+                return False
+            # Termos que representam quedas, falhas e intervenções reais
+            termos_falha = [
+                "ERRO", "FALHA", "CRÍTICO", "CRITICO", "DEADLOCK", 
+                "HARD KILL", "MODO DE RECUPERAÇÃO", "MODO DE RECUPERACAO", 
+                "REINICIANDO EM", "SEM CONEXÃO", "SEM CONEXAO"
+            ]
+            if any(termo in t for termo in termos_falha):
+                return True
+            if "❌" in t and "EXCLUÍDA" not in t and "EXCLUIDA" not in t:
+                return True
+            if "🚨" in t and "TEMPO CRÍTICO" not in t:
+                return True
+            return False
+
+        # 2. Contador de Erros Reais
+        mask_erros = df_logs["EVENTO"].apply(eh_erro_ou_alerta_real)
+        erros_df = df_logs[mask_erros]
         qtd_erros = len(erros_df)
 
-        col_h1, col_h2 = st.columns(2)
-        with col_h1:
-            if minutos_atras <= 4.0:
-                st.success(f"🟢 Core Online\n(Último pulso: {int(minutos_atras)}m atrás)")
-            elif minutos_atras <= 10.0:
-                st.warning(f"🟡 Core em Pausa\n(Último pulso: {int(minutos_atras)}m atrás)")
-            else:
-                st.error(f"🔴 Core sem Resposta\n(Inativo há {int(minutos_atras)}m)")
-
-        with col_h2:
-            if qtd_erros == 0:
-                st.metric("Erros Recentes", "0", delta="Estável", delta_color="normal")
-            else:
-                st.metric("Erros Recentes", f"{qtd_erros}", delta="- Atenção", delta_color="inverse")
-
-        st.markdown("<hr style='margin: 8px 0; border-color: #1c2b42;'>", unsafe_allow_html=True)
 
         # 3. Filtros Rápidos Mobile
         f_c1, f_c2 = st.columns([1, 1])
