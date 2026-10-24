@@ -1370,8 +1370,12 @@ render_html(html_exp_completo)
 
 
 # ==============================================================================
-# 🖨️ RENDERIZAÇÃO 7: ESTOQUE FÍSICO (BARRAS VERTICAIS + ROSCA EQ vs SQ)
+# 🖨️ RENDERIZAÇÃO 7: ESTOQUE FÍSICO (COM BARRA DE OCUPAÇÃO 25K + BARRAS + ROSCA)
 # ==============================================================================
+CAPACIDADE_MAX_ARMAZEM = 25000.0
+pct_ocupacao_est = min(100.0, max(0.0, (estoque_total / CAPACIDADE_MAX_ARMAZEM * 100.0)))
+espaco_livre_est = max(0.0, CAPACIDADE_MAX_ARMAZEM - estoque_total)
+
 # 1. Processamento e segregação dos materiais
 itens_barras = []
 tot_eq = 0.0
@@ -1407,22 +1411,18 @@ tot_geral_calc = (tot_eq + tot_sq) if (tot_eq + tot_sq) > 0 else (estoque_total 
 pct_sq = min(100.0, max(0.0, (tot_sq / tot_geral_calc) * 100.0))
 pct_eq = 100.0 - pct_sq
 
-# 2. Montagem das Barras Verticais com escala ajustada (folga no teto)
+# 2. Montagem das Barras Verticais com escala rebaixada (folga no teto)
 barras_html = ""
 for item in itens_barras[:8]:
     cor_b = "#00D6FF" if item["is_sq"] else "#00E676"
-    # Escala rebaixada para 68px: impede que o valor superior passe da borda
     h_px = max(6, int((item["ton"] / max_ton_est) * 68))
     
     barras_html += f"""
     <div style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; min-width: 38px;">
-        <!-- VALOR NO TOPO COM RESPIRO -->
         <div style="color: {cor_b}; font-size: 0.68rem; font-weight: 800; margin-bottom: 6px; white-space: nowrap;">
             {fmt(item['ton'])} t
         </div>
-        <!-- BARRA VERTICAL -->
         <div style="width: 24px; height: {h_px}px; background: {cor_b}; border-radius: 4px 4px 0 0; box-shadow: 0 0 10px {cor_b}44;"></div>
-        <!-- BASE E RÓTULOS -->
         <div style="width: 100%; border-top: 1.5px solid #1c2b42; padding-top: 5px; text-align: center;">
             <div style="color: #cbd5e1; font-size: 0.75rem; font-weight: 800;">{item['cod']}</div>
             <div style="color: #64748b; font-size: 0.65rem; font-weight: 700;">({item['tipo']})</div>
@@ -1433,9 +1433,7 @@ for item in itens_barras[:8]:
 # 3. Montagem do Gráfico Donut (SVG Vetorial)
 svg_donut = f"""
 <svg width="115" height="115" viewBox="0 0 42 42" style="transform: rotate(-90deg); display: block;">
-    <!-- Círculo Base EQ (Verde) -->
     <circle cx="21" cy="21" r="15.91549430918954" fill="transparent" stroke="#00E676" stroke-width="5.5"></circle>
-    <!-- Círculo Fatia SQ (Azul Ciano) -->
     <circle cx="21" cy="21" r="15.91549430918954" fill="transparent" stroke="#00D6FF" stroke-width="5.6"
             stroke-dasharray="{pct_sq:.1f} {100.0 - pct_sq:.1f}" stroke-dashoffset="0"
             stroke-linecap="round"></circle>
@@ -1445,17 +1443,35 @@ svg_donut = f"""
 html_est = f"""
 <details class="master-box" style="border-left-color: #00E676;" open>
     <summary>
+        <!-- TOPO DO CARD -->
         <div class="header-layout">
             <div class="icon-box" style="background-color: rgba(0, 230, 118, 0.15); color: #00E676;">📦</div>
             <div class="master-metric-title">Estoque Físico no Armazém</div>
         </div>
-        <div class="value-layout">
+
+        <!-- VALOR PRINCIPAL -->
+        <div class="value-layout" style="margin-bottom: 2px;">
             <div class="master-metric-val">{fmt(estoque_total)}</div>
             <div class="master-metric-unit">TON</div>
         </div>
+
+        <!-- BARRA DE OCUPAÇÃO (MÉTRICA 25.000 t) -->
+        <div style="margin-top: 6px; margin-bottom: 2px;">
+            <div style="font-size: 0.75rem; color: #cbd5e1; margin-bottom: 5px;">
+                Ocupação: <b style="color: #ffffff;">{fmt(estoque_total)} t</b> de <b style="color: #ffffff;">{fmt(CAPACIDADE_MAX_ARMAZEM)} t</b> ({pct_ocupacao_est:.0f}%) 📦
+            </div>
+            <div style="width: 100%; height: 7px; background: #14243b; border-radius: 999px; overflow: hidden;">
+                <div style="width: {pct_ocupacao_est:.1f}%; height: 100%; background: linear-gradient(90deg, #38bdf8 0%, #00E676 100%); border-radius: 999px; box-shadow: 0 0 10px rgba(0,230,118,0.45);"></div>
+            </div>
+            <div style="display: flex; justify-content: space-between; font-size: 0.72rem; color: #64748b; margin-top: 4px;">
+                <span>Espaço Livre: <b style="color: #38bdf8;">{fmt(espaco_livre_est)} t</b></span>
+                <span>Capacidade: 25.000 t</span>
+            </div>
+        </div>
     </summary>
+
     <div class="master-content" style="padding-top: 14px;">
-        <!-- 1. CARD SUPERIOR: BARRAS COM BORDA DISCRETA E ESPAÇO NO TOPO -->
+        <!-- 1. CARD SUPERIOR: BARRAS POR MATERIAL COM BORDA DISCRETA -->
         <div style="background: #070d18; border: 1.5px solid #142842; border-radius: 14px; padding: 18px 8px 10px 8px; margin-bottom: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.25);">
             <div style="display: flex; justify-content: space-around; align-items: flex-end; height: 135px; gap: 4px; padding: 0 4px;">
                 {barras_html if itens_barras else '<div style="color:#64748b; font-size:0.8rem; margin:auto;">Aguardando dados segregados...</div>'}
@@ -1464,14 +1480,11 @@ html_est = f"""
 
         <!-- 2. CARD INFERIOR: DONUT ROSCA (MATERIAL EQ vs SQ) -->
         <div style="background: #070d18; border: 1.5px solid #142842; border-radius: 14px; padding: 14px 18px; display: flex; align-items: center; justify-content: space-around; gap: 14px; box-shadow: 0 4px 12px rgba(0,0,0,0.25);">
-            <!-- ROSCA SVG -->
             <div style="position: relative; width: 115px; height: 115px; flex-shrink: 0;">
                 {svg_donut}
             </div>
 
-            <!-- LEGENDA EQ E SQ -->
             <div style="display: flex; flex-direction: column; gap: 12px; min-width: 130px;">
-                <!-- MATERIAL EQ -->
                 <div>
                     <div style="display: flex; align-items: center; gap: 8px; font-size: 0.82rem; color: #cbd5e1; font-weight: 700;">
                         <span style="width: 10px; height: 10px; border-radius: 50%; background: #00E676; display: inline-block;"></span>
@@ -1482,7 +1495,6 @@ html_est = f"""
                     </div>
                 </div>
 
-                <!-- MATERIAL SQ -->
                 <div>
                     <div style="display: flex; align-items: center; gap: 8px; font-size: 0.82rem; color: #cbd5e1; font-weight: 700;">
                         <span style="width: 10px; height: 10px; border-radius: 50%; background: #00D6FF; display: inline-block;"></span>
@@ -1498,6 +1510,7 @@ html_est = f"""
 </details>
 """
 render_html(html_est)
+
 
 
 
