@@ -602,13 +602,50 @@ if not df_balanco_dest.empty:
             })
 
 # ==============================================================================
-# 🖨️ RENDERIZAÇÃO 1: TOPO (BANNER, STATUS COMPACTO & SEMÁFORO)
+# 🖨️ RENDERIZAÇÃO 1: TOPO (STATUS HORIZONTAL, SEMÁFORO CORE & COMUNICADOS DUO)
 # ==============================================================================
 st.markdown(f'<div class="topo-banner"><img src="{BANNER_TOPO_URL}"></div>', unsafe_allow_html=True)
 
-# 1. CARD DE STATUS COM BOTÃO 'ATUALIZAR' LADO A LADO À DIREITA
+# CSS específico para travar o botão Atualizar ao lado do texto no iPhone sem quebrar linha
+st.markdown("""
+    <style>
+        .status-box-wrap div[data-testid="stHorizontalBlock"] {
+            display: flex !important;
+            flex-direction: row !important;
+            flex-wrap: nowrap !important;
+            align-items: center !important;
+            justify-content: space-between !important;
+            gap: 8px !important;
+        }
+        .status-box-wrap div[data-testid="column"]:first-child {
+            flex: 3 !important;
+            min-width: 0 !important;
+        }
+        .status-box-wrap div[data-testid="column"]:last-child {
+            flex: 1.4 !important;
+            min-width: 0 !important;
+        }
+        .status-box-wrap .stButton > button {
+            background: #070d18 !important;
+            color: #ffffff !important;
+            font-size: 0.72rem !important;
+            font-weight: 800 !important;
+            border: 1.5px solid #00b4ff !important;
+            border-radius: 999px !important;
+            min-height: 2rem !important;
+            height: 32px !important;
+            padding: 0 8px !important;
+            box-shadow: 0 0 10px rgba(0, 180, 255, 0.35) !important;
+            white-space: nowrap !important;
+            margin: 0 !important;
+        }
+    </style>
+""", unsafe_allow_html=True)
+
+# 1. CARD DE STATUS COMPACTO (LADO A LADO)
 with st.container(border=True):
-    col_status_txt, col_status_btn = st.columns([3, 1.2], vertical_alignment="center")
+    st.markdown('<div class="status-box-wrap">', unsafe_allow_html=True)
+    col_status_txt, col_status_btn = st.columns([3, 1.4], vertical_alignment="center")
     with col_status_txt:
         render_html(f"""
             <div style="display:flex; align-items:center; margin-bottom:2px;">
@@ -618,62 +655,288 @@ with st.container(border=True):
             <div class="conn-sub" style="font-size:0.8rem; color:#9fb3cc;">🕒 Última atualização: {conn_hora}</div>
         """)
     with col_status_btn:
-        if st.button("🔄 Atualizar", key="btn_topo_atualizar", use_container_width=True):
+        if st.button("🔄 Atualizar", key="btn_topo_horizontal", use_container_width=True):
             st.cache_data.clear()
             st.rerun()
+    st.markdown('</div>', unsafe_allow_html=True)
 
-# 2. SEMÁFORO DOS SISTEMAS (ROBÔ, TORRE, TOTEM, TV)
-is_robo_ok = minutos_inativos <= 5.0
-led_robo = "#00D672" if is_robo_ok else "#E74C3C"
-borda_robo = "#00D672" if is_robo_ok else "#1c2b42"
+# 2. SEMÁFORO DOS SISTEMAS (CORE VERDE / RESTANTE VERMELHO)
+led_core = "#00D672"
+borda_core = "#00D672"
 
-is_torre_ok = minutos_inativos <= 10.0
-led_torre = "#00D672" if is_torre_ok else "#E74C3C"
-borda_torre = "#00D672" if is_torre_ok else "#1c2b42"
-
-is_totem_ok = minutos_inativos <= 15.0
-led_totem = "#00D672" if is_totem_ok else "#E74C3C"
-borda_totem = "#00D672" if is_totem_ok else "#1c2b42"
-
-is_tv_ok = minutos_inativos <= 15.0
-led_tv = "#00D672" if is_tv_ok else "#E74C3C"
-borda_tv = "#00D672" if is_tv_ok else "#1c2b42"
+led_off = "#E74C3C"
+borda_off = "#1c2b42"
 
 html_semaforo = f"""
 <div class="card-main" style="margin-bottom: 12px; padding: 10px 8px; border-color: #12506e;">
     <div style="display: flex; justify-content: space-between; align-items: center; gap: 6px;">
-        <div style="flex: 1; background: #070d18; border: 1.5px solid {borda_robo}; border-radius: 12px; padding: 10px 2px; text-align: center;">
+        <!-- CORE (ONLINE 🟢) -->
+        <div style="flex: 1; background: #070d18; border: 1.5px solid {borda_core}; border-radius: 12px; padding: 10px 2px; text-align: center; box-shadow: 0 0 10px rgba(0, 214, 114, 0.15);">
             <div style="display: flex; justify-content: center; align-items: center; gap: 6px; margin-bottom: 4px;">
                 <span style="font-size: 1.45rem;">🤖</span>
-                <span style="width: 9px; height: 9px; border-radius: 50%; background: {led_robo}; box-shadow: 0 0 8px {led_robo}; display: inline-block;"></span>
+                <span style="width: 9px; height: 9px; border-radius: 50%; background: {led_core}; box-shadow: 0 0 8px {led_core}; display: inline-block;"></span>
             </div>
-            <div style="color: #ffffff; font-size: 0.72rem; font-weight: 800; letter-spacing: 0.5px;">ROBÔ</div>
+            <div style="color: #ffffff; font-size: 0.72rem; font-weight: 800; letter-spacing: 0.5px;">CORE</div>
         </div>
-        <div style="flex: 1; background: #070d18; border: 1.5px solid {borda_torre}; border-radius: 12px; padding: 10px 2px; text-align: center;">
+
+        <!-- TORRE (OFFLINE 🔴) -->
+        <div style="flex: 1; background: #070d18; border: 1.5px solid {borda_off}; border-radius: 12px; padding: 10px 2px; text-align: center;">
             <div style="display: flex; justify-content: center; align-items: center; gap: 6px; margin-bottom: 4px;">
                 <span style="font-size: 1.45rem;">📡</span>
-                <span style="width: 9px; height: 9px; border-radius: 50%; background: {led_torre}; box-shadow: 0 0 8px {led_torre}; display: inline-block;"></span>
+                <span style="width: 9px; height: 9px; border-radius: 50%; background: {led_off}; box-shadow: 0 0 8px {led_off}; display: inline-block;"></span>
             </div>
-            <div style="color: #ffffff; font-size: 0.72rem; font-weight: 800; letter-spacing: 0.5px;">TORRE</div>
+            <div style="color: #64748b; font-size: 0.72rem; font-weight: 800; letter-spacing: 0.5px;">TORRE</div>
         </div>
-        <div style="flex: 1; background: #070d18; border: 1.5px solid {borda_totem}; border-radius: 12px; padding: 10px 2px; text-align: center;">
+
+        <!-- TOTEM (OFFLINE 🔴) -->
+        <div style="flex: 1; background: #070d18; border: 1.5px solid {borda_off}; border-radius: 12px; padding: 10px 2px; text-align: center;">
             <div style="display: flex; justify-content: center; align-items: center; gap: 6px; margin-bottom: 4px;">
                 <span style="font-size: 1.45rem;">📱</span>
-                <span style="width: 9px; height: 9px; border-radius: 50%; background: {led_totem}; box-shadow: 0 0 8px {led_totem}; display: inline-block;"></span>
+                <span style="width: 9px; height: 9px; border-radius: 50%; background: {led_off}; box-shadow: 0 0 8px {led_off}; display: inline-block;"></span>
             </div>
-            <div style="color: #ffffff; font-size: 0.72rem; font-weight: 800; letter-spacing: 0.5px;">TOTEM</div>
+            <div style="color: #64748b; font-size: 0.72rem; font-weight: 800; letter-spacing: 0.5px;">TOTEM</div>
         </div>
-        <div style="flex: 1; background: #070d18; border: 1.5px solid {borda_tv}; border-radius: 12px; padding: 10px 2px; text-align: center;">
+
+        <!-- TV (OFFLINE 🔴) -->
+        <div style="flex: 1; background: #070d18; border: 1.5px solid {borda_off}; border-radius: 12px; padding: 10px 2px; text-align: center;">
             <div style="display: flex; justify-content: center; align-items: center; gap: 6px; margin-bottom: 4px;">
                 <span style="font-size: 1.45rem;">📺</span>
-                <span style="width: 9px; height: 9px; border-radius: 50%; background: {led_tv}; box-shadow: 0 0 8px {led_tv}; display: inline-block;"></span>
+                <span style="width: 9px; height: 9px; border-radius: 50%; background: {led_off}; box-shadow: 0 0 8px {led_off}; display: inline-block;"></span>
             </div>
-            <div style="color: #ffffff; font-size: 0.72rem; font-weight: 800; letter-spacing: 0.5px;">TV</div>
+            <div style="color: #64748b; font-size: 0.72rem; font-weight: 800; letter-spacing: 0.5px;">TV</div>
         </div>
     </div>
 </div>
 """
 render_html(html_semaforo)
+
+# ==============================================================================
+# 🖨️ RENDERIZAÇÃO 2: NOTIFICAÇÕES & PRANCHETA (LADO A LADO, ABRE E FECHA)
+# ==============================================================================
+# 1. Processamento das Notificações
+alertas_lista = []
+if not df_alertas.empty:
+    for _, ra in df_alertas.iterrows():
+        nivel = str(ra.get("NIVEL", "")).strip().upper()
+        texto = str(ra.get("ALERTA", "")).strip()
+        if not texto or texto.lower() == "nan": continue
+        dh = str(ra.get("DATA_HORA", "")).strip()
+        hora = dh.split(" ")[1][:5] if " " in dh else "--:--"
+        texto_limpo = re.sub(r'^[^\w\[\(]+', '', texto)
+        alertas_lista.append((nivel, texto_limpo, hora))
+
+ordem_nivel = {"CRITICO": 0, "ATENCAO": 1, "NORMAL": 2}
+alertas_lista.sort(key=lambda a: ordem_nivel.get(a[0], 3))
+
+ESTILO_NIVEL = {
+    "CRITICO": ("#E74C3C", "rgba(231,76,60,.18)", "🚨", "Alerta crítico"),
+    "ATENCAO": ("#FFD600", "rgba(255,214,0,.16)", "⚠️", "Atenção"),
+    "NORMAL":  ("#00D672", "rgba(0,214,114,.16)", "✅", "Operação normal"),
+}
+
+def render_notif(nivel, texto, hora):
+    cor, bg, ico, titulo = ESTILO_NIVEL.get(nivel, ESTILO_NIVEL["ATENCAO"])
+    return (
+        f'<div class="notif-item">'
+        f'<div class="notif-ico" style="background:{bg}; color:{cor};">{ico}</div>'
+        f'<div class="notif-txt"><div class="notif-tit">{titulo}</div><div class="notif-desc">{html_lib.escape(texto)}</div></div>'
+        f'<div class="notif-hora">{hora}<i style="background:{cor};"></i></div>'
+        f'</div>'
+    )
+
+conteudo_notifs = "".join(render_notif(*a) for a in alertas_lista) if alertas_lista else '<div style="color:#64748b; font-size:0.82rem; padding:12px; text-align:center;">Nenhuma notificação ativa no momento.</div>'
+total_notifs = len(alertas_lista)
+
+# 2. Processamento da Prancheta Operacional
+recados_mobile = []
+if not df_prancheta.empty:
+    for idx_df, rp in df_prancheta.iterrows():
+        linha_sheets = idx_df + 2
+        valores_linha = [str(x).strip() for x in rp.tolist()]
+        if not any(valores_linha): continue
+
+        msg_val, aut_val, st_val = "", "Cristiano", "ATIVO"
+        d_ini, h_ini, d_fim, h_fim, r_id = hoje_date.strftime("%d/%m/%Y"), "00:00", hoje_date.strftime("%d/%m/%Y"), "23:59", str(idx_df + 1)
+
+        for v in valores_linha:
+            if v.upper() in ("ATIVO", "INATIVO"): st_val = v.upper(); break
+
+        horarios_achados = [v for v in valores_linha if re.match(r'^\d{1,2}:\d{2}$', v)]
+        if len(horarios_achados) >= 1: h_ini = horarios_achados[0]
+        if len(horarios_achados) >= 2: h_fim = horarios_achados[1]
+
+        datas_achadas = [v for v in valores_linha if re.match(r'^\d{1,2}/\d{1,2}(/\d{2,4})?$', v)]
+        if len(datas_achadas) >= 1: d_ini = datas_achadas[0]
+        if len(datas_achadas) >= 2: d_fim = datas_achadas[1]
+
+        textos_candidatos = [
+            v for v in valores_linha 
+            if v not in horarios_achados and v not in datas_achadas and v.upper() not in ("ATIVO", "INATIVO", "CRISTIANO", "CORE", "OPERACAO", "NAN", "") and not v.isdigit() and not v.upper().startswith("ATUALIZADO:")
+        ]
+        if textos_candidatos: msg_val = max(textos_candidatos, key=len)
+        elif len(rp) > 5 and str(rp.iloc[5]).strip(): msg_val = str(rp.iloc[5]).strip()
+
+        for v in valores_linha:
+            if v.upper() in ("CRISTIANO", "MAYCON", "LÍDER", "CORE", "OPERAÇÃO", "OPERACAO"): aut_val = v; break
+
+        if not msg_val: continue
+
+        ativo_agora = True
+        try:
+            def pad_data(ds):
+                p = ds.split("/")
+                return f"{p[0].zfill(2)}/{p[1].zfill(2)}/{hoje_date.year}" if len(p) == 2 else ds
+            dt_i = datetime.strptime(f"{pad_data(d_ini)} {h_ini[:5]}", "%d/%m/%Y %H:%M")
+            dt_f = datetime.strptime(f"{pad_data(d_fim)} {h_fim[:5]}", "%d/%m/%Y %H:%M")
+            if not (dt_i <= agora_br <= dt_f) or st_val != "ATIVO": ativo_agora = False
+        except: ativo_agora = (st_val == "ATIVO")
+
+        recados_mobile.append({
+            "linha_sheets": linha_sheets, "id": r_id, "msg": msg_val, "autor": aut_val,
+            "d_ini": d_ini, "h_ini": h_ini, "d_fim": d_fim, "h_fim": h_fim,
+            "status": st_val, "ativo_agora": ativo_agora
+        })
+
+qtd_ativos = sum(1 for r in recados_mobile if r["ativo_agora"])
+
+linhas_recados_html = ""
+if not recados_mobile:
+    linhas_recados_html = '<div style="color:#64748b; font-size:0.82rem; padding:12px; text-align:center;">Nenhum comunicado cadastrado na base.</div>'
+else:
+    for item in recados_mobile:
+        cor_st = "#00D672" if item["ativo_agora"] else "#64748b"
+        txt_st = "NO AR" if item["ativo_agora"] else ("PAUSADO" if item["status"] != "ATIVO" else "FORA HORÁRIO")
+        linhas_recados_html += f"""
+        <div style="background:#070f1d; border:1px solid #16365c; border-left:3px solid {cor_st}; border-radius:10px; padding:10px 12px; margin-bottom:8px;">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px;">
+                <div style="color:#ffffff; font-weight:700; font-size:0.85rem; line-height:1.3;">📌 {html_lib.escape(item['msg'])}</div>
+                <span style="background:#0d2a4a; border:1px solid {cor_st}; color:{cor_st}; font-size:0.65rem; font-weight:bold; padding:2px 6px; border-radius:4px; white-space:nowrap;">{txt_st}</span>
+            </div>
+            <div style="color:#94a3b8; font-size:0.75rem; margin-top:6px;">
+                👤 <b style="color:#38bdf8;">{html_lib.escape(item['autor'])}</b> &nbsp;|&nbsp; 🕒 <b>{item['d_ini']} {item['h_ini']}</b> até <b>{item['d_fim']} {item['h_fim']}</b>
+            </div>
+        </div>
+        """
+
+# 3. COMPONENTE LADO A LADO QUE ABRE E FECHA (TOGGLE VIA CHECKBOX)
+html_notif_prancheta_duo = f"""
+<style>
+    .duo-box-wrap input[type="checkbox"] {{ display: none !important; }}
+
+    .duo-btn-bar {{
+        display: flex;
+        justify-content: center;
+        gap: 8px;
+        margin-bottom: 12px;
+    }}
+    .duo-btn-bar label {{
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 10px 6px;
+        font-size: 0.80rem;
+        font-weight: 800;
+        color: #94a3b8;
+        background: #070d18;
+        border: 1.5px solid #1c2b42;
+        border-radius: 12px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        white-space: nowrap;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+    }}
+    .duo-badge-pill {{
+        background: #0d2a4a;
+        border: 1px solid #12506e;
+        color: #38bdf8;
+        font-size: 0.68rem;
+        font-weight: 700;
+        padding: 2px 7px;
+        border-radius: 999px;
+    }}
+
+    /* EFEITO AO ABRIR (ATIVO) */
+    #chk_notif:checked ~ .duo-btn-bar .lbl-btn-notif {{
+        background: #0c1a30 !important;
+        color: #38bdf8 !important;
+        border-color: #38bdf8 !important;
+        box-shadow: 0 0 10px rgba(56, 189, 248, 0.35);
+    }}
+    #chk_pran:checked ~ .duo-btn-bar .lbl-btn-pran {{
+        background: #0c1a30 !important;
+        color: #00D672 !important;
+        border-color: #00D672 !important;
+        box-shadow: 0 0 10px rgba(0, 214, 114, 0.35);
+    }}
+
+    /* INICIAM FECHADOS (DISPLAY NONE) E SÓ ABREM SE O CHECKBOX ESTIVER MARCADO */
+    .duo-painel-notif, .duo-painel-pran {{
+        display: none;
+    }}
+    #chk_notif:checked ~ .duo-painel-notif {{
+        display: block !important;
+    }}
+    #chk_pran:checked ~ .duo-painel-pran {{
+        display: block !important;
+    }}
+
+    .duo-fechar-btn {{
+        background: #14243b;
+        color: #94a3b8;
+        font-size: 0.70rem;
+        font-weight: 700;
+        padding: 3px 8px;
+        border-radius: 6px;
+        cursor: pointer;
+        border: 1px solid #1c2b42;
+    }}
+</style>
+
+<div class="duo-box-wrap">
+    <input type="checkbox" id="chk_notif">
+    <input type="checkbox" id="chk_pran">
+
+    <!-- OS 2 BOTÕES LADO A LADO -->
+    <div class="duo-btn-bar">
+        <label for="chk_notif" class="lbl-btn-notif">
+            <span style="font-size: 1.1rem;">🔔</span>
+            <span>NOTIFICAÇÕES</span>
+            <span class="duo-badge-pill">{total_notifs}</span>
+        </label>
+        <label for="chk_pran" class="lbl-btn-pran">
+            <span style="font-size: 1.1rem;">📋</span>
+            <span>PRANCHETA</span>
+            <span class="duo-badge-pill" style="color: #00D672; border-color: #00D672;">{qtd_ativos}</span>
+        </label>
+    </div>
+
+    <!-- PAINEL NOTIFICAÇÕES (ABRE E FECHA) -->
+    <div class="duo-painel-notif card-main" style="margin-bottom: 14px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <span style="font-size: 0.8rem; font-weight: 800; color: #38bdf8;">🔔 NOTIFICAÇÕES ATIVAS</span>
+            <label for="chk_notif" class="duo-fechar-btn">✕ Fechar</label>
+        </div>
+        <div class="notif-lista" style="max-height: 320px; overflow-y: auto;">
+            {conteudo_notifs}
+        </div>
+    </div>
+
+    <!-- PAINEL PRANCHETA (ABRE E FECHA) -->
+    <div class="duo-painel-pran card-main" style="margin-bottom: 14px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <span style="font-size: 0.8rem; font-weight: 800; color: #00D672;">📋 COMUNICADOS OPERACIONAIS</span>
+            <label for="chk_pran" class="duo-fechar-btn">✕ Fechar</label>
+        </div>
+        <div style="max-height: 320px; overflow-y: auto;">
+            {linhas_recados_html}
+        </div>
+    </div>
+</div>
+"""
+render_html(html_notif_prancheta_duo)
+
 
 # ==============================================================================
 # 🖨️ RENDERIZAÇÃO 2: NOTIFICAÇÕES & PRANCHETA LADO A LADO EM 2 BLOCOS
