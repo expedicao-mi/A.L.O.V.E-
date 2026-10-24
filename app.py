@@ -602,153 +602,34 @@ if not df_balanco_dest.empty:
             })
 
 # ==============================================================================
-# 🖨️ RENDERIZAÇÃO 1: TOPO (STATUS E SEMÁFORO UNIFICADOS EM ACORDEON)
+# 🖨️ RECARGA NATIVA & SPLASH SCREEN (A.L.O.V.E TYPING EFFECT)
 # ==============================================================================
-st.markdown(f'<div class="topo-banner"><img src="{BANNER_TOPO_URL}"></div>', unsafe_allow_html=True)
+# Tratamento de atualização instantânea via botão HTML nativo
+if st.query_params.get("refresh") == "1":
+    st.cache_data.clear()
+    st.query_params.clear()
+    st.rerun()
 
-# Usamos colunas nativas para posicionar o botão à direita e CSS para puxar o HTML para debaixo dele
 st.markdown("""
     <style>
-        /* Estilo do botão de Atualizar Quadrado (Primary) */
-        button[kind="primary"] {
-            background: #070d18 !important;
-            border: 1px solid #38bdf8 !important;
-            border-radius: 8px !important;
-            color: #ffffff !important;
-            font-size: 1.3rem !important;
-            height: 42px !important;
-            padding: 0 !important;
-            box-shadow: 0 0 10px rgba(56, 189, 248, 0.15) !important;
-            margin-top: 8px !important;
-        }
-        button[kind="primary"]:active {
-            background: #0c1a30 !important;
-            border-color: #00D672 !important;
-        }
-        
-        /* Puxa o bloco HTML para cima e encaixa com o botão */
-        .status-pull-up {
-            margin-top: -62px;
-            position: relative;
-            z-index: 1;
-        }
-        
-        /* Garante que o botão fique por cima do HTML e clicável */
-        div[data-testid="stHorizontalBlock"] {
-            position: relative;
-            z-index: 10;
-            pointer-events: none; /* Deixa o clique passar no espaço vazio */
-        }
-        div[data-testid="stHorizontalBlock"] button {
-            pointer-events: auto; /* Reativa o clique apenas no botão */
-        }
-    </style>
-""", unsafe_allow_html=True)
-
-# Cria as colunas, jogando o botão para o canto direito (peso 1)
-col_space, col_btn = st.columns([4.5, 1])
-with col_btn:
-    if st.button("🔄", type="primary", use_container_width=True):
-        st.cache_data.clear()
-        st.rerun()
-
-# Cores fixadas (CORE Verde, Restante Vermelho)
-led_core = "#00D672"
-borda_core = "#00D672"
-led_off = "#E74C3C"
-borda_off = "#1c2b42"
-
-html_status_semaforo = f"""
-<div class="status-pull-up">
-    <!-- Repare que removemos o "open", então ele inicia FECHADO -->
-    <details class="master-box" style="border: 1.5px solid #1c2b42; border-radius: 12px; margin-bottom: 14px; background: #070d18; overflow: hidden;">
-        <summary style="padding: 16px 14px; padding-right: 65px; border-bottom: none;">
-            <!-- BARRA VERDE ESQUERDA + TÍTULO -->
-            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
-                <div style="width: 4px; height: 18px; background: #00D672; border-radius: 4px;"></div>
-                <div style="color: #ffffff; font-size: 1.1rem; font-weight: 800; letter-spacing: 0.5px;">STATUS DO SISTEMA</div>
-            </div>
-            
-            <!-- SUBTÍTULO (BOLINHA VERDE ATUALIZADO + HORA) -->
-            <div style="display: flex; align-items: center; gap: 12px; font-size: 0.78rem;">
-                <div style="color: #00D672; font-weight: 800; display: flex; align-items: center; gap: 5px;">
-                    <span style="width: 12px; height: 12px; border-radius: 50%; background: #00D672; display: inline-block; box-shadow: 0 0 6px #00D672;"></span>
-                    ATUALIZADO
-                </div>
-                <div style="color: #9fb3cc; font-weight: 500;">🕒 Última atualização: {conn_hora}</div>
-            </div>
-        </summary>
-        
-        <!-- O SEMÁFORO QUE SÓ APARECE QUANDO VOCÊ EXPANDIR -->
-        <div class="master-content" style="padding: 16px 12px; border-top: 1px solid #1c2b42; background: #050911;">
-            <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
-                <!-- CORE (ONLINE 🟢) -->
-                <div style="flex: 1; background: #070d18; border: 1.5px solid {borda_core}; border-radius: 10px; padding: 12px 2px; text-align: center; box-shadow: 0 0 12px rgba(0, 214, 114, 0.15);">
-                    <div style="display: flex; justify-content: center; align-items: center; gap: 6px; margin-bottom: 6px;">
-                        <span style="font-size: 1.5rem; color:#fff;">🤖</span>
-                        <span style="width: 9px; height: 9px; border-radius: 50%; background: {led_core}; box-shadow: 0 0 8px {led_core}; display: inline-block;"></span>
-                    </div>
-                    <div style="color: #ffffff; font-size: 0.75rem; font-weight: 800; letter-spacing: 0.5px;">CORE</div>
-                </div>
-
-                <!-- TORRE (OFFLINE 🔴) -->
-                <div style="flex: 1; background: #070d18; border: 1.5px solid {borda_off}; border-radius: 10px; padding: 12px 2px; text-align: center;">
-                    <div style="display: flex; justify-content: center; align-items: center; gap: 6px; margin-bottom: 6px;">
-                        <span style="font-size: 1.5rem;">📡</span>
-                        <span style="width: 9px; height: 9px; border-radius: 50%; background: {led_off}; box-shadow: 0 0 8px {led_off}; display: inline-block;"></span>
-                    </div>
-                    <div style="color: #64748b; font-size: 0.75rem; font-weight: 800; letter-spacing: 0.5px;">TORRE</div>
-                </div>
-
-                <!-- TOTEM (OFFLINE 🔴) -->
-                <div style="flex: 1; background: #070d18; border: 1.5px solid {borda_off}; border-radius: 10px; padding: 12px 2px; text-align: center;">
-                    <div style="display: flex; justify-content: center; align-items: center; gap: 6px; margin-bottom: 6px;">
-                        <span style="font-size: 1.5rem;">📱</span>
-                        <span style="width: 9px; height: 9px; border-radius: 50%; background: {led_off}; box-shadow: 0 0 8px {led_off}; display: inline-block;"></span>
-                    </div>
-                    <div style="color: #64748b; font-size: 0.75rem; font-weight: 800; letter-spacing: 0.5px;">TOTEM</div>
-                </div>
-
-                <!-- TV (OFFLINE 🔴) -->
-                <div style="flex: 1; background: #070d18; border: 1.5px solid {borda_off}; border-radius: 10px; padding: 12px 2px; text-align: center;">
-                    <div style="display: flex; justify-content: center; align-items: center; gap: 6px; margin-bottom: 6px;">
-                        <span style="font-size: 1.5rem;">📺</span>
-                        <span style="width: 9px; height: 9px; border-radius: 50%; background: {led_off}; box-shadow: 0 0 8px {led_off}; display: inline-block;"></span>
-                    </div>
-                    <div style="color: #64748b; font-size: 0.75rem; font-weight: 800; letter-spacing: 0.5px;">TV</div>
-                </div>
-            </div>
-        </div>
-    </details>
-</div>
-"""
-render_html(html_status_semaforo)
-
-
-# ==============================================================================
-# 🖨️ ANIMAÇÃO DE CARREGAMENTO (A.L.O.V.E TYPING EFFECT) E TELA CHEIA
-# ==============================================================================
-st.markdown("""
-    <style>
-        /* Esconde o aviso padrão do Streamlit "Running..." */
+        /* Oculta o widget nativo 'Running...' do Streamlit */
         [data-testid="stStatusWidget"] {
-            visibility: hidden;
-            display: none;
+            display: none !important;
+            visibility: hidden !important;
         }
-        /* Tela cheia absoluta que cobre TODO O APP enquanto carrega */
+        /* Tela preta com efeito digitando A.L.O.V.E */
         .alove-loader-bg {
             position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-            background: #050911; /* Preto total */
-            z-index: 99999999; display: flex; justify-content: center; align-items: center;
-            animation: loaderFadeOut 0.5s 1.5s forwards; pointer-events: none;
+            background: #050911; z-index: 99999999;
+            display: flex; justify-content: center; align-items: center;
+            animation: loaderFadeOut 0.4s 1.2s forwards; pointer-events: none;
         }
         .alove-loader-text {
             font-size: 2.8rem; font-weight: 900; color: #00D672;
             letter-spacing: 6px; text-shadow: 0 0 20px rgba(0,214,114,0.6);
-            overflow: hidden; white-space: nowrap;
-            border-right: 4px solid #00D672;
+            overflow: hidden; white-space: nowrap; border-right: 4px solid #00D672;
             width: 0;
-            animation: loaderTyping 1.2s steps(7, end) forwards, loaderBlink 0.5s step-end infinite alternate;
+            animation: loaderTyping 1s steps(7, end) forwards, loaderBlink 0.5s step-end infinite alternate;
         }
         @keyframes loaderTyping { from { width: 0 } to { width: 5.5em } }
         @keyframes loaderBlink { 50% { border-color: transparent } }
@@ -757,8 +638,82 @@ st.markdown("""
     <div class="alove-loader-bg"><div class="alove-loader-text">A.L.O.V.E</div></div>
 """, unsafe_allow_html=True)
 
+st.markdown(f'<div class="topo-banner"><img src="{BANNER_TOPO_URL}"></div>', unsafe_allow_html=True)
+
 # ==============================================================================
-# 🖨️ RENDERIZAÇÃO 2: AVISOS & PRANCHETA (COM BADGES MAIORES E FORMULÁRIO INTERNO)
+# 🖨️ RENDERIZAÇÃO 1: STATUS DO SISTEMA + SEMÁFORO (CONFORME IMAGEM 3)
+# ==============================================================================
+led_core = "#00D672"
+borda_core = "#00D672"
+led_off = "#E74C3C"
+borda_off = "#142842"
+
+html_status_sistema = f"""
+<div class="card-main" style="margin-bottom: 14px; padding: 14px 16px; border: 1.5px solid #142842; border-radius: 14px; background: #070d18;">
+    <details open style="border: none; background: transparent;">
+        <summary style="list-style: none; cursor: pointer; outline: none;">
+            <!-- LINHA 1: TÍTULO COM BARRA VERDE -->
+            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                <div style="width: 4px; height: 18px; background: #00D672; border-radius: 2px;"></div>
+                <div style="color: #ffffff; font-size: 1.05rem; font-weight: 800; letter-spacing: 0.5px;">STATUS DO SISTEMA</div>
+            </div>
+
+            <!-- LINHA 2: STATUS, HORA E BOTÃO ATUALIZAR QUADRADO À DIREITA -->
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                    <div style="color: #00D672; font-weight: 800; font-size: 0.95rem; display: flex; align-items: center; gap: 6px;">
+                        <span style="width: 10px; height: 10px; border-radius: 50%; background: #00D672; display: inline-block; box-shadow: 0 0 6px #00D672;"></span>
+                        ATUALIZADO
+                    </div>
+                    <div style="color: #94a3b8; font-size: 0.78rem; font-weight: 500;">
+                        🕒 Última atualização: <span style="color: #cbd5e1;">{conn_hora}</span>
+                    </div>
+                </div>
+                <!-- BOTÃO COMPACTO QUADRADO COM BORDA CIANO -->
+                <a href="?refresh=1" target="_self" onclick="event.stopPropagation();" 
+                   style="width: 38px; height: 38px; border: 1.5px solid #00b4ff; border-radius: 8px; background: #070d18; display: flex; align-items: center; justify-content: center; font-size: 1.15rem; color: #ffffff; text-decoration: none; box-shadow: 0 0 10px rgba(0, 180, 255, 0.25); flex-shrink: 0; margin-left: 8px;">
+                   🔄
+                </a>
+            </div>
+        </summary>
+
+        <!-- LINHA 3: OS 4 CARDS DO SEMÁFORO (CORE, TORRE, TOTEM, TV) -->
+        <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: 14px; padding-top: 12px; border-top: 1px solid #14243b;">
+            <!-- CORE (ONLINE 🟢) -->
+            <div style="flex: 1; background: #070d18; border: 1.5px solid {borda_core}; border-radius: 12px; padding: 12px 2px; text-align: center; position: relative; box-shadow: 0 0 12px rgba(0, 214, 114, 0.2);">
+                <span style="width: 8px; height: 8px; border-radius: 50%; background: {led_core}; box-shadow: 0 0 8px {led_core}; position: absolute; top: 8px; right: 8px;"></span>
+                <div style="font-size: 1.45rem; margin-top: 4px; margin-bottom: 4px;">🤖</div>
+                <div style="color: #ffffff; font-size: 0.75rem; font-weight: 800; letter-spacing: 0.5px;">CORE</div>
+            </div>
+
+            <!-- TORRE (OFFLINE 🔴) -->
+            <div style="flex: 1; background: #070d18; border: 1.5px solid {borda_off}; border-radius: 12px; padding: 12px 2px; text-align: center; position: relative;">
+                <span style="width: 8px; height: 8px; border-radius: 50%; background: {led_off}; box-shadow: 0 0 8px {led_off}; position: absolute; top: 8px; right: 8px;"></span>
+                <div style="font-size: 1.45rem; margin-top: 4px; margin-bottom: 4px;">📡</div>
+                <div style="color: #64748b; font-size: 0.75rem; font-weight: 800; letter-spacing: 0.5px;">TORRE</div>
+            </div>
+
+            <!-- TOTEM (OFFLINE 🔴) -->
+            <div style="flex: 1; background: #070d18; border: 1.5px solid {borda_off}; border-radius: 12px; padding: 12px 2px; text-align: center; position: relative;">
+                <span style="width: 8px; height: 8px; border-radius: 50%; background: {led_off}; box-shadow: 0 0 8px {led_off}; position: absolute; top: 8px; right: 8px;"></span>
+                <div style="font-size: 1.45rem; margin-top: 4px; margin-bottom: 4px;">📱</div>
+                <div style="color: #64748b; font-size: 0.75rem; font-weight: 800; letter-spacing: 0.5px;">TOTEM</div>
+            </div>
+
+            <!-- TV (OFFLINE 🔴) -->
+            <div style="flex: 1; background: #070d18; border: 1.5px solid {borda_off}; border-radius: 12px; padding: 12px 2px; text-align: center; position: relative;">
+                <span style="width: 8px; height: 8px; border-radius: 50%; background: {led_off}; box-shadow: 0 0 8px {led_off}; position: absolute; top: 8px; right: 8px;"></span>
+                <div style="font-size: 1.45rem; margin-top: 4px; margin-bottom: 4px;">📺</div>
+                <div style="color: #64748b; font-size: 0.75rem; font-weight: 800; letter-spacing: 0.5px;">TV</div>
+            </div>
+        </div>
+    </details>
+</div>
+"""
+render_html(html_status_sistema)
+
+# ==============================================================================
+# 🖨️ RENDERIZAÇÃO 2: AVISOS & PRANCHETA (COM BOTÕES IDÊNTICOS À FOTO 3)
 # ==============================================================================
 # 1. Processamento das Notificações
 alertas_lista = []
@@ -803,182 +758,7 @@ if not df_prancheta.empty:
         if not any(valores_linha): continue
 
         msg_val, aut_val, st_val = "", "Cristiano", "ATIVO"
-        d_ini, h_ini, d_fim, h_fim, r_id = hoje_date.strftime("%d/%m/%Y"), "00:00", hoje_date.strftime("%d/%m/%Y"), "23:59", str(idx_df + 1)
 
-        for v in valores_linha:
-            if v.upper() in ("ATIVO", "INATIVO"): st_val = v.upper(); break
-
-        horarios_achados = [v for v in valores_linha if re.match(r'^\d{1,2}:\d{2}$', v)]
-        if len(horarios_achados) >= 1: h_ini = horarios_achados[0]
-        if len(horarios_achados) >= 2: h_fim = horarios_achados[1]
-
-        datas_achadas = [v for v in valores_linha if re.match(r'^\d{1,2}/\d{1,2}(/\d{2,4})?$', v)]
-        if len(datas_achadas) >= 1: d_ini = datas_achadas[0]
-        if len(datas_achadas) >= 2: d_fim = datas_achadas[1]
-
-        textos_candidatos = [
-            v for v in valores_linha 
-            if v not in horarios_achados and v not in datas_achadas and v.upper() not in ("ATIVO", "INATIVO", "CRISTIANO", "CORE", "OPERACAO", "NAN", "") and not v.isdigit() and not v.upper().startswith("ATUALIZADO:")
-        ]
-        if textos_candidatos: msg_val = max(textos_candidatos, key=len)
-        elif len(rp) > 5 and str(rp.iloc[5]).strip(): msg_val = str(rp.iloc[5]).strip()
-
-        for v in valores_linha:
-            if v.upper() in ("CRISTIANO", "MAYCON", "LÍDER", "CORE", "OPERAÇÃO", "OPERACAO"): aut_val = v; break
-
-        if not msg_val: continue
-
-        ativo_agora = True
-        try:
-            def pad_data(ds):
-                p = ds.split("/")
-                return f"{p[0].zfill(2)}/{p[1].zfill(2)}/{hoje_date.year}" if len(p) == 2 else ds
-            dt_i = datetime.strptime(f"{pad_data(d_ini)} {h_ini[:5]}", "%d/%m/%Y %H:%M")
-            dt_f = datetime.strptime(f"{pad_data(d_fim)} {h_fim[:5]}", "%d/%m/%Y %H:%M")
-            if not (dt_i <= agora_br <= dt_f) or st_val != "ATIVO": ativo_agora = False
-        except: ativo_agora = (st_val == "ATIVO")
-
-        recados_mobile.append({
-            "linha_sheets": linha_sheets, "id": r_id, "msg": msg_val, "autor": aut_val,
-            "d_ini": d_ini, "h_ini": h_ini, "d_fim": d_fim, "h_fim": h_fim,
-            "status": st_val, "ativo_agora": ativo_agora
-        })
-
-qtd_ativos = sum(1 for r in recados_mobile if r["ativo_agora"])
-
-linhas_recados_html = ""
-if not recados_mobile:
-    linhas_recados_html = '<div style="color:#64748b; font-size:0.82rem; padding:12px; text-align:center;">Nenhum comunicado cadastrado na base.</div>'
-else:
-    for item in recados_mobile:
-        cor_st = "#00D672" if item["ativo_agora"] else "#64748b"
-        txt_st = "NO AR" if item["ativo_agora"] else ("PAUSADO" if item["status"] != "ATIVO" else "FORA HORÁRIO")
-        linhas_recados_html += f"""
-        <div style="background:#070f1d; border:1px solid #16365c; border-left:3px solid {cor_st}; border-radius:10px; padding:10px 12px; margin-bottom:8px;">
-            <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px;">
-                <div style="color:#ffffff; font-weight:700; font-size:0.85rem; line-height:1.3;">📌 {html_lib.escape(item['msg'])}</div>
-                <span style="background:#0d2a4a; border:1px solid {cor_st}; color:{cor_st}; font-size:0.65rem; font-weight:bold; padding:2px 6px; border-radius:4px; white-space:nowrap;">{txt_st}</span>
-            </div>
-            <div style="color:#94a3b8; font-size:0.75rem; margin-top:6px;">
-                👤 <b style="color:#38bdf8;">{html_lib.escape(item['autor'])}</b> &nbsp;|&nbsp; 🕒 <b>{item['d_ini']} {item['h_ini']}</b> até <b>{item['d_fim']} {item['h_fim']}</b>
-            </div>
-        </div>
-        """
-
-# 3. MONTAGEM DO ACORDEON MESTRE COM TABS (FORMULÁRIO OCULTO NA PRANCHETA)
-st.markdown("""
-<style>
-    /* Esconde botões Streamlit normais, só mostramos os customizados */
-    .np-wrapper input[type="radio"] { display: none !important; }
-    
-    /* Tabs Lado a Lado */
-    .np-tab-bar { display: flex; justify-content: center; gap: 10px; margin-bottom: 14px; padding: 0 4px; }
-    .np-tab-bar label {
-        flex: 1; text-align: center; padding: 10px; font-size: 0.82rem; font-weight: 800; color: #94a3b8;
-        background: #070d18; border: 1.5px solid #1c2b42; border-radius: 10px; cursor: pointer; transition: 0.2s;
-    }
-    
-    /* Estado Ativo das Tabs */
-    #nav_notif:checked ~ .master-box .lbl-notif { background: #FF9F1C !important; color: #0a101d !important; border-color: #FF9F1C !important; box-shadow: 0 0 10px rgba(255, 159, 28, 0.35); }
-    #nav_pran:checked ~ .master-box .lbl-pran { background: #00D672 !important; color: #0a101d !important; border-color: #00D672 !important; box-shadow: 0 0 10px rgba(0, 214, 114, 0.35); }
-    
-    /* Exibição dos Paineis CSS-only */
-    .np-view-notif, .np-view-pran { display: none; }
-    #nav_notif:checked ~ .master-box .np-view-notif { display: block; }
-    #nav_pran:checked ~ .master-box .np-view-pran { display: block; }
-    
-    /* Esconde a Div do formulário padrão do Streamlit até Prancheta ser clicada */
-    div[data-testid="stExpander"] { display: none; }
-    #nav_pran:checked ~ div[data-testid="stExpander"] { display: block; margin-top: 10px; }
-</style>
-""", unsafe_allow_html=True)
-
-# 4. CRIAÇÃO DOS BLOCOS HTML COM BADGES MAIORES E ASSIMÉTRICOS
-html_avisos = f"""
-<div class="np-wrapper">
-    <input type="radio" name="np_view" id="nav_notif" checked>
-    <input type="radio" name="np_view" id="nav_pran">
-
-    <details class="master-box" style="border-left-color: #38bdf8; margin-bottom: 0px;" open>
-        <summary>
-            <!-- CABEÇALHO -->
-            <div style="display:flex; justify-content:space-between; align-items:center;">
-                <div class="header-layout" style="margin-bottom:0;">
-                    <div class="icon-box" style="background-color: rgba(56, 189, 248, 0.15); color: #38bdf8;">🔔</div>
-                    <div class="master-metric-title">Avisos & Prancheta</div>
-                </div>
-            </div>
-            
-            <!-- BADGES DE RESUMO (MAIORES E GORDINHOS) -->
-            <div style="display:flex; gap:10px; margin-top:10px; margin-bottom: 6px;">
-                <span style="background:#E74C3C; color:#fff; font-size:0.85rem; font-weight:800; padding:6px 14px; border-radius:8px; box-shadow: 0 2px 6px rgba(231,76,60,0.3);">
-                    🚨 {total_notifs} Alertas
-                </span>
-                <span style="background:#00D672; color:#0a101d; font-size:0.85rem; font-weight:800; padding:6px 14px; border-radius:8px; box-shadow: 0 2px 6px rgba(0,214,114,0.3);">
-                    📋 {qtd_ativos} Recados
-                </span>
-            </div>
-        </summary>
-
-        <div class="master-content" style="padding-top: 16px;">
-            <!-- BOTÕES LADO A LADO -->
-            <div class="np-tab-bar">
-                <label for="nav_notif" class="lbl-notif">🚨 Alertas</label>
-                <label for="nav_pran" class="lbl-pran">📋 Prancheta</label>
-            </div>
-
-            <!-- PAINEL 1: NOTIFICAÇÕES -->
-            <div class="np-view-notif">
-                <div class="notif-lista" style="max-height: 350px; overflow-y: auto;">
-                    {conteudo_notifs}
-                </div>
-            </div>
-
-            <!-- PAINEL 2: PRANCHETA HTML (O FORM ST FICA FORA DESTE BLOCO) -->
-            <div class="np-view-pran">
-                <div style="max-height: 350px; overflow-y: auto; margin-bottom: 8px;">
-                    {linhas_recados_html}
-                </div>
-            </div>
-        </div>
-    </details>
-
-"""
-render_html(html_avisos)
-
-# 5. O FORMULÁRIO DA PRANCHETA (O CSS ACIMA ESCONDE ELE SE A PRANCHETA NÃO ESTIVER SELECIONADA)
-with st.expander("➕ Gerenciar / Adicionar Novo Comunicado"):
-    with st.form("form_novo_recado_mobile", clear_on_submit=True):
-        in_msg = st.text_area("Mensagem do Comunicado", placeholder="Ex: Doca 04 em manutenção. Direcionar carretas para docas 01 a 03.")
-        fc1, fc2 = st.columns(2)
-        with fc1:
-            in_d_ini = st.date_input("Data Início", datetime.today(), format="DD/MM/YYYY")
-            in_h_ini = st.time_input("Hora Início", datetime.now().time())
-            in_autor = st.text_input("Autor / Liderança", value="Cristiano")
-        with fc2:
-            in_d_fim = st.date_input("Data Fim", datetime.today() + timedelta(days=1), format="DD/MM/YYYY")
-            in_h_fim = st.time_input("Hora Fim", datetime.strptime("23:59", "%H:%M").time())
-            in_status = st.selectbox("Status", ["ATIVO", "INATIVO"], index=0)
-
-        if st.form_submit_button("🚀 Gravar e Exibir na TV", use_container_width=True):
-            if not in_msg.strip():
-                st.warning("⚠️ Digite uma mensagem!")
-            else:
-                aba = conectar_planilha_prancheta()
-                if aba:
-                    proximo_id = len(recados_mobile) + 1
-                    nova_linha = [
-                        str(proximo_id), in_d_ini.strftime("%d/%m/%Y"), in_h_ini.strftime("%H:%M"),
-                        in_d_fim.strftime("%d/%m/%Y"), in_h_fim.strftime("%H:%M"), in_msg.strip(),
-                        in_autor.strip(), in_status
-                    ]
-                    aba.append_row(nova_linha)
-                    st.success("✅ Gravado com sucesso!")
-                    st.cache_data.clear()
-                    st.rerun()
-
-# Fecha a div principal do wrapper (importante pro CSS do form funcionar!)
-render_html("</div>")
 
 
                     
