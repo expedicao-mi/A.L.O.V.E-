@@ -817,6 +817,40 @@ with st.expander("➕ Gerenciar / Adicionar Novo Comunicado"):
                     st.success("✅ Gravado com sucesso!")
                     st.cache_data.clear()
                     st.rerun()
+                    
+# ==============================================================================
+# 🖨️ RENDERIZAÇÃO 3.5: PREVISÕES DO DIA (PRODUÇÃO & CARREGAMENTO)
+# ==============================================================================
+html_previsoes = f"""
+<div class="card-main" style="margin-bottom: 14px;">
+    <div class="card-head" style="margin-bottom: 10px;">
+        <div class="icon-sq" style="background: rgba(0, 180, 255, 0.15); border-color: #00b4ff;">📅</div>
+        <div class="card-title">Previsões do Dia</div>
+        <div class="badge-novas" style="color: #00D672; border-color: #00D672;">24 Horas</div>
+    </div>
+    <div class="kpi-duo">
+        <div class="kpi-box">
+            <div class="kpi-ico">🏭</div>
+            <div>
+                <div class="kpi-big">{fmt(prev_prod)} <span>t</span></div>
+                <div class="kpi-lbl">Prev. Produção</div>
+                <div class="kpi-sub">Projeção 24h</div>
+            </div>
+        </div>
+        <div class="kpi-sep"></div>
+        <div class="kpi-box">
+            <div class="kpi-ico">🚚</div>
+            <div>
+                <div class="kpi-big verde">{fmt(prev_carr)} <span>t</span></div>
+                <div class="kpi-lbl">Prev. Carregamento</div>
+                <div class="kpi-sub">Projeção 24h</div>
+            </div>
+        </div>
+    </div>
+</div>
+"""
+render_html(html_previsoes)
+
 # ==============================================================================
 # 🖨️ RENDERIZAÇÃO 4: PÁTIO DA FÁBRICA (COM DESTINOS DETALHADOS FUNCIONANDO)
 # ==============================================================================
