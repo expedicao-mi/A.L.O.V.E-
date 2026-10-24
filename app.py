@@ -904,7 +904,7 @@ html_patio += "</div></details>"
 render_html(html_patio)
 
 # ==============================================================================
-# 🖨️ RENDERIZAÇÃO 5: PRODUÇÃO DE CELULOSE (SEM CAIXA DE CÓDIGO PRETA)
+# 🖨️ RENDERIZAÇÃO 5: PRODUÇÃO DE CELULOSE (LAYOUT MODERNO COM LEDS E BARRAS)
 # ==============================================================================
 html_prod_content = ""
 for maq in ["MS1", "MS2"]:
@@ -925,54 +925,71 @@ for maq in ["MS1", "MS2"]:
         c_vis = classificar_kpi_mobile(q_visc, "viscosidade")
         c_ph = classificar_kpi_mobile(q_ph, "ph")
 
-        cor_card_borda = "#E74C3C" if desclass else "#1c2b42"
+        # Cor de destaque e LED da máquina (Verde se OK / Vermelho se Desclassificando)
+        cor_status_maq = "#E74C3C" if desclass else "#00D672"
+        led_status = "🔴" if desclass else "🟢"
 
         lbl_l1 = "Linha A" if maq == "MS1" else "Linha C"
         lbl_l2 = "Linha B" if maq == "MS1" else "Linha D"
 
         info_v = viradas_info.get(maq, {})
-        html_virada = ""
-        if info_v:
-            p_mat = info_v["prox_mat"]
-            p_prev = info_v["prev_virada"]
-            s_rest = info_v["saldo_rest"]
-            st_em = info_v["status_email"]
-
-            if "🚨" in st_em: cor_alerta = "#E74C3C"; txt_alerta = f"⚠️ Falta E-mail ({st_em})"
-            elif "✅" in st_em: cor_alerta = "#00D672"; txt_alerta = f"📧 E-mail {st_em}"
-            else: cor_alerta = "#38bdf8"; txt_alerta = f"📧 {st_em}"
-
-            html_virada = f"""
-            <div style="background-color: #070d18; border: 1px solid #1c2b42; border-left: 4px solid {cor_alerta}; padding: 10px; margin-top: 14px; border-radius: 6px;">
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-                    <span style="font-size:0.75rem; color:#64748b; text-transform:uppercase;">Saldo a Produzir ({mat_maq})</span>
-                    <span style="font-size:1.1rem; color:#ffffff; font-weight:bold;">{fmt(s_rest)} t</span>
-                </div>
-                <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.75rem;">
-                    <span style="color:#cbd5e1;">🔜 Prox: <span style="color:#38bdf8; font-weight:bold;">{p_mat}</span> ({p_prev})</span>
-                    <span style="color:{cor_alerta};">{txt_alerta}</span>
-                </div>
-            </div>
-            """
+        p_mat = info_v.get("prox_mat", "--") if info_v else "--"
+        p_prev = info_v.get("prev_virada", "--") if info_v else "--"
 
         html_prod_content += f"""
-        <div style="background-color: #0a101d; border: 1.5px solid {cor_card_borda}; border-radius: 8px; padding: 16px; margin-bottom: 12px;">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
-                <span style="color:#ffffff; font-weight:bold; font-size:1.1rem;">⚙️ {maq}</span>
-                <span style="color:#FF9F1C; font-weight:bold; font-size:1.1rem;">📦 MAT: {mat_maq}</span>
-                <span style="color:#38bdf8; font-weight:bold; font-size:1.2rem;">{fmt(p_maq)} t</span>
+        <div style="background-color: #0c1524; border: 1.5px solid #1c2b42; border-left: 5px solid {cor_status_maq}; border-radius: 14px; padding: 14px 16px; margin-bottom: 14px; box-shadow: 0 4px 12px rgba(0,0,0,0.25);">
+            <!-- TOPO: IDENTIFICAÇÃO E LINHAS -->
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                <!-- LADO ESQUERDO: MÁQUINA + MAT -->
+                <div style="display:flex; flex-direction:column; gap:4px;">
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <span style="color:#ffffff; font-weight:800; font-size:1.15rem; letter-spacing:0.3px;">⚙️ {maq}</span>
+                        <span style="font-size:0.95rem;">{led_status}</span>
+                    </div>
+                    <div style="color:#FF9F1C; font-weight:800; font-size:1.02rem;">
+                        📦 MAT: {mat_maq}
+                    </div>
+                </div>
+
+                <!-- LADO DIREITO: LINHAS INDIVIDUAIS COM BARRA VERTICAL -->
+                <div style="display:flex; flex-direction:column; gap:4px; border-left:2.5px solid {cor_status_maq}; padding-left:10px;">
+                    <div style="font-size:0.92rem; color:#ffffff;">
+                        <span style="color:{cor_status_maq}; font-size:0.75rem;">●</span> <b>{lbl_l1}:</b> <span style="color:#38bdf8; font-weight:bold; margin-left:4px;">{fmt(l1)} t</span>
+                    </div>
+                    <div style="font-size:0.92rem; color:#ffffff;">
+                        <span style="color:{cor_status_maq}; font-size:0.75rem;">●</span> <b>{lbl_l2}:</b> <span style="color:#38bdf8; font-weight:bold; margin-left:4px;">{fmt(l2)} t</span>
+                    </div>
+                </div>
             </div>
-            <div style="display:flex; justify-content:flex-end; gap: 16px; margin-bottom: 12px; font-size: 0.85rem; color: #64748b;">
-                <span>{lbl_l1}: <span style="color:#ffffff; font-weight:bold;">{fmt(l1)} t</span></span>
-                <span>{lbl_l2}: <span style="color:#ffffff; font-weight:bold;">{fmt(l2)} t</span></span>
+
+            <!-- MEIO: PARÂMETROS LABORATORIAIS / QUALIDADE -->
+            <div style="display:flex; justify-content:space-between; text-align:center; border-top:1px dashed #1c2b42; padding-top:12px; margin-bottom:10px;">
+                <div>
+                    <div style="font-size:0.68rem; color:#64748b; font-weight:700; letter-spacing:0.4px;">ALVURA</div>
+                    <div style="font-size:1.15rem; font-weight:800; color:{c_alv}; margin:2px 0;">{fmt(q_alvura, 2)}%</div>
+                    <div style="font-size:0.65rem; color:#475569;">(Mín: 88,5)</div>
+                </div>
+                <div>
+                    <div style="font-size:0.68rem; color:#64748b; font-weight:700; letter-spacing:0.4px;">SUJIDADE</div>
+                    <div style="font-size:1.15rem; font-weight:800; color:{c_suj}; margin:2px 0;">{fmt(q_suj, 2)}</div>
+                    <div style="font-size:0.65rem; color:#475569;">(Máx: 2,5)</div>
+                </div>
+                <div>
+                    <div style="font-size:0.68rem; color:#64748b; font-weight:700; letter-spacing:0.4px;">VISCOSID.</div>
+                    <div style="font-size:1.15rem; font-weight:800; color:{c_vis}; margin:2px 0;">{fmt(q_visc)}</div>
+                    <div style="font-size:0.65rem; color:#475569;">(Mín: 650)</div>
+                </div>
+                <div>
+                    <div style="font-size:0.68rem; color:#64748b; font-weight:700; letter-spacing:0.4px;">pH</div>
+                    <div style="font-size:1.15rem; font-weight:800; color:{c_ph}; margin:2px 0;">{fmt(q_ph, 1)}</div>
+                    <div style="font-size:0.65rem; color:#475569;">(5,5 - 8,5)</div>
+                </div>
             </div>
-            <div style="display: flex; justify-content: space-between; text-align: center; border-top: 1px dashed #1c2b42; padding-top: 14px;">
-                <div><div style="font-size:0.7rem; color:#64748b; font-weight:bold;">ALVURA</div><div style="font-size:1.2rem; font-weight:bold; color:{c_alv}; margin:4px 0;">{fmt(q_alvura, 2)}%</div><div style="font-size:0.65rem; color:#475569;">(Mín: 88,5)</div></div>
-                <div><div style="font-size:0.7rem; color:#64748b; font-weight:bold;">SUJIDADE</div><div style="font-size:1.2rem; font-weight:bold; color:{c_suj}; margin:4px 0;">{fmt(q_suj, 2)}</div><div style="font-size:0.65rem; color:#475569;">(Máx: 2,5)</div></div>
-                <div><div style="font-size:0.7rem; color:#64748b; font-weight:bold;">VISCOSID.</div><div style="font-size:1.2rem; font-weight:bold; color:{c_vis}; margin:4px 0;">{fmt(q_visc)}</div><div style="font-size:0.65rem; color:#475569;">(Mín: 650)</div></div>
-                <div><div style="font-size:0.7rem; color:#64748b; font-weight:bold;">pH</div><div style="font-size:1.2rem; font-weight:bold; color:{c_ph}; margin:4px 0;">{fmt(q_ph, 1)}</div><div style="font-size:0.65rem; color:#475569;">(5,5 - 8,5)</div></div>
+
+            <!-- RODAPÉ COMPACTO: PREVISÃO DE VIRADA -->
+            <div style="border-top:1px solid #14243b; padding-top:8px; text-align:center; font-size:0.8rem; color:#94a3b8;">
+                PROX MAT: <b style="color:#ffffff;">{p_mat}</b> &nbsp;|&nbsp; PREV: <b style="color:#ffffff;">{p_prev}</b>
             </div>
-            {html_virada}
         </div>
         """
     else:
@@ -998,6 +1015,7 @@ html_prod_completo = f"""
 </details>
 """
 render_html(html_prod_completo)
+
 
 # ==============================================================================
 # 🖨️ RENDERIZAÇÃO 6: EXPEDIÇÃO REALIZADA (SEM CAIXA DE CÓDIGO E SEM BOLINHA)
