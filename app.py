@@ -324,6 +324,38 @@ def conectar_planilha_prancheta():
         st.error(f"⚠️ Erro ao autenticar no Google Sheets: {e}")
         return None
 
+# ==============================================================================
+# 🛠️ TELEMETRIA: LEITURA CIRÚRGICA DOS ÚLTIMOS LOGS DO CORE
+# ==============================================================================
+@st.cache_data(ttl=15)
+def carregar_ultimos_logs_core(qtd_linhas=80):
+    """Puxa apenas as últimas 80 linhas da aba Live_Logs_Core para carregar instantâneo no 4G."""
+    try:
+        import os
+        if hasattr(st, "secrets") and "gcp_service_account" in st.secrets:
+            dados_secret = dict(st.secrets["gcp_service_account"])
+            cliente = gspread.service_account_from_dict(dados_secret)
+        elif os.path.exists("credentials.json"):
+            cliente = gspread.service_account(filename="credentials.json")
+        else:
+            return pd.DataFrame()
+
+        planilha = cliente.open_by_key(SHEET_ID)
+        aba = planilha.worksheet("Live_Logs_Core")
+        
+        # Pega o total de linhas preenchidas para puxar apenas o final sem ler 14.000 linhas
+        total_linhas = len(aba.col_values(1))
+        if total_linhas <= 1:
+            return pd.DataFrame(columns=["DATA_HORA", "MODULO", "EVENTO"])
+            
+        linha_inicio = max(2, total_linhas - qtd_linhas)
+        valores = aba.get_values(f"A{linha_inicio}:C{total_linhas}")
+        
+        df = pd.DataFrame(valores, columns=["DATA_HORA", "MODULO", "EVENTO"])
+        return df.iloc[::-1].reset_index(drop=True)  # Inverte para o mais recente ficar no topo
+    except Exception as e:
+        return pd.DataFrame()
+
 def parse_robusto(texto):
     if not texto or str(texto).strip() in ["", "None"]: return {}
     try: return json.loads(str(texto).strip())
@@ -1278,5 +1310,93 @@ pcf = forcar_par(ca_at + ((estoque_total + (d_res * 5200.0)) - 3468.0))
 
 h_an = f'<details class="master-box" style="border-left-color:#007BFF;" open><summary><div class="header-layout"><div class="icon-box" style="background-color:rgba(0,123,255,.15); color:#007BFF;">📊</div><div class="master-metric-title">Comparativo Produção vs Expedição</div></div><div class="value-layout"><div class="master-metric-val">{fmt(ca_at)}</div><div class="master-metric-unit">t Expedidas</div></div><div class="master-metric-sub" style="color:#007BFF;">Meta Diária Necessária: {fmt(mdc)} t/dia</div></summary><div class="master-content" style="padding-top:16px;"><div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:12px;"><div style="background-color:#0a101d; border:1px solid #1c2b42; border-radius:8px; padding:10px;"><div style="font-size:0.75rem; color:#007BFF; font-weight:bold;">EXPEDIÇÃO ANUAL</div><div style="font-size:1.4rem; font-weight:bold; color:#fff; margin:4px 0;">{fmt(ca_at)} <span style="font-size:0.8rem; color:#64748b; font-weight:normal;">t</span></div><div style="font-size:0.7rem; color:#64748b;">Proj. 31/12: <span style="color:#007BFF;">{fmt(pcf)} t</span></div></div><div style="background-color:#0a101d; border:1px solid #1c2b42; border-radius:8px; padding:10px;"><div style="font-size:0.75rem; color:#00D672; font-weight:bold;">PRODUÇÃO ANUAL</div><div style="font-size:1.4rem; font-weight:bold; color:#fff; margin:4px 0;">{fmt(pa_at)} <span style="font-size:0.8rem; color:#64748b; font-weight:normal;">t</span></div><div style="font-size:0.7rem; color:#64748b;">Proj. 31/12: <span style="color:#00D672;">{fmt(ppf)} t</span></div></div></div><div style="background-color:#0a101d; border:1px solid #1c2b42; border-radius:8px; padding:12px; font-size:0.82rem; color:#cbd5e1; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;"><span>Variação: <span style="color:{cv}; font-weight:bold;">{tv}</span></span><span>Estoque Meta: <span style="color:#38bdf8; font-weight:bold;">3.468 t</span></span></div></div></details>'
 render_html(h_an)
+
+# ==============================================================================
+# 🖨️ RENDERIZAÇÃO 11: TELEMETRIA & LOGS DO CORE (PAINEL DEVELOPER)
+# ==============================================================================
+with st.expander("🛠️ Console de Telemetria & Logs do Core (Dev)", expanded=False):
+    col_dev_btn, _ = st.columns([1, 2])
+    with col_dev_btn:
+        if st.button("🔄 Atualizar Logs", key="btn_refresh_logs", use_container_width=True):
+            st.cache_data.clear()
+            st.rerun()
+
+    df_logs = carregar_ultimos_logs_core()
+
+    if df_logs.empty:
+        st.info("Nenhum log disponível na aba Live_Logs_Core no momento.")
+    else:
+        # 1. Indicador de Pulso (Heartbeat)
+        ultimo_log_str = str(df_logs.iloc[0]["DATA_HORA"]).strip()
+        try:
+            dt_ult = datetime.strptime(ultimo_log_str[:19], "%d/%m/%Y %H:%M:%S")
+            minutos_atras = max(0.0, (agora_br - dt_ult).total_seconds() / 60.0)
+        except Exception:
+            minutos_atras = 0.0
+
+        # 2. Contador de Erros nas últimas voltas
+        erros_df = df_logs[df_logs["EVENTO"].astype(str).str.contains("❌|🚨|ERRO|CRÍTICO|Falha|Lock", case=False, na=False)]
+        qtd_erros = len(erros_df)
+
+        col_h1, col_h2 = st.columns(2)
+        with col_h1:
+            if minutos_atras <= 4.0:
+                st.success(f"🟢 Core Online\n(Último pulso: {int(minutos_atras)}m atrás)")
+            elif minutos_atras <= 10.0:
+                st.warning(f"🟡 Core em Pausa\n(Último pulso: {int(minutos_atras)}m atrás)")
+            else:
+                st.error(f"🔴 Core sem Resposta\n(Inativo há {int(minutos_atras)}m)")
+
+        with col_h2:
+            if qtd_erros == 0:
+                st.metric("Erros Recentes", "0", delta="Estável", delta_color="normal")
+            else:
+                st.metric("Erros Recentes", f"{qtd_erros}", delta="- Atenção", delta_color="inverse")
+
+        st.markdown("<hr style='margin: 8px 0; border-color: #1c2b42;'>", unsafe_allow_html=True)
+
+        # 3. Filtros Rápidos Mobile
+        f_c1, f_c2 = st.columns([1, 1])
+        with f_c1:
+            so_erros = st.toggle("🚨 Apenas Alertas / Erros", value=False)
+        with f_c2:
+            modulos = ["TODOS"] + sorted([m for m in df_logs["MODULO"].dropna().unique().tolist() if m])
+            mod_sel = st.selectbox("Módulo:", modulos, label_visibility="collapsed")
+
+        df_show = df_logs.copy()
+        if so_erros:
+            df_show = df_show[df_show["EVENTO"].astype(str).str.contains("❌|🚨|⚠️|ERRO|CRÍTICO|Falha", case=False, na=False)]
+        if mod_sel != "TODOS":
+            df_show = df_show[df_show["MODULO"] == mod_sel]
+
+        # 4. Container com Rolagem Estilo Terminal Hacker
+        st.caption(f"Exibindo {len(df_show)} eventos recentes:")
+        container_terminal = st.container(height=360)
+        with container_terminal:
+            for _, r_log in df_show.iterrows():
+                ev = str(r_log["EVENTO"])
+                mod = str(r_log["MODULO"])
+                hora_log = str(r_log["DATA_HORA"]).split(" ")[-1] if " " in str(r_log["DATA_HORA"]) else str(r_log["DATA_HORA"])
+
+                # Cores dinâmicas por gravidade
+                if any(x in ev.upper() for x in ["❌", "🚨", "ERRO", "CRÍTICO", "FALHA"]):
+                    borda_c, txt_c, bg_c = "#EF4444", "#FCA5A5", "#241010"
+                elif any(x in ev.upper() for x in ["⚠️", "ATENÇÃO", "PAUSA"]):
+                    borda_c, txt_c, bg_c = "#F59E0B", "#FDE68A", "#261A08"
+                elif "✅" in ev:
+                    borda_c, txt_c, bg_c = "#10B981", "#A7F3D0", "#081E15"
+                else:
+                    borda_c, txt_c, bg_c = "#12506e", "#CBD5E1", "#08111f"
+
+                st.markdown(
+                    f"""
+                    <div style="background:{bg_c}; border-left: 3px solid {borda_c}; border-radius: 6px; padding: 6px 10px; margin-bottom: 6px; font-family: monospace; font-size: 0.72rem; line-height: 1.3;">
+                        <span style="color:#64748B;">[{hora_log}]</span> 
+                        <b style="color:#38bdf8;">[{mod}]</b><br>
+                        <span style="color:{txt_c};">{html_lib.escape(ev)}</span>
+                    </div>
+                    """,
+                    unsafe_allow_html=True
+                )
 
 st.markdown("<br><center><span style='color:#64748b; font-size:0.75rem; letter-spacing:0.5px;'>A.L.O.V.E - Mobile / Developed by Crist Ciriaco</span></center>", unsafe_allow_html=True)
