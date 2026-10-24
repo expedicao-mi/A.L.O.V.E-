@@ -1229,17 +1229,17 @@ tot_geral_calc = (tot_eq + tot_sq) if (tot_eq + tot_sq) > 0 else (estoque_total 
 pct_sq = min(100.0, max(0.0, (tot_sq / tot_geral_calc) * 100.0))
 pct_eq = 100.0 - pct_sq
 
-# 2. Montagem das Barras Verticais
+# 2. Montagem das Barras Verticais com escala ajustada (folga no teto)
 barras_html = ""
-for item in itens_barras[:8]:  # Exibe os principais materiais alinhados
+for item in itens_barras[:8]:
     cor_b = "#00D6FF" if item["is_sq"] else "#00E676"
-    # Altura da barra proporcional com limite máximo de 90px
-    h_px = max(6, int((item["ton"] / max_ton_est) * 90))
+    # Escala rebaixada para 68px: impede que o valor superior passe da borda
+    h_px = max(6, int((item["ton"] / max_ton_est) * 68))
     
     barras_html += f"""
     <div style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; min-width: 38px;">
-        <!-- VALOR NO TOPO -->
-        <div style="color: {cor_b}; font-size: 0.68rem; font-weight: 800; margin-bottom: 5px; white-space: nowrap;">
+        <!-- VALOR NO TOPO COM RESPIRO -->
+        <div style="color: {cor_b}; font-size: 0.68rem; font-weight: 800; margin-bottom: 6px; white-space: nowrap;">
             {fmt(item['ton'])} t
         </div>
         <!-- BARRA VERTICAL -->
@@ -1275,11 +1275,10 @@ html_est = f"""
             <div class="master-metric-val">{fmt(estoque_total)}</div>
             <div class="master-metric-unit">TON</div>
         </div>
-        <div class="master-metric-sub" style="color: #9fb3cc;">Status do Armazém: <b style="color: #38bdf8;">{status_transbordo}</b></div>
     </summary>
     <div class="master-content" style="padding-top: 14px;">
-        <!-- 1. CARD SUPERIOR: GRÁFICO DE BARRAS POR MATERIAL -->
-        <div style="background: #070d18; border: 1.5px solid #FF9F1C; border-radius: 14px; padding: 14px 8px 10px 8px; margin-bottom: 12px; box-shadow: 0 4px 14px rgba(255, 159, 28, 0.08);">
+        <!-- 1. CARD SUPERIOR: BARRAS COM BORDA DISCRETA E ESPAÇO NO TOPO -->
+        <div style="background: #070d18; border: 1.5px solid #142842; border-radius: 14px; padding: 18px 8px 10px 8px; margin-bottom: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.25);">
             <div style="display: flex; justify-content: space-around; align-items: flex-end; height: 135px; gap: 4px; padding: 0 4px;">
                 {barras_html if itens_barras else '<div style="color:#64748b; font-size:0.8rem; margin:auto;">Aguardando dados segregados...</div>'}
             </div>
@@ -1321,6 +1320,7 @@ html_est = f"""
 </details>
 """
 render_html(html_est)
+
 
 
 # ==============================================================================
