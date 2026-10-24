@@ -1018,7 +1018,7 @@ render_html(html_prod_completo)
 
 
 # ==============================================================================
-# 🖨️ RENDERIZAÇÃO 6: EXPEDIÇÃO REALIZADA (VISUAL MODERNO - MOCKUP IPHONE)
+# 🖨️ RENDERIZAÇÃO 6: EXPEDIÇÃO REALIZADA (BLOCOS CENTRALIZADOS E TOTAIS NO RODAPÉ)
 # ==============================================================================
 def func_exp_dados(dt_a):
     ls = descobrir_letras_turnos(dt_a)
@@ -1049,16 +1049,12 @@ def func_exp_dados(dt_a):
             elif agora_br.hour < 16: v3 = 0
             
         tns = []
-        # Turno Madrugada (D)
         if dt_a.weekday() in [6, 0]:
             tns.append({"letra": f"Turno {ls.get('madrugada','D')}", "v": 0, "str_vol": "EM FOLGA", "horario": "00h - 08h", "ico": "🌙"})
         else:
             tns.append({"letra": f"Turno {ls.get('madrugada','D')}", "v": v1, "str_vol": f"{fmt(v1)} t", "horario": "00h - 08h", "ico": "🌙"})
         
-        # Turno Manhã (C/Rotativa)
         tns.append({"letra": f"Turno {ls.get('08_16','C')}", "v": v2, "str_vol": f"{fmt(v2)} t", "horario": "08h - 16h", "ico": "☀️"})
-        
-        # Turno Tarde (B/Rotativa)
         tns.append({"letra": f"Turno {ls.get('16_00','B')}", "v": v3, "str_vol": f"{fmt(v3)} t", "horario": "16h - 00h", "ico": "🌇"})
         return tns
     except: return []
@@ -1083,7 +1079,6 @@ for i, t in enumerate(tns_hoje):
     v_str = t.get("str_vol", f"{fmt(t['v'])} t")
 
     if is_atv:
-        # CARD ATIVO: Destaque Neon Laranja
         cards_hoje_html += f"""
         <div style="flex: 1; background: #0c1524; border: 1.5px solid #FF9F1C; border-radius: 12px; padding: 12px 6px; text-align: center; box-shadow: 0 0 14px rgba(255, 159, 28, 0.22);">
             <div style="font-size: 0.82rem; font-weight: 800; color: #FF9F1C;">{t['letra']} {t['ico']}</div>
@@ -1093,7 +1088,6 @@ for i, t in enumerate(tns_hoje):
         </div>
         """
     else:
-        # CARD INATIVO
         val_color = "#E74C3C" if v_str == "EM FOLGA" else ("#ffffff" if t['v'] > 0 else "#64748b")
         cards_hoje_html += f"""
         <div style="flex: 1; background: #070d18; border: 1px solid #1c2b42; border-radius: 12px; padding: 12px 6px; text-align: center;">
@@ -1121,21 +1115,9 @@ for t in tns_ontem:
     """
 
 # ----------------------------------------------------
-# TABELA DE DESTINOS
+# TABELA DE DESTINOS + TOTAIS NO RODAPÉ
 # ----------------------------------------------------
-html_destinos = f"""
-<div style="display:flex; justify-content:space-around; background-color:#0a101d; border:1px solid #1c2b42; border-radius:8px; padding:12px; margin-bottom:14px; text-align:center;">
-    <div>
-        <div style="font-size:0.75rem; color:#64748b; font-weight:bold; text-transform:uppercase;">Plano Total Diário</div>
-        <div style="font-size:1.4rem; color:#ffffff; font-weight:bold;">{fmt(total_expedicao_meta)} <span style="font-size:0.8rem; color:#64748b; font-weight:normal;">t</span></div>
-    </div>
-    <div style="border-left:1px solid #1c2b42; padding-left:20px;">
-        <div style="font-size:0.75rem; color:#38bdf8; font-weight:bold; text-transform:uppercase;">Total Carregado</div>
-        <div style="font-size:1.4rem; color:#38bdf8; font-weight:bold;">{fmt(total_expedicao_real)} <span style="font-size:0.8rem; font-weight:normal;">t</span></div>
-    </div>
-</div>
-"""
-
+tabela_linhas_html = ""
 if balanco_destinos:
     def regra_ordenacao(d):
         nome = str(d.get('destino', '')).upper()
@@ -1144,8 +1126,8 @@ if balanco_destinos:
         except: return 0
 
     balanco_destinos_ordenado = sorted(balanco_destinos, key=regra_ordenacao, reverse=True)
-    html_destinos += """
-    <div style="background-color: #0a101d; border: 1px solid #1c2b42; border-radius: 8px; padding: 10px; overflow-x: auto;">
+    tabela_linhas_html = """
+    <div style="background-color: #070d18; border: 1.5px solid #1c2b42; border-radius: 12px; padding: 10px; overflow-x: auto;">
         <table style="width: 100%; border-collapse: collapse; font-size: 0.75rem; text-align: center; color: #ffffff;">
             <thead>
                 <tr style="border-bottom: 1px solid #1c2b42; color: #64748b;">
@@ -1173,41 +1155,87 @@ if balanco_destinos:
             parts = nome_cru.split('-')
             dest_nome = f"{parts[0].strip()} - {parts[1].strip()}" if len(parts) >= 2 else nome_cru
 
-        html_destinos += f"""
+        tabela_linhas_html += f"""
             <tr style="border-bottom: 1px dashed #1c2b42;">
-                <td style="text-align: left; padding: 10px 4px;">{dest_nome}</td>
+                <td style="text-align: left; padding: 10px 4px; font-weight: bold;">{dest_nome}</td>
                 <td style="text-align: center; padding: 10px 4px; color: #38bdf8;">{fmt(d['meta'])}</td>
                 <td style="text-align: center; padding: 10px 4px; color: #00D672;">{fmt(d['realizado'])}</td>
                 <td style="text-align: center; padding: 10px 4px; color: {cor_saldo};">{saldo_str}</td>
                 <td style="text-align: center; padding: 10px 4px; color: {cor_ating};">{ating:.0f}%</td>
             </tr>
         """
-    html_destinos += "</tbody></table></div>"
+    tabela_linhas_html += "</tbody></table></div>"
 else:
-    html_destinos += '<div style="color:#64748b; font-size:0.8rem; text-align:center;">Nenhum destino ativo reportado.</div>'
+    tabela_linhas_html = '<div style="color:#64748b; font-size:0.8rem; text-align:center; padding:12px;">Nenhum destino ativo reportado.</div>'
+
+# Bloco de Totais que agora fica no RODAPÉ
+totais_rodape_html = f"""
+<div style="display:flex; justify-content:space-around; background-color:#070d18; border:1.5px solid #142842; border-radius:12px; padding:12px; margin-top:12px; text-align:center; box-shadow:0 4px 12px rgba(0,0,0,0.25);">
+    <div>
+        <div style="font-size:0.72rem; color:#64748b; font-weight:bold; text-transform:uppercase;">Plano Total Diário</div>
+        <div style="font-size:1.35rem; color:#ffffff; font-weight:bold;">{fmt(total_expedicao_meta)} <span style="font-size:0.8rem; color:#64748b; font-weight:normal;">t</span></div>
+    </div>
+    <div style="border-left:1px solid #1c2b42; padding-left:16px;">
+        <div style="font-size:0.72rem; color:#38bdf8; font-weight:bold; text-transform:uppercase;">Total Carregado</div>
+        <div style="font-size:1.35rem; color:#38bdf8; font-weight:bold;">{fmt(total_expedicao_real)} <span style="font-size:0.8rem; font-weight:normal;">t</span></div>
+    </div>
+</div>
+"""
+
+html_destinos = f"{tabela_linhas_html}{totais_rodape_html}"
 
 # ----------------------------------------------------
-# MONTAGEM MASTER (ESTILO MOCKUP IPHONE)
+# MONTAGEM MASTER (CSS DE PÍLULAS DINÂMICAS E SELETOR CENTRALIZADO)
 # ----------------------------------------------------
 html_exp_completo = f"""
 <style>
     /* CONTROLES OCULTOS DE NAVEGAÇÃO */
     .exp-wrapper input[type="radio"] {{ display: none !important; }}
 
-    /* ABAS UNDERLINE (POR TURNOS vs POR DESTINOS) */
+    /* DOIS BLOCOS DE SELEÇÃO CENTRALIZADOS */
     .exp-tab-bar {{
-        display: flex; gap: 20px; border-bottom: 1.5px solid #14243b;
-        margin-bottom: 14px; padding-left: 4px;
+        display: flex;
+        justify-content: center;
+        gap: 10px;
+        margin-bottom: 14px;
+        padding: 0 4px;
     }}
     .exp-tab-bar label {{
-        padding: 6px 4px; font-size: 0.85rem; font-weight: 700; color: #64748b;
-        cursor: pointer; border-bottom: 2.5px solid transparent; transition: all 0.2s ease;
-        margin-bottom: -1.5px;
+        flex: 1;
+        max-width: 180px;
+        text-align: center;
+        padding: 9px 12px;
+        font-size: 0.82rem;
+        font-weight: 800;
+        color: #94a3b8;
+        background: #070d18;
+        border: 1.5px solid #1c2b42;
+        border-radius: 10px;
+        cursor: pointer;
+        transition: all 0.2s ease;
     }}
-    #nav_turnos:checked ~ details .lbl-turnos {{ color: #ffffff !important; border-bottom-color: #00D672 !important; }}
-    #nav_destinos:checked ~ details .lbl-destinos {{ color: #ffffff !important; border-bottom-color: #38bdf8 !important; }}
+    #nav_turnos:checked ~ details .lbl-turnos {{
+        background: #00D672 !important;
+        color: #0a101d !important;
+        border-color: #00D672 !important;
+        box-shadow: 0 0 10px rgba(0, 214, 114, 0.35);
+    }}
+    #nav_destinos:checked ~ details .lbl-destinos {{
+        background: #38bdf8 !important;
+        color: #0a101d !important;
+        border-color: #38bdf8 !important;
+        box-shadow: 0 0 10px rgba(56, 189, 248, 0.35);
+    }}
 
-    /* SELETORES HOJE / ONTEM (PÍLULAS) */
+    /* PÍLULAS DE DATA: VISÍVEIS SOMENTE QUANDO O CARD ESTIVER ABERTO */
+    details:not([open]) .pill-day-box {{
+        display: none !important;
+    }}
+    details[open] .pill-day-box {{
+        display: flex !important;
+        gap: 6px;
+        align-items: center;
+    }}
     .pill-day-box label {{
         display: inline-block; padding: 4px 10px; border-radius: 999px; font-size: 0.72rem;
         font-weight: 700; cursor: pointer; background: #070d18; color: #64748b;
@@ -1234,7 +1262,7 @@ html_exp_completo = f"""
 
     <details class="master-box" style="border-left-color: #00D672;" open>
         <summary>
-            <!-- CABEÇALHO COM TÍTULO E PÍLULAS DE DATA -->
+            <!-- CABEÇALHO COM TÍTULO E PÍLULAS OCULTÁVEIS -->
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
                 <div class="header-layout" style="margin-bottom:0;">
                     <div class="icon-box" style="background-color: rgba(0, 214, 114, 0.15); color: #00D672;">🚚</div>
@@ -1272,10 +1300,10 @@ html_exp_completo = f"""
         </summary>
 
         <div class="master-content" style="padding-top: 14px;">
-            <!-- ABAS POR TURNOS / POR DESTINOS -->
+            <!-- DOIS BLOCOS DE SELEÇÃO CENTRALIZADOS -->
             <div class="exp-tab-bar">
-                <label for="nav_turnos" class="lbl-turnos">⏰ Por Turnos</label>
-                <label for="nav_destinos" class="lbl-destinos">📍 Por Destinos</label>
+                <label for="nav_turnos" class="lbl-turnos">⏰ Exp. p/ Turno</label>
+                <label for="nav_destinos" class="lbl-destinos">📊 Plano vs Exp.</label>
             </div>
 
             <!-- PAINEL 1: TURNOS -->
@@ -1301,7 +1329,7 @@ html_exp_completo = f"""
                 </div>
             </div>
 
-            <!-- PAINEL 2: DESTINOS -->
+            <!-- PAINEL 2: DESTINOS (TABELA COM TOTAIS NO RODAPÉ) -->
             <div class="exp-view-destinos" style="text-align: left;">
                 {html_destinos}
             </div>
@@ -1310,6 +1338,7 @@ html_exp_completo = f"""
 </div>
 """
 render_html(html_exp_completo)
+
 
 
 # ==============================================================================
