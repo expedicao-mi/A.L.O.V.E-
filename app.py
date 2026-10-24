@@ -1018,7 +1018,7 @@ render_html(html_prod_completo)
 
 
 # ==============================================================================
-# 🖨️ RENDERIZAÇÃO 6: EXPEDIÇÃO REALIZADA (SEM CAIXA DE CÓDIGO E SEM BOLINHA)
+# 🖨️ RENDERIZAÇÃO 6: EXPEDIÇÃO REALIZADA (VISUAL MODERNO - MOCKUP IPHONE)
 # ==============================================================================
 def func_exp_dados(dt_a):
     ls = descobrir_letras_turnos(dt_a)
@@ -1049,16 +1049,80 @@ def func_exp_dados(dt_a):
             elif agora_br.hour < 16: v3 = 0
             
         tns = []
-        if dt_a.weekday() in [6, 0]: tns.append({"letra": f"Turno {ls.get('madrugada','D')}", "v": 0, "str_vol": "EM FOLGA", "horario": "Somente Armazen."})
-        else: tns.append({"letra": f"Turno {ls.get('madrugada','D')}", "v": v1, "str_vol": f"{fmt(v1)} t", "horario": "00h - 08h"})
-        tns.append({"letra": f"Turno {ls.get('08_16','C')}", "v": v2, "str_vol": f"{fmt(v2)} t", "horario": "08h - 16h"})
-        tns.append({"letra": f"Turno {ls.get('16_00','B')}", "v": v3, "str_vol": f"{fmt(v3)} t", "horario": "16h - 00h"})
+        # Turno Madrugada (D)
+        if dt_a.weekday() in [6, 0]:
+            tns.append({"letra": f"Turno {ls.get('madrugada','D')}", "v": 0, "str_vol": "EM FOLGA", "horario": "00h - 08h", "ico": "🌙"})
+        else:
+            tns.append({"letra": f"Turno {ls.get('madrugada','D')}", "v": v1, "str_vol": f"{fmt(v1)} t", "horario": "00h - 08h", "ico": "🌙"})
+        
+        # Turno Manhã (C/Rotativa)
+        tns.append({"letra": f"Turno {ls.get('08_16','C')}", "v": v2, "str_vol": f"{fmt(v2)} t", "horario": "08h - 16h", "ico": "☀️"})
+        
+        # Turno Tarde (B/Rotativa)
+        tns.append({"letra": f"Turno {ls.get('16_00','B')}", "v": v3, "str_vol": f"{fmt(v3)} t", "horario": "16h - 00h", "ico": "🌇"})
         return tns
     except: return []
 
 tns_hoje = func_exp_dados(hoje_date)
 tns_ontem = func_exp_dados(ontem_date)
 
+# Cálculo da Barra de Progresso
+pct_prog = min(100.0, max(0.0, (vol_hoje / prev_carr * 100.0))) if prev_carr > 0 else 0.0
+
+# ----------------------------------------------------
+# CARDS DOS TURNOS DE HOJE
+# ----------------------------------------------------
+cards_hoje_html = ""
+for i, t in enumerate(tns_hoje):
+    is_atv = False
+    if hoje_date == agora_br.date():
+        if agora_br.hour < 8 and i == 0: is_atv = True
+        elif 8 <= agora_br.hour < 16 and i == 1: is_atv = True
+        elif agora_br.hour >= 16 and i == 2: is_atv = True
+
+    v_str = t.get("str_vol", f"{fmt(t['v'])} t")
+
+    if is_atv:
+        # CARD ATIVO: Destaque Neon Laranja
+        cards_hoje_html += f"""
+        <div style="flex: 1; background: #0c1524; border: 1.5px solid #FF9F1C; border-radius: 12px; padding: 12px 6px; text-align: center; box-shadow: 0 0 14px rgba(255, 159, 28, 0.22);">
+            <div style="font-size: 0.82rem; font-weight: 800; color: #FF9F1C;">{t['letra']} {t['ico']}</div>
+            <div style="font-size: 0.72rem; font-weight: 800; color: #00D672; margin: 3px 0 6px 0;">[ATIVO 🟢]</div>
+            <div style="font-size: 0.65rem; color: #64748b; margin-bottom: 6px;">{t['horario']}</div>
+            <div style="font-size: 1.25rem; font-weight: 800; color: #FF9F1C; line-height: 1;">{v_str}</div>
+        </div>
+        """
+    else:
+        # CARD INATIVO
+        val_color = "#E74C3C" if v_str == "EM FOLGA" else ("#ffffff" if t['v'] > 0 else "#64748b")
+        cards_hoje_html += f"""
+        <div style="flex: 1; background: #070d18; border: 1px solid #1c2b42; border-radius: 12px; padding: 12px 6px; text-align: center;">
+            <div style="font-size: 0.82rem; font-weight: 700; color: #cbd5e1;">{t['letra']} {t['ico']}</div>
+            <div style="font-size: 0.68rem; color: #64748b; margin: 3px 0 10px 0;">{t['horario']}</div>
+            <div style="font-size: 0.65rem; color: #475569; margin-bottom: 6px;">{t['horario']}</div>
+            <div style="font-size: 1.2rem; font-weight: 800; color: {val_color}; line-height: 1;">{v_str}</div>
+        </div>
+        """
+
+# ----------------------------------------------------
+# CARDS DOS TURNOS DE ONTEM (D-1)
+# ----------------------------------------------------
+cards_ontem_html = ""
+for t in tns_ontem:
+    v_str_o = t.get("str_vol", f"{fmt(t['v'])} t")
+    val_color_o = "#E74C3C" if v_str_o == "EM FOLGA" else ("#ffffff" if t['v'] > 0 else "#64748b")
+    cards_ontem_html += f"""
+    <div style="flex: 1; background: #070d18; border: 1px solid #1c2b42; border-radius: 12px; padding: 12px 6px; text-align: center;">
+        <div style="font-size: 0.82rem; font-weight: 700; color: #38bdf8;">{t['letra']} {t['ico']}</div>
+        <div style="font-size: 0.68rem; color: #64748b; margin: 3px 0 10px 0;">{t['horario']}</div>
+        <div style="font-size: 0.65rem; color: #475569; margin-bottom: 6px;">{t['horario']}</div>
+        <div style="font-size: 1.2rem; font-weight: 800; color: {val_color_o}; line-height: 1;">{v_str_o}</div>
+    </div>
+    """
+
+# ----------------------------------------------------
+# TABELA DE DESTINOS
+# ----------------------------------------------------
 html_destinos = f"""
 <div style="display:flex; justify-content:space-around; background-color:#0a101d; border:1px solid #1c2b42; border-radius:8px; padding:12px; margin-bottom:14px; text-align:center;">
     <div>
@@ -1080,7 +1144,6 @@ if balanco_destinos:
         except: return 0
 
     balanco_destinos_ordenado = sorted(balanco_destinos, key=regra_ordenacao, reverse=True)
-
     html_destinos += """
     <div style="background-color: #0a101d; border: 1px solid #1c2b42; border-radius: 8px; padding: 10px; overflow-x: auto;">
         <table style="width: 100%; border-collapse: collapse; font-size: 0.75rem; text-align: center; color: #ffffff;">
@@ -1098,13 +1161,10 @@ if balanco_destinos:
     for d in balanco_destinos_ordenado:
         ating = d['atingimento']
         cor_ating = "#00D672" if ating >= 100 else ("#38bdf8" if ating > 0 else "#64748b")
-
         if d['saldo'] <= 0 and d['realizado'] > 0:
-            saldo_str = "0"
-            cor_saldo = "#00D672"
+            saldo_str, cor_saldo = "0", "#00D672"
         else:
-            saldo_str = fmt(d['saldo'])
-            cor_saldo = "#E5B800"
+            saldo_str, cor_saldo = fmt(d['saldo']), "#E5B800"
 
         nome_cru = str(d['destino']).upper()
         if "MI" in nome_cru or "LATAM" in nome_cru:
@@ -1126,70 +1186,131 @@ if balanco_destinos:
 else:
     html_destinos += '<div style="color:#64748b; font-size:0.8rem; text-align:center;">Nenhum destino ativo reportado.</div>'
 
-cards_ontem_html = ""
-for t in tns_ontem:
-    v_str_o = t.get("str_vol", f"{fmt(t['v'])} t")
-    html_val_o = f"<div style='font-size:0.85rem; color:#E74C3C; padding: 5px 0;'>EM FOLGA</div>" if v_str_o == "EM FOLGA" else f"<div style='font-size:1.1rem; font-weight:bold; color:#ffffff;'>{v_str_o}</div>"
-    cards_ontem_html += f"<div style='flex:1; background-color:#0a101d; border:1px solid #1c2b42; border-radius:8px; padding:8px; text-align:center;'><div style='font-size:0.75rem; font-weight:bold; color:#38bdf8;'>{t['letra']}</div>{html_val_o}<div style='font-size:0.65rem; color:#64748b;'>{t['horario']}</div></div>"
-
-cards_hoje_html = ""
-for i, t in enumerate(tns_hoje):
-    is_atv = False
-    if hoje_date == agora_br.date():
-        if agora_br.hour < 8 and i == 0: is_atv = True
-        elif 8 <= agora_br.hour < 16 and i == 1: is_atv = True
-        elif agora_br.hour >= 16 and i == 2: is_atv = True
-    c_b, c_t = ("#FF9F1C", "#FF9F1C") if is_atv else ("#1c2b42", "#ffffff")
-    v_str = t.get("str_vol", f"{fmt(t['v'])} t")
-    html_val = f"<div style='font-size:0.85rem; color:#E74C3C; padding: 5px 0;'>EM FOLGA</div>" if v_str == "EM FOLGA" else f"<div style='font-size:1.1rem; font-weight:bold; color:#ffffff;'>{v_str}</div>"
-    cards_hoje_html += f"<div style='flex:1; background-color:#0a101d; border:1px solid {c_b}; border-radius:8px; padding:8px; text-align:center;'><div style='font-size:0.75rem; font-weight:bold; color:{c_t};'>{t['letra']}</div>{html_val}<div style='font-size:0.65rem; color:#64748b;'>{t['horario']}{' (ATIVO)' if is_atv else ''}</div></div>"
-
+# ----------------------------------------------------
+# MONTAGEM MASTER (ESTILO MOCKUP IPHONE)
+# ----------------------------------------------------
 html_exp_completo = f"""
-<details class="master-box" style="border-left-color: #00D672;" open>
-    <summary>
-        <div class="header-layout">
-            <div class="icon-box" style="background-color: rgba(0, 214, 114, 0.15); color: #00D672;">🚚</div>
-            <div class="master-metric-title">Expedição Realizada</div>
-        </div>
-        <div class="value-layout">
-            <div class="master-metric-val">{fmt(vol_hoje)}</div>
-            <div class="master-metric-unit">TON</div>
-        </div>
-        <div class="master-metric-sub" style="color: #00D672;">Consolidado Ontem (D-1): {fmt(vol_ontem)} t</div>
-        <div class="master-metric-sub" style="color: #64748b;">Prev. Fechamento: {fmt(prev_carr)} t</div>
-    </summary>
-    <div class="master-content css-tabs-view" style="padding-top:16px;">
-        <div style="text-align: center; margin-bottom: 16px;">
-            <input type="radio" name="exp_main_view" id="view_turnos" checked>
-            <label for="view_turnos" class="lbl-v-turnos">⏰ Turnos</label>
-            <input type="radio" name="exp_main_view" id="view_destinos">
-            <label for="view_destinos" class="lbl-v-destinos">📍 Destinos</label>
-            <div class="view-content-exp" id="content_view_turnos" style="margin-top: 14px;">
-                <div class="css-tabs-exp">
-                    <div style="text-align: center;">
-                        <input type="radio" name="exp_tabs" id="tab_ontem">
-                        <label for="tab_ontem" class="lbl-ontem">⏮️ Ontem (D-1)</label>
-                        <input type="radio" name="exp_tabs" id="tab_hoje" checked>
-                        <label for="tab_hoje" class="lbl-hoje">📅 Hoje</label>
-                        <div class="tab-content-exp" id="content_ontem" style="margin-top: 14px;">
-                            <div style="font-size:0.75rem; color:#38bdf8; text-transform:uppercase; margin-bottom:10px; text-align:left;">Fechamento de Ontem ({ontem_date.strftime('%d/%m')}):</div>
-                            <div style="display:flex; gap:6px; margin-bottom:8px;">{cards_ontem_html}</div>
-                        </div>
-                        <div class="tab-content-exp" id="content_hoje" style="margin-top: 14px;">
-                            <div style="font-size:0.75rem; color:#00D672; text-transform:uppercase; margin-bottom:10px; text-align:left;">Turnos em Operação Hoje:</div>
-                            <div style="display:flex; gap:6px; margin-bottom:8px;">{cards_hoje_html}</div>
-                        </div>
+<style>
+    /* CONTROLES OCULTOS DE NAVEGAÇÃO */
+    .exp-wrapper input[type="radio"] {{ display: none !important; }}
+
+    /* ABAS UNDERLINE (POR TURNOS vs POR DESTINOS) */
+    .exp-tab-bar {{
+        display: flex; gap: 20px; border-bottom: 1.5px solid #14243b;
+        margin-bottom: 14px; padding-left: 4px;
+    }}
+    .exp-tab-bar label {{
+        padding: 6px 4px; font-size: 0.85rem; font-weight: 700; color: #64748b;
+        cursor: pointer; border-bottom: 2.5px solid transparent; transition: all 0.2s ease;
+        margin-bottom: -1.5px;
+    }}
+    #nav_turnos:checked ~ details .lbl-turnos {{ color: #ffffff !important; border-bottom-color: #00D672 !important; }}
+    #nav_destinos:checked ~ details .lbl-destinos {{ color: #ffffff !important; border-bottom-color: #38bdf8 !important; }}
+
+    /* SELETORES HOJE / ONTEM (PÍLULAS) */
+    .pill-day-box label {{
+        display: inline-block; padding: 4px 10px; border-radius: 999px; font-size: 0.72rem;
+        font-weight: 700; cursor: pointer; background: #070d18; color: #64748b;
+        border: 1px solid #1c2b42; transition: 0.2s;
+    }}
+    #day_hoje:checked ~ details .lbl-d-hoje {{ background: #00D672 !important; color: #0a101d !important; border-color: #00D672 !important; }}
+    #day_ontem:checked ~ details .lbl-d-ontem {{ background: #00D672 !important; color: #0a101d !important; border-color: #00D672 !important; }}
+
+    /* EXIBIÇÃO DE CONTEÚDO */
+    .exp-view-turnos, .exp-view-destinos {{ display: none; }}
+    #nav_turnos:checked ~ details .exp-view-turnos {{ display: block; }}
+    #nav_destinos:checked ~ details .exp-view-destinos {{ display: block; }}
+
+    .box-hoje, .box-ontem {{ display: none; }}
+    #day_hoje:checked ~ details .box-hoje {{ display: block; }}
+    #day_ontem:checked ~ details .box-ontem {{ display: block; }}
+</style>
+
+<div class="exp-wrapper">
+    <input type="radio" name="exp_view" id="nav_turnos" checked>
+    <input type="radio" name="exp_view" id="nav_destinos">
+    <input type="radio" name="exp_day" id="day_hoje" checked>
+    <input type="radio" name="exp_day" id="day_ontem">
+
+    <details class="master-box" style="border-left-color: #00D672;" open>
+        <summary>
+            <!-- CABEÇALHO COM TÍTULO E PÍLULAS DE DATA -->
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                <div class="header-layout" style="margin-bottom:0;">
+                    <div class="icon-box" style="background-color: rgba(0, 214, 114, 0.15); color: #00D672;">🚚</div>
+                    <div class="master-metric-title">Expedição Realizada</div>
+                </div>
+                <div class="pill-day-box" onclick="event.stopPropagation();">
+                    <label for="day_hoje" class="lbl-d-hoje">Hoje 📅</label>
+                    <label for="day_ontem" class="lbl-d-ontem">Ontem (D-1) ⏪</label>
+                </div>
+            </div>
+
+            <!-- VALOR PRINCIPAL -->
+            <div class="value-layout" style="margin-bottom:2px;">
+                <div class="master-metric-val">{fmt(vol_hoje)}</div>
+                <div class="master-metric-unit">TON</div>
+            </div>
+
+            <!-- CONSOLIDADO D-1 EM VERDE -->
+            <div class="master-metric-sub" style="color: #00D672; font-weight: 700; margin-bottom: 8px;">
+                Consolidado Ontem (D-1): {fmt(vol_ontem)} t
+            </div>
+
+            <!-- BARRA DE PROGRESSO COM METAS -->
+            <div style="margin-top: 4px; margin-bottom: 2px;">
+                <div style="font-size: 0.75rem; color: #cbd5e1; margin-bottom: 5px;">
+                    Progresso: <b style="color: #ffffff;">{fmt(vol_hoje)} t</b> de <b style="color: #ffffff;">{fmt(prev_carr)} t</b> ({pct_prog:.0f}%) 🎯
+                </div>
+                <div style="width: 100%; height: 7px; background: #14243b; border-radius: 999px; overflow: hidden;">
+                    <div style="width: {pct_prog:.1f}%; height: 100%; background: linear-gradient(90deg, #0084FF 0%, #00D672 100%); border-radius: 999px; box-shadow: 0 0 10px rgba(0,214,114,0.45);"></div>
+                </div>
+                <div style="text-align: right; font-size: 0.72rem; color: #64748b; margin-top: 4px;">
+                    Prev. Fechamento: {fmt(prev_carr)} t
+                </div>
+            </div>
+        </summary>
+
+        <div class="master-content" style="padding-top: 14px;">
+            <!-- ABAS POR TURNOS / POR DESTINOS -->
+            <div class="exp-tab-bar">
+                <label for="nav_turnos" class="lbl-turnos">⏰ Por Turnos</label>
+                <label for="nav_destinos" class="lbl-destinos">📍 Por Destinos</label>
+            </div>
+
+            <!-- PAINEL 1: TURNOS -->
+            <div class="exp-view-turnos">
+                <!-- SEÇÃO HOJE -->
+                <div class="box-hoje">
+                    <div style="font-size: 0.72rem; font-weight: 800; color: #00D672; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 10px;">
+                        TURNOS EM OPERAÇÃO HOJE:
+                    </div>
+                    <div style="display: flex; gap: 8px;">
+                        {cards_hoje_html}
+                    </div>
+                </div>
+
+                <!-- SEÇÃO ONTEM -->
+                <div class="box-ontem">
+                    <div style="font-size: 0.72rem; font-weight: 800; color: #38bdf8; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 10px;">
+                        TURNOS EM OPERAÇÃO ONTEM:
+                    </div>
+                    <div style="display: flex; gap: 8px;">
+                        {cards_ontem_html}
                     </div>
                 </div>
             </div>
-            <div class="view-content-exp" id="content_view_destinos" style="margin-top: 14px; text-align: left;">
+
+            <!-- PAINEL 2: DESTINOS -->
+            <div class="exp-view-destinos" style="text-align: left;">
                 {html_destinos}
             </div>
         </div>
-    </div>
-</details>
+    </details>
+</div>
 """
 render_html(html_exp_completo)
+
 
 # ==============================================================================
 # 🖨️ RENDERIZAÇÃO 7: ESTOQUE FÍSICO (BARRAS VERTICAIS + ROSCA EQ vs SQ)
