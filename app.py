@@ -1312,6 +1312,238 @@ render_html(html_exp_completo)
 
 
 
+# ==============================================================================
+# 🖨️ RENDERIZAÇÃO 6.5: ANÁLISE DE PEDIDOS (ZLE087 - TRANSFERÊNCIA & MI/LATAM)
+# ==============================================================================
+@st.cache_data(ttl=60)
+def carregar_pedidos_zle087():
+    try:
+        url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet=Status_Pedidos_ZLE087"
+        df_raw = pd.read_csv(url, header=None)
+        if df_raw.empty:
+            return pd.DataFrame(), "--:--"
+        
+        hora_att_ped = "--:--"
+        try:
+            val_h = str(df_raw.iloc[0, 1]).strip()
+            if "/" in val_h or ":" in val_h:
+                hora_att_ped = val_h.split(" ")[1][:5] if " " in val_h else val_h[:5]
+        except:
+            pass
+
+        idx_header = None
+        for i in range(min(5, len(df_raw))):
+            row_vals = [str(x).strip().upper() for x in df_raw.iloc[i].tolist()]
+            if any("FLUXO" in x for x in row_vals) or any("DESTINO" in x for x in row_vals):
+                idx_header = i
+                break
+        
+        if idx_header is not None:
+            df = df_raw.iloc[idx_header+1:].copy()
+            cols = [str(c).strip().upper() for c in df_raw.iloc[idx_header].tolist()]
+            df.columns = cols
+            df = df.dropna(how="all")
+            return df, hora_att_ped
+        return pd.DataFrame(), hora_att_ped
+    except:
+        return pd.DataFrame(), "--:--"
+
+df_pedidos, hora_att_ped = carregar_pedidos_zle087()
+
+pedidos_transf = []
+pedidos_mi = []
+tot_saldo_transf = 0.0
+tot_saldo_mi = 0.0
+
+if not df_pedidos.empty:
+    for _, r in df_pedidos.iterrows():
+        fluxo = str(r.get("FLUXO", "")).strip().upper()
+        destino = str(r.get("DESTINO_CLIENTE", "")).strip()
+        ped_atual = str(r.get("PEDIDO_ATUAL", "")).strip()
+        mat_atual = str(r.get("MATERIAL_ATUAL", "")).strip()
+        
+        qtd_ini = safe_to_numeric(r.get("QTD_INICIAL_T", 0))
+        saldo = safe_to_numeric(r.get("SALDO_RESTANTE", 0))
+        prox_ped = str(r.get("PROXIMO_PEDIDO", r.get("PROXIMO_PED", "--"))).strip()
+        prox_mat = str(r.get("PROXIMO_MATERIAL", r.get("PROXIMO_MATI", "--"))).strip()
+        saldo_prox = str(r.get("SALDO_PROXIMO", r.get("SALDO_PROXIM", "--"))).strip()
+
+        if not destino or destino.lower() == "nan":
+            continue
+
+        item = {
+            "destino": destino,
+            "pedido": ped_atual,
+            "material": mat_atual,
+            "qtd_ini": qtd_ini,
+            "saldo": saldo,
+            "prox_ped": prox_ped,
+            "prox_mat": prox_mat,
+            "saldo_prox": saldo_prox,
+            "is_fim": (saldo <= 100.0 and saldo > 0)
+        }
+
+        if "TRANSF" in fluxo:
+            pedidos_transf.append(item)
+            tot_saldo_transf += saldo
+        else:
+            pedidos_mi.append(item)
+            tot_saldo_mi += saldo
+
+tot_saldo_geral = tot_saldo_transf + tot_saldo_mi
+
+def gerar_cards_pedidos(lista_itens, cor_primaria):
+    if not lista_itens:
+        return '<div style="color:#64748b; font-size:0.82rem; text-align:center; padding:16px;">Nenhum pedido ativo encontrado.</div>'
+    
+    html = ""
+    for item in lista_itens:
+        # Tag de alerta se estiver em fim de pedido (< 100t)
+        if item["is_fim"]:
+            tag_status = f'<span style="background:rgba(231,76,60,0.18); border:1px solid #e74c3c; color:#ff7675; font-size:0.68rem; font-weight:800; padding:2px 8px; border-radius:6px; white-space:nowrap;">⚠️ FIM: {fmt(item["saldo"])} t</span>'
+        else:
+            tag_status = f'<span style="background:rgba(56,189,248,0.15); border:1px solid #38bdf8; color:#38bdf8; font-size:0.68rem; font-weight:800; padding:2px 8px; border-radius:6px; white-space:nowrap;">SALDO: {fmt(item["saldo"])} t</span>'
+
+        # Barra de atendimento do pedido atual
+        pct_atend = 0.0
+        if item["qtd_ini"] > 0:
+            carr = max(0.0, item["qtd_ini"] - item["saldo"])
+            pct_atend = min(100.0, max(0.0, (carr / item["qtd_ini"]) * 100.0))
+
+        # Informação do próximo pedido
+        info_prox = ""
+        if item["prox_ped"] not in ("--", "", "nan") and not "SEM PR" in item["prox_mat"].upper():
+            info_prox = f"""
+            <div style="background:#050911; border:1px dashed #1c2b42; border-radius:8px; padding:6px 10px; margin-top:8px; font-size:0.72rem; color:#94a3b8;">
+                🔜 <b>Próximo:</b> <span style="color:#ffffff; font-weight:bold;">{item['prox_ped']}</span> ({item['prox_mat']}) &bull; Saldo: <span style="color:#38bdf8; font-weight:bold;">{item['saldo_prox']}</span>
+            </div>
+            """
+
+        cor_mat = "#00D672" if "EQ" in item["material"].upper() else ("#00D6FF" if "SQ" in item["material"].upper() else "#FF9F1C")
+
+        html += f"""
+        <div style="background:#070d18; border:1.5px solid #142842; border-left:4px solid {cor_primaria}; border-radius:12px; padding:12px 14px; margin-bottom:10px; box-shadow:0 3px 10px rgba(0,0,0,0.25);">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px;">
+                <div style="color:#ffffff; font-weight:800; font-size:0.88rem; line-height:1.2;">{item['destino']}</div>
+                {tag_status}
+            </div>
+
+            <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.75rem; color:#94a3b8; margin-top:6px;">
+                <div>📦 Pedido: <b style="color:#ffffff;">{item['pedido']}</b></div>
+                <div>Mat: <b style="color:{cor_mat};">{item['material']}</b></div>
+            </div>
+
+            <!-- Progresso do pedido atual -->
+            <div style="margin-top:8px;">
+                <div style="display:flex; justify-content:space-between; font-size:0.68rem; color:#64748b; margin-bottom:3px;">
+                    <span>Atendido: {pct_atend:.0f}%</span>
+                    <span>Meta: {fmt(item['qtd_ini'])} t</span>
+                </div>
+                <div style="width:100%; height:5px; background:#14243b; border-radius:999px; overflow:hidden;">
+                    <div style="width:{pct_atend:.1f}%; height:100%; background:linear-gradient(90deg, #38bdf8, {cor_primaria}); border-radius:999px;"></div>
+                </div>
+            </div>
+
+            {info_prox}
+        </div>
+        """
+    return html
+
+html_cards_transf = gerar_cards_pedidos(pedidos_transf, "#0084FF")
+html_cards_mi = gerar_cards_pedidos(pedidos_mi, "#00D672")
+
+html_bloco_pedidos = f"""
+<style>
+    .ped-wrapper input[type="radio"] {{ display: none !important; }}
+
+    .ped-tab-bar {{
+        display: flex;
+        justify-content: center;
+        gap: 10px;
+        margin-bottom: 14px;
+        padding: 0 4px;
+    }}
+    .ped-tab-bar label {{
+        flex: 1;
+        max-width: 190px;
+        text-align: center;
+        padding: 9px 8px;
+        font-size: 0.80rem;
+        font-weight: 800;
+        color: #94a3b8;
+        background: #070d18;
+        border: 1.5px solid #1c2b42;
+        border-radius: 10px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        white-space: nowrap;
+    }}
+    #tab_transf:checked ~ details .lbl-transf {{
+        background: #0084FF !important;
+        color: #ffffff !important;
+        border-color: #0084FF !important;
+        box-shadow: 0 0 10px rgba(0, 132, 255, 0.4);
+    }}
+    #tab_mi:checked ~ details .lbl-mi {{
+        background: #00D672 !important;
+        color: #0a101d !important;
+        border-color: #00D672 !important;
+        box-shadow: 0 0 10px rgba(0, 214, 114, 0.4);
+    }}
+
+    .ped-view-transf, .ped-view-mi {{ display: none; }}
+    #tab_transf:checked ~ details .ped-view-transf {{ display: block; }}
+    #tab_mi:checked ~ details .ped-view-mi {{ display: block; }}
+</style>
+
+<div class="ped-wrapper">
+    <input type="radio" name="ped_view" id="tab_transf" checked>
+    <input type="radio" name="ped_view" id="tab_mi">
+
+    <details class="master-box" style="border-left-color: #0084FF; margin-bottom: 14px;" open>
+        <summary>
+            <!-- CABEÇALHO -->
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                <div class="header-layout" style="margin-bottom:0;">
+                    <div class="icon-box" style="background-color: rgba(0, 132, 255, 0.15); color: #0084FF;">📑</div>
+                    <div class="master-metric-title">Análise de Pedidos (ZLE087)</div>
+                </div>
+            </div>
+
+            <!-- VALOR PRINCIPAL: SALDO TOTAL PENDENTE -->
+            <div class="value-layout" style="margin-bottom:2px;">
+                <div class="master-metric-val">{fmt(tot_saldo_geral)}</div>
+                <div class="master-metric-unit">TON</div>
+            </div>
+
+            <!-- SUB-RESUMO SEGREGAÇÃO -->
+            <div class="master-metric-sub" style="color: #94a3b8; margin-bottom: 4px;">
+                🚛 Transf: <b style="color:#38bdf8;">{fmt(tot_saldo_transf)} t</b> &nbsp;|&nbsp; 🏢 MI/Latam: <b style="color:#00D672;">{fmt(tot_saldo_mi)} t</b>
+            </div>
+        </summary>
+
+        <div class="master-content" style="padding-top: 14px;">
+            <!-- SELETORES EM ABAS LADO A LADO -->
+            <div class="ped-tab-bar">
+                <label for="tab_transf" class="lbl-transf">🚛 Transferência ({len(pedidos_transf)})</label>
+                <label for="tab_mi" class="lbl-mi">🏢 MI / LATAM ({len(pedidos_mi)})</label>
+            </div>
+
+            <!-- PAINEL 1: TRANSFERÊNCIA -->
+            <div class="ped-view-transf">
+                {html_cards_transf}
+            </div>
+
+            <!-- PAINEL 2: MERCADO INTERNO / LATAM -->
+            <div class="ped-view-mi">
+                {html_cards_mi}
+            </div>
+        </div>
+    </details>
+</div>
+"""
+render_html(html_bloco_pedidos)
+
 
 # ==============================================================================
 # 🖨️ RENDERIZAÇÃO 7: ESTOQUE FÍSICO (COM BARRA DE OCUPAÇÃO 25K + BARRAS + ROSCA)
