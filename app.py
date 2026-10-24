@@ -1018,7 +1018,7 @@ render_html(html_prod_completo)
 
 
 # ==============================================================================
-# 🖨️ RENDERIZAÇÃO 6: EXPEDIÇÃO REALIZADA (BLOCOS CENTRALIZADOS E TOTAIS NO RODAPÉ)
+# 🖨️ RENDERIZAÇÃO 6: EXPEDIÇÃO REALIZADA (PÍLULAS AJUSTADAS E SEM EMOJIS)
 # ==============================================================================
 def func_exp_dados(dt_a):
     ls = descobrir_letras_turnos(dt_a)
@@ -1050,12 +1050,12 @@ def func_exp_dados(dt_a):
             
         tns = []
         if dt_a.weekday() in [6, 0]:
-            tns.append({"letra": f"Turno {ls.get('madrugada','D')}", "v": 0, "str_vol": "EM FOLGA", "horario": "00h - 08h", "ico": "🌙"})
+            tns.append({"letra": f"Turno {ls.get('madrugada','D')}", "v": 0, "str_vol": "EM FOLGA", "horario": "00h - 08h"})
         else:
-            tns.append({"letra": f"Turno {ls.get('madrugada','D')}", "v": v1, "str_vol": f"{fmt(v1)} t", "horario": "00h - 08h", "ico": "🌙"})
+            tns.append({"letra": f"Turno {ls.get('madrugada','D')}", "v": v1, "str_vol": f"{fmt(v1)} t", "horario": "00h - 08h"})
         
-        tns.append({"letra": f"Turno {ls.get('08_16','C')}", "v": v2, "str_vol": f"{fmt(v2)} t", "horario": "08h - 16h", "ico": "☀️"})
-        tns.append({"letra": f"Turno {ls.get('16_00','B')}", "v": v3, "str_vol": f"{fmt(v3)} t", "horario": "16h - 00h", "ico": "🌇"})
+        tns.append({"letra": f"Turno {ls.get('08_16','C')}", "v": v2, "str_vol": f"{fmt(v2)} t", "horario": "08h - 16h"})
+        tns.append({"letra": f"Turno {ls.get('16_00','B')}", "v": v3, "str_vol": f"{fmt(v3)} t", "horario": "16h - 00h"})
         return tns
     except: return []
 
@@ -1066,7 +1066,7 @@ tns_ontem = func_exp_dados(ontem_date)
 pct_prog = min(100.0, max(0.0, (vol_hoje / prev_carr * 100.0))) if prev_carr > 0 else 0.0
 
 # ----------------------------------------------------
-# CARDS DOS TURNOS DE HOJE
+# CARDS DOS TURNOS DE HOJE (SEM EMOJIS)
 # ----------------------------------------------------
 cards_hoje_html = ""
 for i, t in enumerate(tns_hoje):
@@ -1081,7 +1081,7 @@ for i, t in enumerate(tns_hoje):
     if is_atv:
         cards_hoje_html += f"""
         <div style="flex: 1; background: #0c1524; border: 1.5px solid #FF9F1C; border-radius: 12px; padding: 12px 6px; text-align: center; box-shadow: 0 0 14px rgba(255, 159, 28, 0.22);">
-            <div style="font-size: 0.82rem; font-weight: 800; color: #FF9F1C;">{t['letra']} {t['ico']}</div>
+            <div style="font-size: 0.85rem; font-weight: 800; color: #FF9F1C;">{t['letra']}</div>
             <div style="font-size: 0.72rem; font-weight: 800; color: #00D672; margin: 3px 0 6px 0;">[ATIVO 🟢]</div>
             <div style="font-size: 0.65rem; color: #64748b; margin-bottom: 6px;">{t['horario']}</div>
             <div style="font-size: 1.25rem; font-weight: 800; color: #FF9F1C; line-height: 1;">{v_str}</div>
@@ -1091,7 +1091,7 @@ for i, t in enumerate(tns_hoje):
         val_color = "#E74C3C" if v_str == "EM FOLGA" else ("#ffffff" if t['v'] > 0 else "#64748b")
         cards_hoje_html += f"""
         <div style="flex: 1; background: #070d18; border: 1px solid #1c2b42; border-radius: 12px; padding: 12px 6px; text-align: center;">
-            <div style="font-size: 0.82rem; font-weight: 700; color: #cbd5e1;">{t['letra']} {t['ico']}</div>
+            <div style="font-size: 0.85rem; font-weight: 700; color: #cbd5e1;">{t['letra']}</div>
             <div style="font-size: 0.68rem; color: #64748b; margin: 3px 0 10px 0;">{t['horario']}</div>
             <div style="font-size: 0.65rem; color: #475569; margin-bottom: 6px;">{t['horario']}</div>
             <div style="font-size: 1.2rem; font-weight: 800; color: {val_color}; line-height: 1;">{v_str}</div>
@@ -1099,7 +1099,7 @@ for i, t in enumerate(tns_hoje):
         """
 
 # ----------------------------------------------------
-# CARDS DOS TURNOS DE ONTEM (D-1)
+# CARDS DOS TURNOS DE ONTEM (D-1) (SEM EMOJIS)
 # ----------------------------------------------------
 cards_ontem_html = ""
 for t in tns_ontem:
@@ -1107,7 +1107,7 @@ for t in tns_ontem:
     val_color_o = "#E74C3C" if v_str_o == "EM FOLGA" else ("#ffffff" if t['v'] > 0 else "#64748b")
     cards_ontem_html += f"""
     <div style="flex: 1; background: #070d18; border: 1px solid #1c2b42; border-radius: 12px; padding: 12px 6px; text-align: center;">
-        <div style="font-size: 0.82rem; font-weight: 700; color: #38bdf8;">{t['letra']} {t['ico']}</div>
+        <div style="font-size: 0.85rem; font-weight: 700; color: #38bdf8;">{t['letra']}</div>
         <div style="font-size: 0.68rem; color: #64748b; margin: 3px 0 10px 0;">{t['horario']}</div>
         <div style="font-size: 0.65rem; color: #475569; margin-bottom: 6px;">{t['horario']}</div>
         <div style="font-size: 1.2rem; font-weight: 800; color: {val_color_o}; line-height: 1;">{v_str_o}</div>
@@ -1168,7 +1168,6 @@ if balanco_destinos:
 else:
     tabela_linhas_html = '<div style="color:#64748b; font-size:0.8rem; text-align:center; padding:12px;">Nenhum destino ativo reportado.</div>'
 
-# Bloco de Totais que agora fica no RODAPÉ
 totais_rodape_html = f"""
 <div style="display:flex; justify-content:space-around; background-color:#070d18; border:1.5px solid #142842; border-radius:12px; padding:12px; margin-top:12px; text-align:center; box-shadow:0 4px 12px rgba(0,0,0,0.25);">
     <div>
@@ -1185,7 +1184,7 @@ totais_rodape_html = f"""
 html_destinos = f"{tabela_linhas_html}{totais_rodape_html}"
 
 # ----------------------------------------------------
-# MONTAGEM MASTER (CSS DE PÍLULAS DINÂMICAS E SELETOR CENTRALIZADO)
+# MONTAGEM MASTER (CSS DE PÍLULAS AJUSTADAS À ESQUERDA)
 # ----------------------------------------------------
 html_exp_completo = f"""
 <style>
@@ -1227,7 +1226,7 @@ html_exp_completo = f"""
         box-shadow: 0 0 10px rgba(56, 189, 248, 0.35);
     }}
 
-    /* PÍLULAS DE DATA: VISÍVEIS SOMENTE QUANDO O CARD ESTIVER ABERTO */
+    /* PÍLULAS: VISÍVEIS SÓ QUANDO ABERTO E COM MARGEM À DIREITA (SAINDO DE CIMA DA SETA) */
     details:not([open]) .pill-day-box {{
         display: none !important;
     }}
@@ -1235,6 +1234,7 @@ html_exp_completo = f"""
         display: flex !important;
         gap: 6px;
         align-items: center;
+        margin-right: 28px; /* Folga para a seta do summary */
     }}
     .pill-day-box label {{
         display: inline-block; padding: 4px 10px; border-radius: 999px; font-size: 0.72rem;
@@ -1243,6 +1243,16 @@ html_exp_completo = f"""
     }}
     #day_hoje:checked ~ details .lbl-d-hoje {{ background: #00D672 !important; color: #0a101d !important; border-color: #00D672 !important; }}
     #day_ontem:checked ~ details .lbl-d-ontem {{ background: #00D672 !important; color: #0a101d !important; border-color: #00D672 !important; }}
+
+    /* QUANDO 'PLANO VS EXP.' ESTIVER SELECIONADO: DESATIVA E APAGA A PÍLULA D-1 */
+    #nav_destinos:checked ~ details .lbl-d-ontem {{
+        opacity: 0.22 !important;
+        pointer-events: none !important;
+        cursor: not-allowed !important;
+        background: #070d18 !important;
+        color: #334155 !important;
+        border-color: #0f172a !important;
+    }}
 
     /* EXIBIÇÃO DE CONTEÚDO */
     .exp-view-turnos, .exp-view-destinos {{ display: none; }}
@@ -1262,7 +1272,7 @@ html_exp_completo = f"""
 
     <details class="master-box" style="border-left-color: #00D672;" open>
         <summary>
-            <!-- CABEÇALHO COM TÍTULO E PÍLULAS OCULTÁVEIS -->
+            <!-- CABEÇALHO COM TÍTULO E PÍLULAS POSICIONADAS À ESQUERDA DA SETA -->
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
                 <div class="header-layout" style="margin-bottom:0;">
                     <div class="icon-box" style="background-color: rgba(0, 214, 114, 0.15); color: #00D672;">🚚</div>
@@ -1338,6 +1348,7 @@ html_exp_completo = f"""
 </div>
 """
 render_html(html_exp_completo)
+
 
 
 
