@@ -602,15 +602,36 @@ if not df_balanco_dest.empty:
             })
 
 # ==============================================================================
-# 🖨️ RENDERIZAÇÃO 1: TOPO (BANNER E STATUS)
+# 🖨️ RENDERIZAÇÃO 1: TOPO (BANNER, STATUS COM BOTÃO PÍLULA & SEMÁFORO)
 # ==============================================================================
 st.markdown(f'<div class="topo-banner"><img src="{BANNER_TOPO_URL}"></div>', unsafe_allow_html=True)
 
+# CSS específico para transformar o botão Atualizar do topo em uma pílula compacta
+st.markdown("""
+    <style>
+        .st-key-btn_topo_att button {
+            background: #070d18 !important;
+            color: #ffffff !important;
+            font-size: 0.72rem !important;
+            font-weight: 800 !important;
+            border: 1.5px solid #00b4ff !important;
+            border-radius: 999px !important;
+            min-height: 1.9rem !important;
+            height: 30px !important;
+            padding: 0 8px !important;
+            box-shadow: 0 0 10px rgba(0, 180, 255, 0.35) !important;
+            white-space: nowrap !important;
+            margin-top: 2px !important;
+        }
+    </style>
+""", unsafe_allow_html=True)
+
+# 1. CARD PRINCIPAL DE STATUS + BOTÃO PÍLULA ALINHADO À DIREITA
 with st.container(border=True):
-    col_status, col_btn = st.columns([3, 2], vertical_alignment="center")
+    col_status, col_btn = st.columns([3.3, 1.2], vertical_alignment="top")
     with col_status:
         render_html(f"""
-            <div style="display:flex; align-items:center;">
+            <div style="display:flex; align-items:center; margin-bottom:4px;">
                 <span class="conn-dot" style="background:{conn_cor};"></span>
                 <span class="conn-titulo" style="color:{conn_cor};">{conn_txt}</span>
             </div>
@@ -618,8 +639,73 @@ with st.container(border=True):
             <div class="conn-ritmo">🎯 {ritmo_torre}</div>
         """)
     with col_btn:
-        if st.button("🔄 Atualizar", use_container_width=True):
-            st.cache_data.clear(); st.rerun()
+        if st.button("🔄 Atualizar", key="btn_topo_att", use_container_width=True):
+            st.cache_data.clear()
+            st.rerun()
+
+# 2. CÁLCULO E RENDERIZAÇÃO DO SEMÁFORO DOS SISTEMAS
+# Robô: baseado no tempo de atualização da base de dados do Core
+is_robo_ok = minutos_inativos <= 5.0
+led_robo = "#00D672" if is_robo_ok else "#E74C3C"
+borda_robo = "#00D672" if is_robo_ok else "#1c2b42"
+
+# Torre: responde se a cadência da torre está ativa e atualizando
+is_torre_ok = minutos_inativos <= 10.0 and ("NORMAL" in ritmo_torre.upper() or "RÁPIDO" in ritmo_torre.upper() or "ACELERADO" in ritmo_torre.upper())
+led_torre = "#00D672" if is_torre_ok else "#E74C3C"
+borda_torre = "#00D672" if is_torre_ok else "#1c2b42"
+
+# Totem e TV: monitorados pela conectividade geral do ecossistema
+is_totem_ok = minutos_inativos <= 15.0
+led_totem = "#00D672" if is_totem_ok else "#E74C3C"
+borda_totem = "#00D672" if is_totem_ok else "#1c2b42"
+
+is_tv_ok = minutos_inativos <= 15.0
+led_tv = "#00D672" if is_tv_ok else "#E74C3C"
+borda_tv = "#00D672" if is_tv_ok else "#1c2b42"
+
+html_semaforo = f"""
+<div class="card-main" style="margin-bottom: 14px; padding: 10px 8px; border-color: #12506e;">
+    <div style="display: flex; justify-content: space-between; align-items: center; gap: 6px;">
+        <!-- ROBÔ -->
+        <div style="flex: 1; background: #070d18; border: 1.5px solid {borda_robo}; border-radius: 12px; padding: 10px 2px; text-align: center; box-shadow: 0 0 10px rgba(0, 214, 114, 0.12);">
+            <div style="display: flex; justify-content: center; align-items: center; gap: 6px; margin-bottom: 4px;">
+                <span style="font-size: 1.45rem;">🤖</span>
+                <span style="width: 9px; height: 9px; border-radius: 50%; background: {led_robo}; box-shadow: 0 0 8px {led_robo}; display: inline-block;"></span>
+            </div>
+            <div style="color: #ffffff; font-size: 0.72rem; font-weight: 800; letter-spacing: 0.5px;">ROBÔ</div>
+        </div>
+
+        <!-- TORRE -->
+        <div style="flex: 1; background: #070d18; border: 1.5px solid {borda_torre}; border-radius: 12px; padding: 10px 2px; text-align: center; box-shadow: 0 0 10px rgba(0, 214, 114, 0.12);">
+            <div style="display: flex; justify-content: center; align-items: center; gap: 6px; margin-bottom: 4px;">
+                <span style="font-size: 1.45rem;">📡</span>
+                <span style="width: 9px; height: 9px; border-radius: 50%; background: {led_torre}; box-shadow: 0 0 8px {led_torre}; display: inline-block;"></span>
+            </div>
+            <div style="color: #ffffff; font-size: 0.72rem; font-weight: 800; letter-spacing: 0.5px;">TORRE</div>
+        </div>
+
+        <!-- TOTEM -->
+        <div style="flex: 1; background: #070d18; border: 1.5px solid {borda_totem}; border-radius: 12px; padding: 10px 2px; text-align: center; box-shadow: 0 0 10px rgba(0, 214, 114, 0.12);">
+            <div style="display: flex; justify-content: center; align-items: center; gap: 6px; margin-bottom: 4px;">
+                <span style="font-size: 1.45rem;">📱</span>
+                <span style="width: 9px; height: 9px; border-radius: 50%; background: {led_totem}; box-shadow: 0 0 8px {led_totem}; display: inline-block;"></span>
+            </div>
+            <div style="color: #ffffff; font-size: 0.72rem; font-weight: 800; letter-spacing: 0.5px;">TOTEM</div>
+        </div>
+
+        <!-- TV -->
+        <div style="flex: 1; background: #070d18; border: 1.5px solid {borda_tv}; border-radius: 12px; padding: 10px 2px; text-align: center; box-shadow: 0 0 10px rgba(0, 214, 114, 0.12);">
+            <div style="display: flex; justify-content: center; align-items: center; gap: 6px; margin-bottom: 4px;">
+                <span style="font-size: 1.45rem;">📺</span>
+                <span style="width: 9px; height: 9px; border-radius: 50%; background: {led_tv}; box-shadow: 0 0 8px {led_tv}; display: inline-block;"></span>
+            </div>
+            <div style="color: #ffffff; font-size: 0.72rem; font-weight: 800; letter-spacing: 0.5px;">TV</div>
+        </div>
+    </div>
+</div>
+"""
+render_html(html_semaforo)
+
 
 # ==============================================================================
 # 🖨️ RENDERIZAÇÃO 2: NOTIFICAÇÕES (FLEXÍVEL E COM AUTO-FECHAMENTO NO SCROLL)
