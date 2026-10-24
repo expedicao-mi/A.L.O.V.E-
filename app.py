@@ -711,23 +711,29 @@ html_semaforo = f"""
 render_html(html_semaforo)
 
 # ==============================================================================
-# 🖨️ ANIMAÇÃO DE CARREGAMENTO (A.L.O.V.E TYPING EFFECT)
+# 🖨️ ANIMAÇÃO DE CARREGAMENTO (A.L.O.V.E TYPING EFFECT) E TELA CHEIA
 # ==============================================================================
 st.markdown("""
     <style>
+        /* Esconde o aviso padrão do Streamlit "Running..." */
+        [data-testid="stStatusWidget"] {
+            visibility: hidden;
+            display: none;
+        }
+        /* Tela cheia absoluta que cobre TODO O APP enquanto carrega */
         .alove-loader-bg {
             position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-            background: radial-gradient(ellipse at center, #0c1a33 0%, #050911 100%);
-            z-index: 999999; display: flex; justify-content: center; align-items: center;
-            animation: loaderFadeOut 0.4s 1.5s forwards; pointer-events: none;
+            background: #050911; /* Preto total */
+            z-index: 99999999; display: flex; justify-content: center; align-items: center;
+            animation: loaderFadeOut 0.5s 1.5s forwards; pointer-events: none;
         }
         .alove-loader-text {
-            font-size: 2.5rem; font-weight: 900; color: #00D672;
+            font-size: 2.8rem; font-weight: 900; color: #00D672;
             letter-spacing: 6px; text-shadow: 0 0 20px rgba(0,214,114,0.6);
             overflow: hidden; white-space: nowrap;
             border-right: 4px solid #00D672;
             width: 0;
-            animation: loaderTyping 1s steps(7, end) forwards, loaderBlink 0.5s step-end infinite alternate;
+            animation: loaderTyping 1.2s steps(7, end) forwards, loaderBlink 0.5s step-end infinite alternate;
         }
         @keyframes loaderTyping { from { width: 0 } to { width: 5.5em } }
         @keyframes loaderBlink { 50% { border-color: transparent } }
@@ -737,7 +743,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ==============================================================================
-# 🖨️ RENDERIZAÇÃO 2: AVISOS & PRANCHETA (BLOCO MESTRE ACORDEON)
+# 🖨️ RENDERIZAÇÃO 2: AVISOS & PRANCHETA (COM BADGES MAIORES E FORMULÁRIO INTERNO)
 # ==============================================================================
 # 1. Processamento das Notificações
 alertas_lista = []
@@ -844,28 +850,41 @@ else:
         </div>
         """
 
-# 3. MONTAGEM DO ACORDEON MESTRE (IGUAL EXPEDIÇÃO)
-html_avisos = f"""
+# 3. MONTAGEM DO ACORDEON MESTRE COM TABS (FORMULÁRIO OCULTO NA PRANCHETA)
+st.markdown("""
 <style>
-    .np-wrapper input[type="radio"] {{ display: none !important; }}
-    .np-tab-bar {{ display: flex; justify-content: center; gap: 10px; margin-bottom: 14px; padding: 0 4px; }}
-    .np-tab-bar label {{
+    /* Esconde botões Streamlit normais, só mostramos os customizados */
+    .np-wrapper input[type="radio"] { display: none !important; }
+    
+    /* Tabs Lado a Lado */
+    .np-tab-bar { display: flex; justify-content: center; gap: 10px; margin-bottom: 14px; padding: 0 4px; }
+    .np-tab-bar label {
         flex: 1; text-align: center; padding: 10px; font-size: 0.82rem; font-weight: 800; color: #94a3b8;
         background: #070d18; border: 1.5px solid #1c2b42; border-radius: 10px; cursor: pointer; transition: 0.2s;
-    }}
-    #nav_notif:checked ~ details .lbl-notif {{ background: #FF9F1C !important; color: #0a101d !important; border-color: #FF9F1C !important; box-shadow: 0 0 10px rgba(255, 159, 28, 0.35); }}
-    #nav_pran:checked ~ details .lbl-pran {{ background: #00D672 !important; color: #0a101d !important; border-color: #00D672 !important; box-shadow: 0 0 10px rgba(0, 214, 114, 0.35); }}
+    }
     
-    .np-view-notif, .np-view-pran {{ display: none; }}
-    #nav_notif:checked ~ details .np-view-notif {{ display: block; }}
-    #nav_pran:checked ~ details .np-view-pran {{ display: block; }}
+    /* Estado Ativo das Tabs */
+    #nav_notif:checked ~ .master-box .lbl-notif { background: #FF9F1C !important; color: #0a101d !important; border-color: #FF9F1C !important; box-shadow: 0 0 10px rgba(255, 159, 28, 0.35); }
+    #nav_pran:checked ~ .master-box .lbl-pran { background: #00D672 !important; color: #0a101d !important; border-color: #00D672 !important; box-shadow: 0 0 10px rgba(0, 214, 114, 0.35); }
+    
+    /* Exibição dos Paineis CSS-only */
+    .np-view-notif, .np-view-pran { display: none; }
+    #nav_notif:checked ~ .master-box .np-view-notif { display: block; }
+    #nav_pran:checked ~ .master-box .np-view-pran { display: block; }
+    
+    /* Esconde a Div do formulário padrão do Streamlit até Prancheta ser clicada */
+    div[data-testid="stExpander"] { display: none; }
+    #nav_pran:checked ~ div[data-testid="stExpander"] { display: block; margin-top: 10px; }
 </style>
+""", unsafe_allow_html=True)
 
+# 4. CRIAÇÃO DOS BLOCOS HTML COM BADGES MAIORES E ASSIMÉTRICOS
+html_avisos = f"""
 <div class="np-wrapper">
     <input type="radio" name="np_view" id="nav_notif" checked>
     <input type="radio" name="np_view" id="nav_pran">
 
-    <details class="master-box" style="border-left-color: #38bdf8; margin-bottom: 14px;">
+    <details class="master-box" style="border-left-color: #38bdf8; margin-bottom: 0px;" open>
         <summary>
             <!-- CABEÇALHO -->
             <div style="display:flex; justify-content:space-between; align-items:center;">
@@ -875,10 +894,14 @@ html_avisos = f"""
                 </div>
             </div>
             
-            <!-- BADGES DE RESUMO (Ficam visíveis mesmo com o bloco fechado) -->
-            <div style="display:flex; gap:8px; margin-top:8px;">
-                <span style="background:#E74C3C; color:#fff; font-size:0.75rem; font-weight:bold; padding:4px 10px; border-radius:6px;">🚨 {total_notifs} Alertas</span>
-                <span style="background:#00D672; color:#0a101d; font-size:0.75rem; font-weight:bold; padding:4px 10px; border-radius:6px;">📋 {qtd_ativos} Recados</span>
+            <!-- BADGES DE RESUMO (MAIORES E GORDINHOS) -->
+            <div style="display:flex; gap:10px; margin-top:10px; margin-bottom: 6px;">
+                <span style="background:#E74C3C; color:#fff; font-size:0.85rem; font-weight:800; padding:6px 14px; border-radius:8px; box-shadow: 0 2px 6px rgba(231,76,60,0.3);">
+                    🚨 {total_notifs} Alertas
+                </span>
+                <span style="background:#00D672; color:#0a101d; font-size:0.85rem; font-weight:800; padding:6px 14px; border-radius:8px; box-shadow: 0 2px 6px rgba(0,214,114,0.3);">
+                    📋 {qtd_ativos} Recados
+                </span>
             </div>
         </summary>
 
@@ -896,19 +919,19 @@ html_avisos = f"""
                 </div>
             </div>
 
-            <!-- PAINEL 2: PRANCHETA -->
+            <!-- PAINEL 2: PRANCHETA HTML (O FORM ST FICA FORA DESTE BLOCO) -->
             <div class="np-view-pran">
-                <div style="max-height: 350px; overflow-y: auto;">
+                <div style="max-height: 350px; overflow-y: auto; margin-bottom: 8px;">
                     {linhas_recados_html}
                 </div>
             </div>
         </div>
     </details>
-</div>
+
 """
 render_html(html_avisos)
 
-# Formulário para adicionar comunicado logo abaixo (sem quebrar layout)
+# 5. O FORMULÁRIO DA PRANCHETA (O CSS ACIMA ESCONDE ELE SE A PRANCHETA NÃO ESTIVER SELECIONADA)
 with st.expander("➕ Gerenciar / Adicionar Novo Comunicado"):
     with st.form("form_novo_recado_mobile", clear_on_submit=True):
         in_msg = st.text_area("Mensagem do Comunicado", placeholder="Ex: Doca 04 em manutenção. Direcionar carretas para docas 01 a 03.")
@@ -938,6 +961,10 @@ with st.expander("➕ Gerenciar / Adicionar Novo Comunicado"):
                     st.success("✅ Gravado com sucesso!")
                     st.cache_data.clear()
                     st.rerun()
+
+# Fecha a div principal do wrapper (importante pro CSS do form funcionar!)
+render_html("</div>")
+
 
                     
 # ==============================================================================
