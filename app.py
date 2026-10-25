@@ -1110,20 +1110,30 @@ if balanco_destinos:
 else:
     tabela_linhas_html = '<div style="color:#64748b; font-size:0.8rem; text-align:center; padding:12px;">Nenhum destino ativo reportado.</div>'
 
+# Cálculo do total pendente
+total_expedicao_falta = forcar_par(max(0.0, total_expedicao_meta - total_expedicao_real))
+
 totais_rodape_html = f"""
-<div style="display:flex; justify-content:space-around; background-color:#070d18; border:1.5px solid #142842; border-radius:12px; padding:12px; margin-top:12px; text-align:center; box-shadow:0 4px 12px rgba(0,0,0,0.25);">
-    <div>
-        <div style="font-size:0.72rem; color:#64748b; font-weight:bold; text-transform:uppercase;">Plano Total Diário</div>
-        <div style="font-size:1.35rem; color:#ffffff; font-weight:bold;">{fmt(total_expedicao_meta)} <span style="font-size:0.8rem; color:#64748b; font-weight:normal;">t</span></div>
+<div style="display:flex; justify-content:space-between; align-items:center; background-color:#070d18; border:1.5px solid #142842; border-radius:12px; padding:12px 8px; margin-top:12px; text-align:center; box-shadow:0 4px 12px rgba(0,0,0,0.25);">
+    <!-- CARD 1: PLANO TOTAL -->
+    <div style="flex: 1;">
+        <div style="font-size:0.68rem; color:#64748b; font-weight:bold; text-transform:uppercase;">Plano Total</div>
+        <div style="font-size:1.25rem; color:#ffffff; font-weight:bold; margin-top:2px;">{fmt(total_expedicao_meta)} <span style="font-size:0.75rem; color:#64748b; font-weight:normal;">t</span></div>
     </div>
-    <div style="border-left:1px solid #1c2b42; padding-left:16px;">
-        <div style="font-size:0.72rem; color:#38bdf8; font-weight:bold; text-transform:uppercase;">Total Carregado</div>
-        <div style="font-size:1.35rem; color:#38bdf8; font-weight:bold;">{fmt(total_expedicao_real)} <span style="font-size:0.8rem; font-weight:normal;">t</span></div>
+    
+    <!-- CARD 2: TOTAL CARREGADO -->
+    <div style="flex: 1; border-left:1px solid #1c2b42; border-right:1px solid #1c2b42; padding: 0 4px;">
+        <div style="font-size:0.68rem; color:#38bdf8; font-weight:bold; text-transform:uppercase;">Carregado</div>
+        <div style="font-size:1.25rem; color:#38bdf8; font-weight:bold; margin-top:2px;">{fmt(total_expedicao_real)} <span style="font-size:0.75rem; font-weight:normal;">t</span></div>
+    </div>
+
+    <!-- CARD 3: TOTAL PENDENTE (LARANJA) -->
+    <div style="flex: 1;">
+        <div style="font-size:0.68rem; color:#FF9F1C; font-weight:bold; text-transform:uppercase;">Pendente</div>
+        <div style="font-size:1.25rem; color:#FF9F1C; font-weight:bold; margin-top:2px;">{fmt(total_expedicao_falta)} <span style="font-size:0.75rem; font-weight:normal;">t</span></div>
     </div>
 </div>
 """
-
-html_destinos = f"{tabela_linhas_html}{totais_rodape_html}"
 
 # ----------------------------------------------------
 # MONTAGEM MASTER (CSS DE PÍLULAS EQUILIBRADAS E BOTÕES CENTRAIS)
