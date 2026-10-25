@@ -1313,39 +1313,40 @@ render_html(html_exp_completo)
 
 
 # ==============================================================================
-# 🖨️ RENDERIZAÇÃO 6.5: ANÁLISE DE PEDIDOS (ZLE087 - TRANSFERÊNCIA & MI/LATAM)
+# 🖨️ RENDERIZAÇÃO 6.5: ANÁLISE DE PEDIDOS (ZLE087 - CORRIGIDO E BLINDADO)
 # ==============================================================================
-@st.cache_data(ttl=60)
+@st.cache_data(ttl=30)
 def carregar_pedidos_zle087():
     try:
-        url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet=Status_Pedidos_ZLE087"
-        df_raw = pd.read_csv(url, header=None)
-        if df_raw.empty:
-            return pd.DataFrame(), "--:--"
+        # Tenta carregar via gspread primeiro (blindado)
+        df, carimbo = carregar_tabela_cega("Status_Pedidos_ZLE087", coluna_chave="FLUXO")
         
-        hora_att_ped = "--:--"
-        try:
-            val_h = str(df_raw.iloc[0, 1]).strip()
-            if "/" in val_h or ":" in val_h:
-                hora_att_ped = val_h.split(" ")[1][:5] if " " in val_h else val_h[:5]
-        except:
-            pass
+        if df.empty:
+            # Fallback via URL CSV direta
+            url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet=Status_Pedidos_ZLE087"
+            df_raw = pd.read_csv(url, header=None, dtype=str)
+            if df_raw.empty:
+                return pd.DataFrame(), "--:--"
+            
+            # Localiza a linha do cabeçalho
+            idx_header = None
+            for i in range(min(6, len(df_raw))):
+                row_vals = [str(x).strip().upper() for x in df_raw.iloc[i].tolist()]
+                if any("FLUXO" in x for x in row_vals):
+                    idx_header = i
+                    break
+            
+            if idx_header is not None:
+                cols = [str(c).strip().upper() for c in df_raw.iloc[idx_header].tolist()]
+                df = df_raw.iloc[idx_header + 1:].copy()
+                df.columns = cols
+            else:
+                return pd.DataFrame(), "--:--"
 
-        idx_header = None
-        for i in range(min(5, len(df_raw))):
-            row_vals = [str(x).strip().upper() for x in df_raw.iloc[i].tolist()]
-            if any("FLUXO" in x for x in row_vals) or any("DESTINO" in x for x in row_vals):
-                idx_header = i
-                break
-        
-        if idx_header is not None:
-            df = df_raw.iloc[idx_header+1:].copy()
-            cols = [str(c).strip().upper() for c in df_raw.iloc[idx_header].tolist()]
-            df.columns = cols
-            df = df.dropna(how="all")
-            return df, hora_att_ped
-        return pd.DataFrame(), hora_att_ped
-    except:
+        hora_att_ped = carimbo if carimbo else "--:--"
+        df.columns = [str(c).strip().upper() for c in df.columns]
+        return df, hora_att_ped
+    except Exception as e:
         return pd.DataFrame(), "--:--"
 
 df_pedidos, hora_att_ped = carregar_pedidos_zle087()
@@ -1357,16 +1358,20 @@ tot_saldo_mi = 0.0
 
 if not df_pedidos.empty:
     for _, r in df_pedidos.iterrows():
+        # Leitura flexível que aceita nomes cortados da planilha
         fluxo = str(r.get("FLUXO", "")).strip().upper()
-        destino = str(r.get("DESTINO_CLIENTE", "")).strip()
-        ped_atual = str(r.get("PEDIDO_ATUAL", "")).strip()
-        mat_atual = str(r.get("MATERIAL_ATUAL", "")).strip()
+        destino = str(r.get("DESTINO_CLIENTE", r.get("DESTINO", ""))).strip()
+        ped_atual = str(r.get("PEDIDO_ATUAL", r.get("PEDIDO", ""))).strip()
+        mat_atual = str(r.get("MATERIAL_ATUAL", r.get("MATERIAL", ""))).strip()
         
-        qtd_ini = safe_to_numeric(r.get("QTD_INICIAL_T", 0))
-        saldo = safe_to_numeric(r.get("SALDO_RESTANTE", 0))
-        prox_ped = str(r.get("PROXIMO_PEDIDO", r.get("PROXIMO_PED", "--"))).strip()
-        prox_mat = str(r.get("PROXIMO_MATERIAL", r.get("PROXIMO_MATI", "--"))).strip()
-        saldo_prox = str(r.get("SALDO_PROXIMO", r.get("SALDO_PROXIM", "--"))).strip()
+        qtd_ini = safe_to_numeric(r.get("QTD_INICIAL_T", r.get("QTD_INICIAL", 0)))
+        # Pega SALDO_RESTA ou SALDO_RESTANTE
+        saldo = safe_to_numeric(r.get("SALDO_RESTA", r.get("SALDO_RESTANTE", r.get("SALDO", 0))))
+        
+        prox_ped = str(r.get("PROXIMO_PED", r.get("PROXIMO_PEDIDO", "--"))).strip()
+        prox_mat = str(r.get("PROXIMO_MAT", r.get("PROXIMO_MATERIAL", "--"))).strip()
+        # Pega SALDO_PROXII ou SALDO_PROXIMO
+        saldo_prox = str(r.get("SALDO_PROXII", r.get("SALDO_PROXIMO", "--"))).strip()
 
         if not destino or destino.lower() == "nan":
             continue
