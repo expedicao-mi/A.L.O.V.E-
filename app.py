@@ -758,6 +758,11 @@ if not df_prancheta.empty:
         if not any(valores_linha): continue
 
         msg_val, aut_val, st_val = "", "Cristiano", "ATIVO"
+        if len(valores_linha) >= 1:
+            msg_val = valores_linha[0]
+        if len(valores_linha) >= 2:
+            aut_val = valores_linha[1]
+        recados_mobile.append({"msg": msg_val, "autor": aut_val, "linha": linha_sheets})
 
 
 
