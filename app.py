@@ -1646,7 +1646,7 @@ pct_eq = 100.0 - pct_sq
 # 2. Montagem das Barras Verticais com escala rebaixada (folga no teto)
 barras_html = ""
 for item in itens_barras[:8]:
-    cor_b = "#00D6FF" if item["is_sq"] else "#00E676"
+    cor_b = "#FFD600" if item["is_sq"] else "#00E676"
     h_px = max(6, int((item["ton"] / max_ton_est) * 68))
     
     barras_html += f"""
@@ -1666,7 +1666,7 @@ for item in itens_barras[:8]:
 svg_donut = f"""
 <svg width="115" height="115" viewBox="0 0 42 42" style="transform: rotate(-90deg); display: block;">
     <circle cx="21" cy="21" r="15.91549430918954" fill="transparent" stroke="#00E676" stroke-width="5.5"></circle>
-    <circle cx="21" cy="21" r="15.91549430918954" fill="transparent" stroke="#00D6FF" stroke-width="5.6"
+    <circle cx="21" cy="21" r="15.91549430918954" fill="transparent" stroke="#FFD600" stroke-width="5.6"
             stroke-dasharray="{pct_sq:.1f} {100.0 - pct_sq:.1f}" stroke-dashoffset="0"
             stroke-linecap="round"></circle>
 </svg>
@@ -1729,7 +1729,7 @@ html_est = f"""
 
                 <div>
                     <div style="display: flex; align-items: center; gap: 8px; font-size: 0.82rem; color: #cbd5e1; font-weight: 700;">
-                        <span style="width: 10px; height: 10px; border-radius: 50%; background: #00D6FF; display: inline-block;"></span>
+                        <span style="width: 10px; height: 10px; border-radius: 50%; background: #FFD600; display: inline-block;"></span>
                         Material SQ
                     </div>
                     <div style="color: #ffffff; font-size: 1.25rem; font-weight: 800; margin-left: 18px; line-height: 1.15;">
