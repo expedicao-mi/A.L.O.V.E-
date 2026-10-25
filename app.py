@@ -1357,23 +1357,33 @@ tot_saldo_transf = 0.0
 tot_saldo_mi = 0.0
 
 if not df_pedidos.empty:
-    for _, r in df_pedidos.iterrows():
-        # Leitura flexível que aceita nomes cortados da planilha
-        fluxo = str(r.get("FLUXO", "")).strip().upper()
-        destino = str(r.get("DESTINO_CLIENTE", r.get("DESTINO", ""))).strip()
-        ped_atual = str(r.get("PEDIDO_ATUAL", r.get("PEDIDO", ""))).strip()
-        mat_atual = str(r.get("MATERIAL_ATUAL", r.get("MATERIAL", ""))).strip()
-        
-        qtd_ini = safe_to_numeric(r.get("QTD_INICIAL_T", r.get("QTD_INICIAL", 0)))
-        # Pega SALDO_RESTA ou SALDO_RESTANTE
-        saldo = safe_to_numeric(r.get("SALDO_RESTA", r.get("SALDO_RESTANTE", r.get("SALDO", 0))))
-        
-        prox_ped = str(r.get("PROXIMO_PED", r.get("PROXIMO_PEDIDO", "--"))).strip()
-        prox_mat = str(r.get("PROXIMO_MAT", r.get("PROXIMO_MATERIAL", "--"))).strip()
-        # Pega SALDO_PROXII ou SALDO_PROXIMO
-        saldo_prox = str(r.get("SALDO_PROXII", r.get("SALDO_PROXIMO", "--"))).strip()
+    # Função flexível para encontrar colunas mesmo com cortes ou variações de nomes
+    def obter_val(registro, termos_obrigatorios, termos_proibidos=[]):
+        for k in registro.index:
+            k_upper = str(k).strip().upper()
+            if all(t in k_upper for t in termos_obrigatorios):
+                if not any(p in k_upper for p in termos_proibidos):
+                    val = registro.get(k)
+                    if pd.notna(val) and str(val).strip() not in ["", "nan", "None"]:
+                        return val
+        return None
 
-        if not destino or destino.lower() == "nan":
+    for _, r in df_pedidos.iterrows():
+        fluxo = str(obter_val(r, ["FLUXO"]) or "").strip().upper()
+        destino = str(obter_val(r, ["DESTINO"]) or "").strip()
+        ped_atual = str(obter_val(r, ["PEDIDO"], ["PROX"]) or "").strip()
+        mat_atual = str(obter_val(r, ["MAT"], ["PROX"]) or "").strip()
+        
+        qtd_ini = safe_to_numeric(obter_val(r, ["QTD"]) or 0)
+        # Busca qualquer coluna com "SALDO" que NÃO tenha "PROX" (pega SALDO_RESTA, SALDO_RESTANTE, etc.)
+        saldo = safe_to_numeric(obter_val(r, ["SALDO"], ["PROX"]) or 0)
+        
+        prox_ped = str(obter_val(r, ["PROX", "PED"]) or "--").strip()
+        prox_mat = str(obter_val(r, ["PROX", "MAT"]) or "--").strip()
+        # Busca a coluna com "SALDO" e "PROX" (pega SALDO_PROXII, SALDO_PROXIMO, etc.)
+        saldo_prox = str(obter_val(r, ["SALDO", "PROX"]) or "--").strip()
+
+        if not destino or destino.lower() in ["nan", "none", ""]:
             continue
 
         item = {
