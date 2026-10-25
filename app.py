@@ -1516,24 +1516,47 @@ html_bloco_pedidos = f"""
     <input type="radio" name="ped_view" id="tab_mi">
 
     <details class="master-box" style="border-left-color: #0084FF; margin-bottom: 14px;" open>
-        <summary>
-            <!-- CABEÇALHO -->
+       <summary>
+            <!-- CABEÇALHO COM TÍTULO E ÍCONE -->
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
                 <div class="header-layout" style="margin-bottom:0;">
                     <div class="icon-box" style="background-color: rgba(0, 132, 255, 0.15); color: #0084FF;">📑</div>
                     <div class="master-metric-title">Análise de Pedidos (ZLE087)</div>
                 </div>
+                <div style="font-size:0.75rem; color:#64748b; font-weight:700;">
+                    Total: <b style="color:#ffffff;">{len(pedidos_transf) + len(pedidos_mi)} ordens ativas</b>
+                </div>
             </div>
 
             <!-- VALOR PRINCIPAL: SALDO TOTAL PENDENTE -->
-            <div class="value-layout" style="margin-bottom:2px;">
+            <div class="value-layout" style="margin-bottom:6px;">
                 <div class="master-metric-val">{fmt(tot_saldo_geral)}</div>
-                <div class="master-metric-unit">TON</div>
+                <div class="master-metric-unit">TON PENDENTES</div>
             </div>
 
-            <!-- SUB-RESUMO SEGREGAÇÃO -->
-            <div class="master-metric-sub" style="color: #94a3b8; margin-bottom: 4px;">
-                🚛 Transf: <b style="color:#38bdf8;">{fmt(tot_saldo_transf)} t</b> &nbsp;|&nbsp; 🏢 MI/Latam: <b style="color:#00D672;">{fmt(tot_saldo_mi)} t</b>
+            <!-- SUB-RESUMO: QUANTIDADE DE PEDIDOS EM ABERTO POR DESTINO/FLUXO -->
+            <div style="display: flex; gap: 8px; margin-top: 6px;">
+                <!-- Pílula Transferência -->
+                <div style="flex: 1; background: #070d18; border: 1.5px solid #142842; border-left: 3px solid #0084FF; border-radius: 10px; padding: 8px 10px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span style="font-size: 0.72rem; color: #94a3b8; font-weight: 700; text-transform: uppercase;">🚛 Transferência</span>
+                        <span style="background: rgba(0, 132, 255, 0.15); color: #38bdf8; font-size: 0.68rem; font-weight: 800; padding: 2px 6px; border-radius: 4px;">{len(pedidos_transf)} pedidos</span>
+                    </div>
+                    <div style="font-size: 0.95rem; font-weight: 800; color: #ffffff; margin-top: 4px;">
+                        {fmt(tot_saldo_transf)} <span style="font-size: 0.72rem; color: #64748b; font-weight: normal;">t pendentes</span>
+                    </div>
+                </div>
+
+                <!-- Pílula Mercado Interno -->
+                <div style="flex: 1; background: #070d18; border: 1.5px solid #142842; border-left: 3px solid #00D672; border-radius: 10px; padding: 8px 10px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span style="font-size: 0.72rem; color: #94a3b8; font-weight: 700; text-transform: uppercase;">🏢 MI / LATAM</span>
+                        <span style="background: rgba(0, 214, 114, 0.15); color: #00D672; font-size: 0.68rem; font-weight: 800; padding: 2px 6px; border-radius: 4px;">{len(pedidos_mi)} pedidos</span>
+                    </div>
+                    <div style="font-size: 0.95rem; font-weight: 800; color: #ffffff; margin-top: 4px;">
+                        {fmt(tot_saldo_mi)} <span style="font-size: 0.72rem; color: #64748b; font-weight: normal;">t pendentes</span>
+                    </div>
+                </div>
             </div>
         </summary>
 
