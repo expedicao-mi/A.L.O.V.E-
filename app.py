@@ -1010,7 +1010,7 @@ tns_ontem = func_exp_dados(ontem_date)
 pct_prog = min(100.0, max(0.0, (vol_hoje / prev_carr * 100.0))) if prev_carr > 0 else 0.0
 
 # ----------------------------------------------------
-# CARDS DOS TURNOS DE HOJE (SEM EMOJIS POLUÍDOS)
+# CARDS DOS TURNOS DE HOJE (SEM HORÁRIO DUPLICADO)
 # ----------------------------------------------------
 cards_hoje_html = ""
 for i, t in enumerate(tns_hoje):
@@ -1026,8 +1026,8 @@ for i, t in enumerate(tns_hoje):
         cards_hoje_html += f"""
         <div style="flex: 1; background: #0c1524; border: 1.5px solid #FF9F1C; border-radius: 12px; padding: 12px 6px; text-align: center; box-shadow: 0 0 14px rgba(255, 159, 28, 0.22);">
             <div style="font-size: 0.85rem; font-weight: 800; color: #FF9F1C;">{t['letra']}</div>
-            <div style="font-size: 0.72rem; font-weight: 800; color: #00D672; margin: 3px 0 6px 0;">[ATIVO 🟢]</div>
-            <div style="font-size: 0.65rem; color: #64748b; margin-bottom: 6px;">{t['horario']}</div>
+            <div style="font-size: 0.72rem; font-weight: 800; color: #00D672; margin: 3px 0 4px 0;">[ATIVO 🟢]</div>
+            <div style="font-size: 0.65rem; color: #64748b; margin-bottom: 8px;">{t['horario']}</div>
             <div style="font-size: 1.25rem; font-weight: 800; color: #FF9F1C; line-height: 1;">{v_str}</div>
         </div>
         """
@@ -1036,8 +1036,7 @@ for i, t in enumerate(tns_hoje):
         cards_hoje_html += f"""
         <div style="flex: 1; background: #070d18; border: 1px solid #1c2b42; border-radius: 12px; padding: 12px 6px; text-align: center;">
             <div style="font-size: 0.85rem; font-weight: 700; color: #cbd5e1;">{t['letra']}</div>
-            <div style="font-size: 0.68rem; color: #64748b; margin: 3px 0 10px 0;">{t['horario']}</div>
-            <div style="font-size: 0.65rem; color: #475569; margin-bottom: 6px;">{t['horario']}</div>
+            <div style="font-size: 0.68rem; color: #64748b; margin: 3px 0 8px 0;">{t['horario']}</div>
             <div style="font-size: 1.2rem; font-weight: 800; color: {val_color}; line-height: 1;">{v_str}</div>
         </div>
         """
@@ -1052,8 +1051,7 @@ for t in tns_ontem:
     cards_ontem_html += f"""
     <div style="flex: 1; background: #070d18; border: 1px solid #1c2b42; border-radius: 12px; padding: 12px 6px; text-align: center;">
         <div style="font-size: 0.85rem; font-weight: 700; color: #38bdf8;">{t['letra']}</div>
-        <div style="font-size: 0.68rem; color: #64748b; margin: 3px 0 10px 0;">{t['horario']}</div>
-        <div style="font-size: 0.65rem; color: #475569; margin-bottom: 6px;">{t['horario']}</div>
+        <div style="font-size: 0.68rem; color: #64748b; margin: 3px 0 8px 0;">{t['horario']}</div>
         <div style="font-size: 1.2rem; font-weight: 800; color: {val_color_o}; line-height: 1;">{v_str_o}</div>
     </div>
     """
