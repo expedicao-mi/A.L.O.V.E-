@@ -1146,14 +1146,14 @@ totais_rodape_html = f"""
 html_destinos = f"{tabela_linhas_html}{totais_rodape_html}"
 
 # ----------------------------------------------------
-# MONTAGEM MASTER (CSS DE PÍLULAS EQUILIBRADAS E BOTÕES CENTRAIS)
+# MONTAGEM MASTER (SWITCH DESLIZANTE NATIVO IOS + RESET INTELIGENTE)
 # ----------------------------------------------------
 html_exp_completo = f"""
 <style>
     /* CONTROLES OCULTOS DE NAVEGAÇÃO */
     .exp-wrapper input[type="radio"] {{ display: none !important; }}
 
-    /* DOIS BLOCOS DE SELEÇÃO CENTRALIZADOS */
+    /* BOTÕES PRINCIPAIS (EXP P/ TURNO vs PLANO VS EXP) */
     .exp-tab-bar {{
         display: flex;
         justify-content: center;
@@ -1173,8 +1173,9 @@ html_exp_completo = f"""
         border: 1.5px solid #1c2b42;
         border-radius: 10px;
         cursor: pointer;
-        transition: all 0.2s ease;
+        transition: all 0.25s ease;
         white-space: nowrap;
+        -webkit-tap-highlight-color: transparent;
     }}
     #nav_turnos:checked ~ details .lbl-turnos {{
         background: #00D672 !important;
@@ -1189,47 +1190,75 @@ html_exp_completo = f"""
         box-shadow: 0 0 10px rgba(56, 189, 248, 0.35);
     }}
 
-    /* PÍLULAS: OCULTAS QUANDO FECHADO, FINAS E SEM QUEBRA DE LINHA QUANDO ABERTO */
-    details:not([open]) .pill-day-box {{
+    /* ======================================================= */
+    /* 🍏 SWITCH DESLIZANTE IOS (SUBSTITUI AS PÍLULAS SOLTAS)  */
+    /* ======================================================= */
+    details:not([open]) .ios-slider-capsule {{
         display: none !important;
     }}
-    details[open] .pill-day-box {{
+    details[open] .ios-slider-capsule {{
         display: inline-flex !important;
+        position: relative !important;
         align-items: center !important;
-        gap: 4px !important;
-        margin-right: 24px !important;
-        flex-shrink: 0 !important;
-        white-space: nowrap !important;
-    }}
-    .pill-day-box label {{
-        display: inline-flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        gap: 3px !important;
-        padding: 4px 7px !important;
+        background: #060b14 !important;
+        border: 1.5px solid #142842 !important;
         border-radius: 999px !important;
-        font-size: 0.68rem !important;
-        font-weight: 700 !important;
-        line-height: 1 !important;
-        white-space: nowrap !important;
-        cursor: pointer;
-        background: #070d18;
-        color: #64748b;
-        border: 1px solid #1c2b42;
-        transition: 0.2s;
+        padding: 2px !important;
+        margin-right: 22px !important;
+        width: 154px !important;
+        height: 28px !important;
+        box-sizing: border-box !important;
         flex-shrink: 0 !important;
+        user-select: none !important;
+        -webkit-user-select: none !important;
     }}
-    #day_hoje:checked ~ details .lbl-d-hoje {{ background: #00D672 !important; color: #0a101d !important; border-color: #00D672 !important; }}
-    #day_ontem:checked ~ details .lbl-d-ontem {{ background: #00D672 !important; color: #0a101d !important; border-color: #00D672 !important; }}
 
-    /* QUANDO 'PLANO VS EXP.' ESTIVER ATIVO: DESATIVA A PÍLULA D-1 */
-    #nav_destinos:checked ~ details .lbl-d-ontem {{
-        opacity: 0.22 !important;
+    /* A pastilha que corre por baixo do texto */
+    .ios-slider-thumb {{
+        position: absolute;
+        top: 2px;
+        left: 2px;
+        width: 73px;
+        height: 20px;
+        background: #00D672;
+        border-radius: 999px;
+        box-shadow: 0 0 10px rgba(0, 214, 114, 0.45);
+        transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+        z-index: 1;
+        pointer-events: none;
+    }}
+
+    /* Quando seleciona Ontem (D-1), desliza 75px para a direita */
+    #day_ontem:checked ~ details .ios-slider-thumb {{
+        transform: translateX(75px);
+    }}
+
+    /* Textos dos botões sobrepostos */
+    .ios-slider-btn {{
+        position: relative;
+        flex: 1;
+        text-align: center;
+        font-size: 0.68rem;
+        font-weight: 800;
+        line-height: 20px;
+        cursor: pointer;
+        z-index: 2;
+        transition: color 0.2s ease;
+        white-space: nowrap;
+        -webkit-tap-highlight-color: transparent;
+    }}
+
+    /* Cor do texto de acordo com onde o botão está */
+    #day_hoje:checked ~ details .btn-txt-hoje {{ color: #0a101d !important; }}
+    #day_hoje:checked ~ details .btn-txt-ontem {{ color: #64748b !important; }}
+
+    #day_ontem:checked ~ details .btn-txt-hoje {{ color: #64748b !important; }}
+    #day_ontem:checked ~ details .btn-txt-ontem {{ color: #0a101d !important; }}
+
+    /* Quando em "Plano vs Exp.", desabilita e apaga suavemente o slider */
+    #nav_destinos:checked ~ details .ios-slider-capsule {{
+        opacity: 0.25 !important;
         pointer-events: none !important;
-        cursor: not-allowed !important;
-        background: #070d18 !important;
-        color: #334155 !important;
-        border-color: #0f172a !important;
     }}
 
     /* EXIBIÇÃO DE CONTEÚDO */
@@ -1250,15 +1279,18 @@ html_exp_completo = f"""
 
     <details class="master-box" style="border-left-color: #00D672;" open>
         <summary>
-            <!-- CABEÇALHO COM TÍTULO E PÍLULAS AJUSTADAS -->
+            <!-- CABEÇALHO COM TÍTULO E O SWITCH DESLIZANTE ESTILO IPHONE -->
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; gap:4px;">
                 <div class="header-layout" style="margin-bottom:0; min-width:0; flex-shrink:1;">
                     <div class="icon-box" style="background-color: rgba(0, 214, 114, 0.15); color: #00D672; flex-shrink:0;">🚚</div>
                     <div class="master-metric-title" style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Expedição Realizada</div>
                 </div>
-                <div class="pill-day-box" onclick="event.stopPropagation();">
-                    <label for="day_hoje" class="lbl-d-hoje">Hoje 📅</label>
-                    <label for="day_ontem" class="lbl-d-ontem">Ontem (D-1) ⏪</label>
+                
+                <!-- 🍏 CÁPSULA DESLIZANTE (INTERRUPTOR IOS) -->
+                <div class="ios-slider-capsule" onclick="event.stopPropagation();">
+                    <div class="ios-slider-thumb"></div>
+                    <label for="day_hoje" class="ios-slider-btn btn-txt-hoje">Hoje 📅</label>
+                    <label for="day_ontem" class="ios-slider-btn btn-txt-ontem">Ontem ⏪</label>
                 </div>
             </div>
 
@@ -1288,10 +1320,10 @@ html_exp_completo = f"""
         </summary>
 
         <div class="master-content" style="padding-top: 14px;">
-            <!-- DOIS BLOCOS DE SELEÇÃO CENTRALIZADOS -->
+            <!-- DOIS BLOCOS DE SELEÇÃO CENTRALIZADOS (COM RESET AUTOMÁTICO PARA HOJE) -->
             <div class="exp-tab-bar">
                 <label for="nav_turnos" class="lbl-turnos">⏰ Exp. p/ Turno</label>
-                <label for="nav_destinos" class="lbl-destinos">📊 Plano vs Exp.</label>
+                <label for="nav_destinos" class="lbl-destinos" onclick="document.getElementById('day_hoje').checked = true;">📊 Plano vs Exp.</label>
             </div>
 
             <!-- PAINEL 1: TURNOS -->
@@ -1326,6 +1358,7 @@ html_exp_completo = f"""
 </div>
 """
 render_html(html_exp_completo)
+
 
 
 
