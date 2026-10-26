@@ -52,10 +52,23 @@ st.markdown(f"""
 
 st.markdown("""
     <style>
-        /* MATA AS MARCAS DO STREAMLIT */
-        #MainMenu, footer, header, [data-testid="manage-app-button"], [data-testid="stToolbar"], [data-testid="stDecoration"] {
-            display: none !important; visibility: hidden !important;
+                /* MATA AS MARCAS DO STREAMLIT E O RUNNING/CACHING */
+        #MainMenu, footer, header, 
+        [data-testid="manage-app-button"], 
+        [data-testid="stToolbar"], 
+        [data-testid="stDecoration"],
+        [data-testid="stStatusWidget"],
+        .stStatusWidget,
+        div[data-testid="stChatMessageSpinner"],
+        div[role="status"] {
+            display: none !important; 
+            visibility: hidden !important;
+            opacity: 0 !important;
+            height: 0 !important;
+            position: absolute !important;
+            pointer-events: none !important;
         }
+
 
         /* FUNDO E SCROLL */
         html, body, [data-testid="stAppViewContainer"], .stApp, .main {
