@@ -1876,24 +1876,10 @@ render_html(html_frota)
 
 
 # ==============================================================================
-# 🖨️ RENDERIZAÇÃO 9: AUDITORIA BAFÔMETRO (H&S - CADEADO NA DIREITA EXATA)
+# 🖨️ RENDERIZAÇÃO 9: AUDITORIA BAFÔMETRO (H&S - DESBLOQUEIO INSTANTÂNEO SEM RELOAD)
 # ==============================================================================
-@st.dialog("Segurança Operacional (H&S)")
-def modal_senha_bafometro():
-    st.markdown("<p style='font-size:0.85rem; color:#94a3b8;'>Digite a senha de gestor para visualizar os testes:</p>", unsafe_allow_html=True)
-    senha = st.text_input("Senha de Acesso", type="password", key="input_senha_baf")
-    cc, cf = st.columns(2)
-    with cc:
-        if st.button("Desbloquear", use_container_width=True, type="primary"):
-            if senha == SENHA_BAFOMETRO:
-                st.session_state.bafometro_autenticado = True
-                st.rerun()
-            else:
-                st.error("Senha incorreta.")
-    with cf:
-        if st.button("Cancelar", use_container_width=True):
-            st.rerun()
 
+# 1. Identificação do Nome do Turno Real Vigente
 letras_turnos_atuais = descobrir_letras_turnos(hoje_date)
 if agora_br.hour < 8:
     letra_vigente = letras_turnos_atuais.get("madrugada", "D")
@@ -1905,6 +1891,7 @@ else:
     letra_vigente = letras_turnos_atuais.get("16_00", "B")
     periodo_rotulo = "Tarde"
 
+# 2. Separação dos Colaboradores
 lista_aprovados = []
 lista_trocas = []
 lista_pendentes = []
@@ -1938,6 +1925,7 @@ if not df_bafometro.empty:
 total_registrados_baf = len(lista_aprovados) + len(lista_trocas) + len(lista_pendentes)
 nome_turno_completo = f"Turno {letra_vigente} ({periodo_rotulo})"
 
+# 3. Ordem de Hierarquia das Funções (Sem emojis)
 def obter_ordem_funcao(funcao_str):
     f_up = funcao_str.upper()
     if "LÍDER" in f_up or "LIDER" in f_up: return 1
@@ -1967,106 +1955,101 @@ def renderizar_itens_simples(lista_dados, cor_texto):
         h += f'<div style="display:flex; justify-content:space-between; align-items:center; padding:6px 8px; border-bottom:1px dashed #1c2b42; font-size:0.78rem;"><div><b style="color:#ffffff;">{html_lib.escape(item["nome"])}</b><div style="color:#64748b; font-size:0.67rem;">{html_lib.escape(item["funcao"])}</div></div><span style="color:{cor_texto}; font-weight:800; font-size:0.72rem;">{item["res"] or item["status"]}</span></div>'
     return h
 
-# CSS MÁGICO: Transforma o botão nativo do Streamlit na Pílula Fixa à Direita
-st.markdown("""
-<style>
-    .baf-btn-wrapper { position: absolute; top: 14px; right: 16px; z-index: 9999; }
-    .baf-btn-wrapper div[data-testid="stButton"] { width: auto !important; }
-    .baf-btn-wrapper div[data-testid="stButton"] button {
-        background-color: transparent !important;
-        border: 1.5px solid #FFFFFF !important;
-        color: #FFFFFF !important;
-        font-size: 0.72rem !important; font-weight: 800 !important;
-        padding: 4px 12px !important; border-radius: 999px !important;
-        min-height: 28px !important; height: 28px !important; line-height: 1 !important;
-        box-shadow: 0 0 10px rgba(255,255,255,0.15) !important;
-    }
-    .baf-btn-wrapper div[data-testid="stButton"] button p {
-        color: #FFFFFF !important; font-size: 0.72rem !important; font-weight: 800 !important; margin: 0 !important;
-    }
-    .baf-btn-wrapper.unlocked div[data-testid="stButton"] button {
-        border-color: #00D672 !important; background-color: rgba(0, 214, 114, 0.15) !important; box-shadow: 0 0 10px rgba(0,214,114,0.25) !important;
-    }
-    .baf-btn-wrapper.unlocked div[data-testid="stButton"] button p { color: #00D672 !important; }
-</style>
-""", unsafe_allow_html=True)
+# 4. Magia HTML/JS: Desbloqueio Local (Zero Recarregamento)
+html_baf_dinamico = f"""
+<div id="sec-baf"></div>
 
-# Container Pai do Bafômetro
-st.markdown('<div id="sec-baf" style="position: relative;">', unsafe_allow_html=True)
-
-if not st.session_state.bafometro_autenticado:
-    # 🔒 BLOQUEADO: Botão Flutuando à direita + Card Mudo
-    st.markdown('<div class="baf-btn-wrapper">', unsafe_allow_html=True)
-    if st.button("🔒 Desbloquear", key="baf_btn_unlock"):
-        modal_senha_bafometro()
-    st.markdown('</div>', unsafe_allow_html=True)
-
-    html_baf_bloq = f"""
-    <style>
-        details.baf-locked > summary::after {{ display: none !important; }}
-        details.baf-locked > summary {{ cursor: default !important; pointer-events: none; }}
-    </style>
-    <details class="master-box baf-locked" style="border-left-color: #FFFFFF; margin-bottom: 14px;" open>
-        <summary>
-            <div style="display: flex; align-items: center; margin-bottom: 12px; gap: 10px;">
+<!-- VISÃO BLOQUEADA -->
+<details class="master-box" id="baf-locked-view" style="border-left-color: #FFFFFF; margin-bottom: 14px;" open>
+    <summary style="pointer-events: none;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+            <div class="header-layout" style="margin-bottom: 0;">
                 <div class="icon-box" style="background-color: rgba(255, 255, 255, 0.12); color: #FFFFFF;">🩺</div>
-                <div class="master-metric-title" style="color: #FFFFFF; font-size: 0.95rem;">Auditoria Bafômetro (H&S)</div>
+                <div class="master-metric-title">Auditoria Bafômetro (H&S)</div>
             </div>
-            <div class="value-layout" style="margin-bottom: 2px;">
-                <div class="master-metric-val">{total_registrados_baf}</div>
-                <div class="master-metric-unit">Testes Registrados</div>
-            </div>
-            <div class="master-metric-sub" style="color: #94a3b8;">
-                Turno Vigente: <b style="color: #ffffff;">{nome_turno_completo}</b> &nbsp;|&nbsp; Status: <span style="color: #FFFFFF; font-weight: 700;">Autenticação Necessária</span>
-            </div>
-        </summary>
-    </details>
-    """
-    render_html(html_baf_bloq)
-
-else:
-    # 🔓 DESBLOQUEADO: Botão Flutuando à direita + Card Aberto
-    st.markdown('<div class="baf-btn-wrapper unlocked">', unsafe_allow_html=True)
-    if st.button("🔓 Bloquear", key="baf_btn_lock"):
-        st.session_state.bafometro_autenticado = False
-        st.rerun()
-    st.markdown('</div>', unsafe_allow_html=True)
-
-    html_baf_aberto = f"""
-    <details class="master-box" style="border-left-color: #FFFFFF; margin-bottom: 14px;" open>
-        <summary>
-            <div style="display: flex; align-items: center; margin-bottom: 12px; gap: 10px;">
-                <div class="icon-box" style="background-color: rgba(255, 255, 255, 0.15); color: #FFFFFF;">🩺</div>
-                <div class="master-metric-title" style="color: #FFFFFF; font-size: 0.95rem;">Auditoria Bafômetro (H&S)</div>
-            </div>
-            <div class="value-layout" style="margin-bottom: 2px;">
-                <div class="master-metric-val">{total_registrados_baf}</div>
-                <div class="master-metric-unit">Testes Registrados</div>
-            </div>
-            <div class="master-metric-sub" style="color: #cbd5e1; font-weight: bold;">
-                {nome_turno_completo} &nbsp;|&nbsp; 🟢 {len(lista_aprovados)} Aprovados &bull; <span style="color:#38bdf8;">🔄 {len(lista_trocas)} Trocas</span> &bull; 🔴 {len(lista_pendentes)} Pendentes
-            </div>
-        </summary>
-        <div class="master-content" style="padding-top: 14px;">
-            <div style="background:#070d18; border:1px solid #142842; border-left:3px solid #00D672; border-radius:10px; padding:10px; margin-bottom:10px;">
-                <div style="font-size:0.75rem; font-weight:800; color:#00D672; text-transform:uppercase; margin-bottom:4px;">APROVADOS ({len(lista_aprovados)})</div>
-                {agrupar_e_renderizar_aprovados(lista_aprovados)}
-            </div>
-            <div style="background:#070d18; border:1px solid #142842; border-left:3px solid #38bdf8; border-radius:10px; padding:10px; margin-bottom:10px;">
-                <div style="font-size:0.75rem; font-weight:800; color:#38bdf8; text-transform:uppercase; margin-bottom:6px;">TROCAS / NÃO CADASTRADOS ({len(lista_trocas)})</div>
-                {renderizar_itens_simples(lista_trocas, '#38bdf8')}
-            </div>
-            <div style="background:#070d18; border:1px solid #142842; border-left:3px solid #E74C3C; border-radius:10px; padding:10px; margin-bottom: 12px;">
-                <div style="font-size:0.75rem; font-weight:800; color:#E74C3C; text-transform:uppercase; margin-bottom:6px;">NÃO REALIZADOS / PENDENTES ({len(lista_pendentes)})</div>
-                {renderizar_itens_simples(lista_pendentes, '#E74C3C')}
+            <div style="background: rgba(255, 255, 255, 0.10); border: 1.5px solid #FFFFFF; color: #FFFFFF; font-size: 0.72rem; font-weight: 800; padding: 4px 10px; border-radius: 999px;">
+                🔒 Bloqueado
             </div>
         </div>
-    </details>
-    """
-    render_html(html_baf_aberto)
+        <div class="value-layout" style="margin-bottom: 2px;">
+            <div class="master-metric-val">{total_registrados_baf}</div>
+            <div class="master-metric-unit">Testes Registrados</div>
+        </div>
+        <div class="master-metric-sub" style="color: #94a3b8;">
+            Turno Vigente: <b style="color: #ffffff;">{nome_turno_completo}</b> &nbsp;|&nbsp; Status: <span style="color: #FFFFFF; font-weight: 700;">Autenticação Necessária</span>
+        </div>
+    </summary>
+    
+    <div class="master-content" style="padding-top: 14px; pointer-events: auto;">
+        <div style="background: #070d18; border: 1px dashed #1c2b42; border-radius: 12px; padding: 12px;">
+            <div style="color: #94a3b8; font-size: 0.75rem; margin-bottom: 8px; font-weight: 700;">Digite a senha de gestor para acessar:</div>
+            <div style="display: flex; gap: 8px;">
+                <input type="password" id="baf-pass-input" placeholder="Senha..." style="flex: 1; background: #050911; border: 1.5px solid #142842; color: #fff; border-radius: 8px; padding: 8px 12px; font-size: 1rem; outline: none; -webkit-appearance: none;">
+                <button onclick="desbloquearBaf()" style="background: #FFFFFF; border: none; color: #0a101d; font-weight: 800; font-size: 0.85rem; border-radius: 8px; padding: 0 16px; cursor: pointer;">Desbloquear</button>
+            </div>
+            <div id="baf-pass-erro" style="color: #E74C3C; font-size: 0.75rem; margin-top: 8px; display: none; font-weight: bold;">❌ Senha incorreta! Tente novamente.</div>
+        </div>
+    </div>
+</details>
 
-# Fecha o Container Pai do Bafômetro
-st.markdown('</div>', unsafe_allow_html=True)
+<!-- VISÃO DESBLOQUEADA (Oculta por padrão) -->
+<details class="master-box" id="baf-unlocked-view" style="border-left-color: #FFFFFF; margin-bottom: 14px; display: none;" open>
+    <summary>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+            <div class="header-layout" style="margin-bottom: 0;">
+                <div class="icon-box" style="background-color: rgba(255, 255, 255, 0.15); color: #FFFFFF;">🩺</div>
+                <div class="master-metric-title">Auditoria Bafômetro (H&S)</div>
+            </div>
+            <div onclick="bloquearBaf(); event.stopPropagation();" style="background: rgba(0, 214, 114, 0.15); border: 1.5px solid #00D672; color: #00D672; font-size: 0.72rem; font-weight: 800; padding: 4px 10px; border-radius: 999px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; box-shadow: 0 0 10px rgba(0,214,114,0.25);">
+                🔓 Bloquear
+            </div>
+        </div>
+        <div class="value-layout" style="margin-bottom: 2px;">
+            <div class="master-metric-val">{total_registrados_baf}</div>
+            <div class="master-metric-unit">Testes Registrados</div>
+        </div>
+        <div class="master-metric-sub" style="color: #cbd5e1; font-weight: bold;">
+            {nome_turno_completo} &nbsp;|&nbsp; 🟢 {len(lista_aprovados)} Aprovados &bull; <span style="color:#38bdf8;">🔄 {len(lista_trocas)} Trocas</span> &bull; 🔴 {len(lista_pendentes)} Pendentes
+        </div>
+    </summary>
+
+    <div class="master-content" style="padding-top: 14px;">
+        <div style="background:#070d18; border:1px solid #142842; border-left:3px solid #00D672; border-radius:10px; padding:10px; margin-bottom:10px;">
+            <div style="font-size:0.75rem; font-weight:800; color:#00D672; text-transform:uppercase; margin-bottom:4px;">APROVADOS ({len(lista_aprovados)})</div>
+            {agrupar_e_renderizar_aprovados(lista_aprovados)}
+        </div>
+        <div style="background:#070d18; border:1px solid #142842; border-left:3px solid #38bdf8; border-radius:10px; padding:10px; margin-bottom:10px;">
+            <div style="font-size:0.75rem; font-weight:800; color:#38bdf8; text-transform:uppercase; margin-bottom:6px;">TROCAS / NÃO CADASTRADOS ({len(lista_trocas)})</div>
+            {renderizar_itens_simples(lista_trocas, '#38bdf8')}
+        </div>
+        <div style="background:#070d18; border:1px solid #142842; border-left:3px solid #E74C3C; border-radius:10px; padding:10px; margin-bottom: 12px;">
+            <div style="font-size:0.75rem; font-weight:800; color:#E74C3C; text-transform:uppercase; margin-bottom:6px;">NÃO REALIZADOS / PENDENTES ({len(lista_pendentes)})</div>
+            {renderizar_itens_simples(lista_pendentes, '#E74C3C')}
+        </div>
+    </div>
+</details>
+
+<script>
+    function desbloquearBaf() {{
+        var senha_input = document.getElementById("baf-pass-input").value;
+        if (senha_input === "{SENHA_BAFOMETRO}") {{
+            document.getElementById("baf-locked-view").style.display = "none";
+            document.getElementById("baf-unlocked-view").style.display = "block";
+            document.getElementById("baf-pass-input").value = "";
+            document.getElementById("baf-pass-erro").style.display = "none";
+        }} else {{
+            document.getElementById("baf-pass-erro").style.display = "block";
+        }}
+    }}
+    
+    function bloquearBaf() {{
+        document.getElementById("baf-unlocked-view").style.display = "none";
+        document.getElementById("baf-locked-view").style.display = "block";
+    }}
+</script>
+"""
+render_html(html_baf_dinamico)
+
 
 
 
