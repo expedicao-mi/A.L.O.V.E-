@@ -1998,22 +1998,18 @@ def renderizar_itens_simples(lista_dados, cor_texto):
 
 # 4. Renderização do Card com Contorno Perfeito
 if not st.session_state.bafometro_autenticado:
-    # 🔒 BLOQUEADO: Usa details.master-box idêntico aos outros cartões
+    # 🔒 BLOQUEADO: Pílula elegante no canto superior com modal de senha limpo
     html_baf_bloq = f"""
-    <style>
-        /* Esconde a seta quando bloqueado para não abrir */
-        details.baf-locked > summary::after {{ display: none !important; }}
-        details.baf-locked > summary {{ cursor: default !important; }}
-    </style>
-    <details class="master-box baf-locked" style="border-left-color: #FFFFFF; margin-bottom: 14px;" open>
-        <summary>
+    <div id="sec-baf"></div>
+    <details class="master-box" style="border-left-color: #FFFFFF; margin-bottom: 14px;" open>
+        <summary style="cursor: default;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
                 <div class="header-layout" style="margin-bottom: 0;">
                     <div class="icon-box" style="background-color: rgba(255, 255, 255, 0.12); color: #FFFFFF;">🩺</div>
                     <div class="master-metric-title">Auditoria Bafômetro (H&S)</div>
                 </div>
-                <div style="cursor: pointer; background: rgba(255, 255, 255, 0.10); border: 1.5px solid #FFFFFF; color: #FFFFFF; font-size: 0.72rem; font-weight: 800; padding: 4px 10px; border-radius: 999px; display: inline-flex; align-items: center; gap: 4px; box-shadow: 0 0 10px rgba(255,255,255,0.15); -webkit-tap-highlight-color: transparent;">
-                    🔒 Desbloquear
+                <div style="background: rgba(255, 255, 255, 0.10); border: 1.5px solid #FFFFFF; color: #FFFFFF; font-size: 0.72rem; font-weight: 800; padding: 4px 10px; border-radius: 999px; display: inline-flex; align-items: center; gap: 4px; box-shadow: 0 0 10px rgba(255,255,255,0.15);">
+                    🔒 Bloqueado
                 </div>
             </div>
             <div class="value-layout" style="margin-bottom: 2px;">
@@ -2028,18 +2024,18 @@ if not st.session_state.bafometro_autenticado:
     """
     render_html(html_baf_bloq)
     
-    # Campo de senha embutido diretamente abaixo do card sem recarregar o app
-    with st.expander("🔑 Inserir Senha para Desbloquear", expanded=False):
-        c_in, c_bt = st.columns([2, 1], vertical_alignment="bottom")
-        with c_in:
-            pass_val = st.text_input("Senha", type="password", key="pass_baf_inline", label_visibility="collapsed", placeholder="Digite a senha (1000)...")
-        with c_bt:
-            if st.button("Acessar", key="btn_baf_inline", use_container_width=True, type="primary"):
-                if pass_val == SENHA_BAFOMETRO:
-                    st.session_state.bafometro_autenticado = True
-                    st.rerun()
-                else:
-                    st.error("Senha incorreta.")
+    # Campo de senha compacto direto com estilo uniforme
+    c_pass1, c_pass2 = st.columns([2.2, 1], vertical_alignment="center")
+    with c_pass1:
+        senha_digitada = st.text_input("Senha Bafômetro", type="password", key="pass_baf_clean", placeholder="Digite a senha de gestor...", label_visibility="collapsed")
+    with c_pass2:
+        if st.button("🔓 Desbloquear", key="btn_desbloquear_clean", use_container_width=True, type="primary"):
+            if senha_digitada == SENHA_BAFOMETRO:
+                st.session_state.bafometro_autenticado = True
+                st.rerun()
+            else:
+                st.error("Senha incorreta!")
+
 
 else:
     # 🔓 DESBLOQUEADO: Card com recolhimento e botão bloquear
@@ -2215,241 +2211,158 @@ with st.expander("🛠️ Console de Telemetria & Logs do Core (Dev)", expanded=
                 )
 
 # ==============================================================================
-# 🍏 ASSISTIVETOUCH IOS: BOTÃO FLUTUANTE DE ATALHOS RÁPIDOS
+# 🍏 ASSISTIVETOUCH IOS: BOTÃO FLUTUANTE FUNCIONAL (HTML/CSS PURO)
 # ==============================================================================
 html_assistive_touch = """
 <style>
-    /* O BOTÃO FLUTUANTE CIRCULAR ESTILO IOS */
-    #iosAssistiveTouch {
+    /* COMPORTAMENTO DE SCROLL SUAVE */
+    html { scroll-behavior: smooth !important; }
+
+    /* CONTÊINER FLUTUANTE DO ASSISTIVETOUCH */
+    .ios-touch-container {
         position: fixed;
-        bottom: 85px;
-        right: 18px;
-        width: 54px;
-        height: 54px;
-        background: rgba(18, 32, 53, 0.75);
+        bottom: 80px;
+        right: 16px;
+        z-index: 99999999;
+        -webkit-tap-highlight-color: transparent;
+        user-select: none;
+    }
+
+    /* ESCONDE A SETINHA PADRÃO */
+    .ios-touch-container summary {
+        list-style: none !important;
+        outline: none !important;
+        cursor: pointer;
+    }
+    .ios-touch-container summary::-webkit-details-marker {
+        display: none !important;
+    }
+
+    /* BOTÃO CIRCULAR TRANSLÚCIDO DO IOS */
+    .ios-touch-trigger {
+        width: 52px;
+        height: 52px;
+        background: rgba(15, 23, 42, 0.75);
         backdrop-filter: blur(12px);
         -webkit-backdrop-filter: blur(12px);
-        border: 1.5px solid rgba(0, 214, 114, 0.5);
+        border: 1.5px solid rgba(0, 214, 114, 0.6);
         border-radius: 50%;
         display: flex;
         align-items: center;
         justify-content: center;
-        box-shadow: 0 4px 18px rgba(0, 0, 0, 0.45), 0 0 12px rgba(0, 214, 114, 0.3);
-        z-index: 9999999;
-        cursor: pointer;
-        touch-action: none;
-        user-select: none;
-        -webkit-user-select: none;
-        -webkit-tap-highlight-color: transparent;
+        box-shadow: 0 6px 20px rgba(0,0,0,0.5), 0 0 14px rgba(0, 214, 114, 0.35);
+        transition: transform 0.15s ease;
     }
-
-    #iosAssistiveTouch:active {
-        transform: scale(0.92);
+    .ios-touch-trigger:active {
+        transform: scale(0.90);
     }
-
-    .assistive-inner-dot {
+    .ios-touch-core {
         width: 22px;
         height: 22px;
         background: radial-gradient(circle, #00D672 30%, #0084FF 100%);
         border-radius: 50%;
-        box-shadow: 0 0 8px rgba(0, 214, 114, 0.8);
+        box-shadow: 0 0 10px rgba(0, 214, 114, 0.9);
     }
 
-    /* O MENU POPUP DE ATALHOS */
-    #assistiveMenu {
-        display: none;
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100vw;
-        height: 100vh;
-        background: rgba(5, 9, 17, 0.7);
-        backdrop-filter: blur(8px);
-        -webkit-backdrop-filter: blur(8px);
-        z-index: 10000000;
-        align-items: center;
-        justify-content: center;
-        animation: assistiveFadeIn 0.2s ease;
-    }
-
-    .assistive-card {
-        background: #0b1830;
+    /* POPUP DE ATALHOS EM GRADE */
+    .ios-touch-menu {
+        position: absolute;
+        bottom: 65px;
+        right: 0;
+        width: 270px;
+        background: rgba(11, 24, 48, 0.94);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
         border: 1.5px solid #142842;
-        border-radius: 22px;
-        padding: 20px 16px;
-        width: 300px;
-        max-width: 88vw;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.6), 0 0 20px rgba(0, 180, 255, 0.15);
-        text-align: center;
+        border-radius: 20px;
+        padding: 14px 12px;
+        box-shadow: 0 12px 36px rgba(0,0,0,0.7), 0 0 20px rgba(0, 180, 255, 0.18);
+        animation: touchPop 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     }
 
-    .assistive-title {
-        color: #ffffff;
-        font-size: 0.95rem;
+    .ios-touch-header {
+        font-size: 0.75rem;
         font-weight: 800;
+        color: #94a3b8;
         letter-spacing: 0.5px;
-        margin-bottom: 16px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
+        text-align: center;
+        margin-bottom: 10px;
+        text-transform: uppercase;
+    }
+
+    .ios-touch-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
         gap: 8px;
     }
 
-    .assistive-grid {
-        display: grid;
-        grid-template-columns: repeat(3, 1fr);
-        gap: 12px;
-    }
-
-    .assistive-btn {
+    .ios-touch-item {
         background: #070d18;
         border: 1px solid #1c2b42;
-        border-radius: 14px;
-        padding: 10px 4px;
-        color: #cbd5e1;
-        font-size: 0.72rem;
-        font-weight: 700;
+        border-radius: 12px;
+        padding: 8px 4px;
+        text-decoration: none;
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 6px;
-        text-decoration: none;
-        cursor: pointer;
-        transition: transform 0.15s ease, border-color 0.15s;
-        -webkit-tap-highlight-color: transparent;
+        gap: 4px;
+        color: #cbd5e1;
+        font-size: 0.68rem;
+        font-weight: 700;
+        transition: border-color 0.15s, transform 0.15s;
     }
-
-    .assistive-btn:active {
-        transform: scale(0.92);
+    .ios-touch-item:active {
         border-color: #00D672;
+        transform: scale(0.92);
+    }
+    .ios-touch-item .touch-ico {
+        font-size: 1.35rem;
     }
 
-    .assistive-btn span.ico {
-        font-size: 1.5rem;
-    }
-
-    @keyframes assistiveFadeIn {
-        from { opacity: 0; transform: scale(0.96); }
-        to { opacity: 1; transform: scale(1); }
+    @keyframes touchPop {
+        from { opacity: 0; transform: scale(0.85) translateY(10px); }
+        to { opacity: 1; transform: scale(1) translateY(0); }
     }
 </style>
 
-<!-- BOTÃO CIRCULAR ARRASTÁVEL -->
-<div id="iosAssistiveTouch">
-    <div class="assistive-inner-dot"></div>
-</div>
-
-<!-- MENU POPUP DO ASSISTIVETOUCH -->
-<div id="assistiveMenu" onclick="fecharAssistive(event)">
-    <div class="assistive-card" onclick="event.stopPropagation()">
-        <div class="assistive-title">
-            <span style="color:#00D672;">⚡</span> ATALHOS RÁPIDOS
+<details class="ios-touch-container">
+    <summary>
+        <div class="ios-touch-trigger">
+            <div class="ios-touch-core"></div>
         </div>
-        <div class="assistive-grid">
-            <a class="assistive-btn" onclick="rolarPara('sec-topo')">
-                <span class="ico">🔝</span>
+    </summary>
+    <div class="ios-touch-menu">
+        <div class="ios-touch-header">⚡ Navegação A.L.O.V.E.</div>
+        <div class="ios-touch-grid">
+            <a href="#sec-topo" class="ios-touch-item">
+                <span class="touch-ico">🔝</span>
                 <span>Topo</span>
             </a>
-            <a class="assistive-btn" onclick="rolarPara('sec-patio')">
-                <span class="ico">🏭</span>
+            <a href="#sec-patio" class="ios-touch-item">
+                <span class="touch-ico">🏭</span>
                 <span>Pátio</span>
             </a>
-            <a class="assistive-btn" onclick="rolarPara('sec-prod')">
-                <span class="ico">⚙️</span>
+            <a href="#sec-prod" class="ios-touch-item">
+                <span class="touch-ico">⚙️</span>
                 <span>Produção</span>
             </a>
-            <a class="assistive-btn" onclick="rolarPara('sec-exp')">
-                <span class="ico">🚚</span>
+            <a href="#sec-exp" class="ios-touch-item">
+                <span class="touch-ico">🚚</span>
                 <span>Expedição</span>
             </a>
-            <a class="assistive-btn" onclick="rolarPara('sec-est')">
-                <span class="ico">📦</span>
+            <a href="#sec-est" class="ios-touch-item">
+                <span class="touch-ico">📦</span>
                 <span>Estoque</span>
             </a>
-            <a class="assistive-btn" onclick="rolarPara('sec-baf')">
-                <span class="ico">🩺</span>
+            <a href="#sec-baf" class="ios-touch-item">
+                <span class="touch-ico">🩺</span>
                 <span>Bafômetro</span>
             </a>
         </div>
     </div>
-</div>
-
-<script>
-    (function() {
-        const touchBtn = document.getElementById('iosAssistiveTouch');
-        const menu = document.getElementById('assistiveMenu');
-        let isDragging = false;
-        let startX, startY, initialX, initialY;
-        let hasMoved = false;
-
-        // Arrasto no iPhone (Touch Events)
-        touchBtn.addEventListener('touchstart', function(e) {
-            const touch = e.touches[0];
-            startX = touch.clientX;
-            startY = touch.clientY;
-            const rect = touchBtn.getBoundingClientRect();
-            initialX = rect.left;
-            initialY = rect.top;
-            hasMoved = false;
-            isDragging = true;
-        }, {passive: false});
-
-        document.addEventListener('touchmove', function(e) {
-            if (!isDragging) return;
-            const touch = e.touches[0];
-            const dx = touch.clientX - startX;
-            const dy = touch.clientY - startY;
-
-            if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
-                hasMoved = true;
-                e.preventDefault();
-            }
-
-            let newX = initialX + dx;
-            let newY = initialY + dy;
-
-            // Limites da tela
-            newX = Math.max(10, Math.min(window.innerWidth - 64, newX));
-            newY = Math.max(20, Math.min(window.innerHeight - 80, newY));
-
-            touchBtn.style.left = newX + 'px';
-            touchBtn.style.top = newY + 'px';
-            touchBtn.style.right = 'auto';
-            touchBtn.style.bottom = 'auto';
-        }, {passive: false});
-
-        document.addEventListener('touchend', function() {
-            if (!isDragging) return;
-            isDragging = false;
-            // Se foi apenas um toque sem arrastar, abre o menu
-            if (!hasMoved) {
-                abrirAssistive();
-            }
-        });
-
-        // Clique para desktop/mouse
-        touchBtn.addEventListener('click', function() {
-            if (!hasMoved) abrirAssistive();
-        });
-
-        window.abrirAssistive = function() {
-            menu.style.display = 'flex';
-        };
-
-        window.fecharAssistive = function() {
-            menu.style.display = 'none';
-        };
-
-        window.rolarPara = function(ancoraId) {
-            fecharAssistive();
-            const elem = document.getElementById(ancoraId);
-            if (elem) {
-                elem.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            }
-        };
-    })();
-</script>
+</details>
 """
 render_html(html_assistive_touch)
+
 
 st.markdown("<br><center><span style='color:#64748b; font-size:0.75rem; letter-spacing:0.5px;'>A.L.O.V.E - Mobile / Developed by Crist Ciriaco</span></center>", unsafe_allow_html=True)
