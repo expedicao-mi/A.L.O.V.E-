@@ -819,7 +819,6 @@ render_html(html_previsoes)
 txt_att_patio = f" | 🕒 Base: {hora_att_patio.split(' ')[1][:5]}" if hora_att_patio and " " in hora_att_patio else ""
 
 html_est = f"""
-<div id="sec-est"></div>
 <details class="master-box" style="border-left-color: #00E676;" open>
     <summary>
         <div class="header-layout">
