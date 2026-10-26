@@ -614,11 +614,44 @@ if not df_balanco_dest.empty:
                 "saldo": saldo_val, "atingimento": ating_val
             })
 
+# ==============================================================================
+# 🖨️ RECARGA NATIVA & SPLASH SCREEN (A.L.O.V.E TYPING EFFECT)
+# ==============================================================================
 # Tratamento de atualização instantânea via botão HTML nativo
 if st.query_params.get("refresh") == "1":
     st.cache_data.clear()
     st.query_params.clear()
     st.rerun()
+
+st.markdown("""
+    <style>
+        /* Oculta o widget nativo 'Running...' do Streamlit */
+        [data-testid="stStatusWidget"] {
+            display: none !important;
+            visibility: hidden !important;
+        }
+        /* Tela preta com efeito digitando A.L.O.V.E */
+        .alove-loader-bg {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            background: #050911; z-index: 99999999;
+            display: flex; justify-content: center; align-items: center;
+            animation: loaderFadeOut 0.4s 1.2s forwards; pointer-events: none;
+        }
+        .alove-loader-text {
+            font-size: 2.8rem; font-weight: 900; color: #00D672;
+            letter-spacing: 6px; text-shadow: 0 0 20px rgba(0,214,114,0.6);
+            overflow: hidden; white-space: nowrap; border-right: 4px solid #00D672;
+            width: 0;
+            animation: loaderTyping 1s steps(7, end) forwards, loaderBlink 0.5s step-end infinite alternate;
+        }
+        @keyframes loaderTyping { from { width: 0 } to { width: 5.5em } }
+        @keyframes loaderBlink { 50% { border-color: transparent } }
+        @keyframes loaderFadeOut { to { opacity: 0; visibility: hidden; display: none; } }
+    </style>
+    <div class="alove-loader-bg"><div class="alove-loader-text">A.L.O.V.E</div></div>
+""", unsafe_allow_html=True)
+
+st.markdown(f'<div class="topo-banner"><img src="{BANNER_TOPO_URL}"></div>', unsafe_allow_html=True)
 
 # ==============================================================================
 # 🖨️ RENDERIZAÇÃO 1: STATUS DO SISTEMA + SEMÁFORO (CONFORME IMAGEM 3)
@@ -1849,109 +1882,6 @@ with c1:
 with c2:
     if st.session_state.bafometro_autenticado:
         if st.button("Bloquear", use_container_width=True): st.session_state.bafometro_autenticado = False; st.rerun()
-
-# ==============================================================================
-# 🚀 SPLASH SCREEN NATIVO COM ANIMAÇÃO "A.L.O.V.E." + "ATUALIZANDO..."
-# ==============================================================================
-st.markdown("""
-    <style>
-        .alove-splash-screen {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-            background: radial-gradient(ellipse at top, #0c1a33 0%, #070d18 55%, #050911 100%);
-            z-index: 999999999;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            pointer-events: none;
-            animation: splashFadeOut 0.5s ease-out 2.2s forwards;
-            -webkit-user-select: none;
-        }
-
-        .alove-typing-title {
-            font-size: 2.6rem;
-            font-weight: 900;
-            color: #00D672;
-            letter-spacing: 5px;
-            text-shadow: 0 0 24px rgba(0, 214, 114, 0.7);
-            white-space: nowrap;
-            overflow: hidden;
-            border-right: 3.5px solid #00D672;
-            width: 0;
-            animation: 
-                aloveTyping 1.1s steps(9, end) forwards,
-                aloveBlinkCursor 0.55s step-end infinite alternate;
-        }
-
-        .alove-loading-sub {
-            margin-top: 14px;
-            font-size: 0.85rem;
-            font-weight: 700;
-            color: #94a3b8;
-            letter-spacing: 1px;
-            text-transform: uppercase;
-            opacity: 0;
-            animation: subFadeIn 0.4s ease 0.8s forwards;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-
-        .alove-pulse-bar {
-            width: 120px;
-            height: 3px;
-            background: #142842;
-            border-radius: 999px;
-            margin-top: 10px;
-            overflow: hidden;
-            position: relative;
-            opacity: 0;
-            animation: subFadeIn 0.4s ease 0.9s forwards;
-        }
-        .alove-pulse-bar::after {
-            content: '';
-            position: absolute;
-            left: -100%;
-            top: 0;
-            width: 60%;
-            height: 100%;
-            background: linear-gradient(90deg, transparent, #00D672, transparent);
-            animation: aloveBarSlide 1.2s infinite ease-in-out 1s;
-        }
-
-        @keyframes aloveTyping {
-            from { width: 0; }
-            to { width: 8.8ch; }
-        }
-        @keyframes aloveBlinkCursor {
-            50% { border-color: transparent; }
-        }
-        @keyframes subFadeIn {
-            to { opacity: 1; }
-        }
-        @keyframes aloveBarSlide {
-            0% { left: -60%; }
-            100% { left: 140%; }
-        }
-        @keyframes splashFadeOut {
-            0% { opacity: 1; visibility: visible; }
-            100% { opacity: 0; visibility: hidden; display: none; }
-        }
-    </style>
-
-    <div class="alove-splash-screen">
-        <div class="alove-typing-title">A.L.O.V.E.</div>
-        <div class="alove-loading-sub">
-            <span>Atualizando operação</span>
-            <span style="display:inline-block; animation: aloveBlinkCursor 0.6s infinite alternate;">...</span>
-        </div>
-        <div class="alove-pulse-bar"></div>
-    </div>
-""", unsafe_allow_html=True)
 
 @st.dialog("Segurança Operacional")
 def modal_senha_bafometro():
