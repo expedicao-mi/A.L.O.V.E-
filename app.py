@@ -818,8 +818,9 @@ render_html(html_previsoes)
 # ==============================================================================
 txt_att_patio = f" | 🕒 Base: {hora_att_patio.split(' ')[1][:5]}" if hora_att_patio and " " in hora_att_patio else ""
 
-html_est = f"""
-<details class="master-box" style="border-left-color: #00E676;" open>
+html_patio = f"""
+<div id="sec-patio"></div>
+<details class="master-box" style="border-left-color: #38a9ff;" open>
     <summary>
         <div class="header-layout">
             <div class="icon-box" style="background-color: rgba(56, 169, 255, 0.15); color: #38a9ff;">🏭</div>
@@ -1729,7 +1730,7 @@ svg_donut = f"""
 """
 
 html_est = f"""
-<div id="sec-est"></div>⁠
+<div id="sec-est"></div>
 <details class="master-box" style="border-left-color: #00E676;" open>
     <summary>
         <!-- TOPO DO CARD -->
