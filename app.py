@@ -1872,7 +1872,7 @@ html_frota = f"""
 render_html(html_frota)
 
 # ==============================================================================
-# 🖨️ RENDERIZAÇÃO 9: AUDITORIA BAFÔMETRO (H&S - BLINDADO MOBILE)
+# 🖨️ RENDERIZAÇÃO 9: AUDITORIA BAFÔMETRO (H&S - 100% INTEGRADO)
 # ==============================================================================
 @st.dialog("Segurança Operacional (H&S)")
 def modal_senha_bafometro():
@@ -1902,7 +1902,7 @@ else:
     letra_vigente = letras_turnos_atuais.get("16_00", "B")
     periodo_rotulo = "Tarde"
 
-# 2. Separação dos Colaboradores em Seções (Aprovados, Trocas, Não Realizados)
+# 2. Separação dos Colaboradores
 lista_aprovados = []
 lista_trocas = []
 lista_pendentes = []
@@ -1936,79 +1936,160 @@ if not df_bafometro.empty:
 total_registrados_baf = len(lista_aprovados) + len(lista_trocas) + len(lista_pendentes)
 nome_turno_completo = f"Turno {letra_vigente} ({periodo_rotulo})"
 
-def gerar_linhas_secao(lista_dados, cor_texto):
+# 3. Ordenação por Função e Nome
+def obter_ordem_funcao(funcao_str):
+    f_up = funcao_str.upper()
+    if "LÍDER" in f_up or "LIDER" in f_up:
+        return 1
+    elif "ASS" in f_up or "ASSIST" in f_up:
+        return 2
+    elif "EMP" in f_up or "OPERADOR" in f_up:
+        return 3
+    elif "AUX" in f_up:
+        return 4
+    return 5
+
+def agrupar_e_renderizar_aprovados(colaboradores):
+    if not colaboradores:
+        return "<div style='color:#64748b; font-size:0.75rem; padding:6px 8px;'>Nenhum colaborador nesta seção.</div>"
+    
+    # Ordena primeiro por hierarquia de função e depois alfabeticamente por nome
+    colaboradores_ordenados = sorted(colaboradores, key=lambda x: (obter_ordem_funcao(x["funcao"]), x["nome"]))
+    
+    grupos = {
+        1: ("👑 LÍDER", []),
+        2: ("📋 ASSISTENTE", []),
+        3: ("🚜 OPERADOR DE EMPILHADEIRA", []),
+        4: ("📦 AUXILIAR DE EXPEDIÇÃO", []),
+        5: ("⚙️ OUTRAS FUNÇÕES", [])
+    }
+    
+    for c in colaboradores_ordenados:
+        ordem = obter_ordem_funcao(c["funcao"])
+        grupos[ordem][1].append(c)
+        
+    html_out = ""
+    for _, (rotulo_grupo, membros) in grupos.items():
+        if not membros: continue
+        html_out += f"""
+        <div style="font-size:0.70rem; font-weight:800; color:#94a3b8; letter-spacing:0.4px; margin-top:8px; margin-bottom:4px; padding-left:4px; border-left:2px solid #00D672;">
+            {rotulo_grupo} ({len(membros)})
+        </div>
+        """
+        for item in membros:
+            html_out += f"""
+            <div style="display:flex; justify-content:space-between; align-items:center; padding:5px 8px; border-bottom:1px dashed #1c2b42; font-size:0.78rem;">
+                <div>
+                    <b style="color:#ffffff;">{html_lib.escape(item['nome'])}</b>
+                    <div style="color:#64748b; font-size:0.67rem;">{html_lib.escape(item['funcao'])}</div>
+                </div>
+                <span style="color:#00D672; font-weight:800; font-size:0.72rem;">{item['res'] or item['status']}</span>
+            </div>
+            """
+    return html_out
+
+def renderizar_itens_simples(lista_dados, cor_texto):
     if not lista_dados:
         return "<div style='color:#64748b; font-size:0.75rem; padding:6px 8px;'>Nenhum colaborador nesta seção.</div>"
+    lista_ord = sorted(lista_dados, key=lambda x: x["nome"])
     h = ""
-    for item in lista_dados:
-        h += f"""<div style="display:flex; justify-content:space-between; align-items:center; padding:6px 8px; border-bottom:1px dashed #1c2b42; font-size:0.78rem;"><div><b style="color:#ffffff;">{html_lib.escape(item['nome'])}</b><div style="color:#64748b; font-size:0.68rem;">{html_lib.escape(item['funcao'])}</div></div><span style="color:{cor_texto}; font-weight:800; font-size:0.72rem;">{item['res'] or item['status']}</span></div>"""
+    for item in lista_ord:
+        h += f"""
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:6px 8px; border-bottom:1px dashed #1c2b42; font-size:0.78rem;">
+            <div>
+                <b style="color:#ffffff;">{html_lib.escape(item['nome'])}</b>
+                <div style="color:#64748b; font-size:0.67rem;">{html_lib.escape(item['funcao'])}</div>
+            </div>
+            <span style="color:{cor_texto}; font-weight:800; font-size:0.72rem;">{item['res'] or item['status']}</span>
+        </div>
+        """
     return h
 
-# 3. Renderização Blindada
+# 4. Renderização do Bloco (Card com Borda Branca)
 if not st.session_state.bafometro_autenticado:
-    # 🔒 CARD BLOQUEADO COM BORDA BRANCA E BOTÃO EMBUTIDO
-    html_baf_bloqueado = f"""
-<div class="card-main" style="border-left: 6px solid #FFFFFF; margin-bottom: 14px;">
-<div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
-<div class="header-layout" style="margin-bottom: 0;">
-<div class="icon-box" style="background-color: rgba(255, 255, 255, 0.12); color: #FFFFFF;">🩺</div>
-<div class="master-metric-title">Auditoria Bafômetro (H&S)</div>
-</div>
-<span style="background: rgba(255, 255, 255, 0.10); border: 1px solid #FFFFFF; color: #FFFFFF; font-size: 0.68rem; font-weight: 800; padding: 2px 8px; border-radius: 999px;">🔒 BLOQUEADO</span>
-</div>
-<div class="value-layout" style="margin-bottom: 2px;">
-<div class="master-metric-val">{total_registrados_baf}</div>
-<div class="master-metric-unit">Testes Registrados</div>
-</div>
-<div class="master-metric-sub" style="color: #94a3b8; margin-bottom: 12px;">Turno Vigente: <b style="color: #ffffff;">{nome_turno_completo}</b> &bull; Status: <span style="color: #FFFFFF; font-weight: 700;">Autenticação Necessária</span></div>
-</div>
-"""
-    render_html(html_baf_bloqueado)
-    
-    if st.button("🔑 Desbloquear Relatório", key="btn_desbloquear_baf", use_container_width=True):
-        modal_senha_bafometro()
+    # 🔒 CARD BLOQUEADO COM BOTÃO EMBUTIDO NO MESMO CONTAINER
+    with st.container():
+        st.markdown(f"""
+        <div style="border-left: 6px solid #FFFFFF; padding-left: 10px; margin-bottom: 6px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                <div class="header-layout" style="margin-bottom: 0;">
+                    <div class="icon-box" style="background-color: rgba(255, 255, 255, 0.12); color: #FFFFFF;">🩺</div>
+                    <div class="master-metric-title">Auditoria Bafômetro (H&S)</div>
+                </div>
+                <span style="background: rgba(255, 255, 255, 0.10); border: 1px solid #FFFFFF; color: #FFFFFF; font-size: 0.68rem; font-weight: 800; padding: 2px 8px; border-radius: 999px;">
+                    🔒 BLOQUEADO
+                </span>
+            </div>
+            <div class="value-layout" style="margin-bottom: 2px;">
+                <div class="master-metric-val">{total_registrados_baf}</div>
+                <div class="master-metric-unit">Testes Registrados</div>
+            </div>
+            <div class="master-metric-sub" style="color: #94a3b8; margin-bottom: 10px;">
+                Turno Vigente: <b style="color: #ffffff;">{nome_turno_completo}</b> &nbsp;|&nbsp; Status: <span style="color: #FFFFFF; font-weight: bold;">Autenticação Necessária</span>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        if st.button("🔑 Desbloquear Relatório", key="btn_desbloquear_baf", use_container_width=True):
+            modal_senha_bafometro()
 
 else:
-    # 🔓 CARD DESBLOQUEADO (SEÇÕES COMPLETAS)
-    html_baf_aberto = f"""
-<details class="master-box" style="border-left: 6px solid #FFFFFF; margin-bottom: 14px;" open>
-<summary>
-<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-<div class="header-layout" style="margin-bottom: 0;">
-<div class="icon-box" style="background-color: rgba(255, 255, 255, 0.15); color: #FFFFFF;">🩺</div>
-<div class="master-metric-title">Auditoria Bafômetro (H&S)</div>
-</div>
-<span style="background: rgba(0, 214, 114, 0.15); border: 1px solid #00D672; color: #00D672; font-size: 0.68rem; font-weight: 800; padding: 2px 8px; border-radius: 999px;">🔓 ACESSO LIBERADO</span>
-</div>
-<div class="value-layout" style="margin-bottom: 2px;">
-<div class="master-metric-val">{total_registrados_baf}</div>
-<div class="master-metric-unit">Testes Registrados</div>
-</div>
-<div class="master-metric-sub" style="color: #cbd5e1; font-weight: bold; margin-bottom: 2px;">{nome_turno_completo} &nbsp;|&nbsp; 🟢 {len(lista_aprovados)} Aprovados &bull; 🔄 {len(lista_trocas)} Trocas &bull; 🔴 {len(lista_pendentes)} Pendentes</div>
-</summary>
-<div class="master-content" style="padding-top: 14px;">
-<div style="background:#070d18; border:1px solid #142842; border-left:3px solid #00D672; border-radius:10px; padding:10px; margin-bottom:10px;">
-<div style="font-size:0.75rem; font-weight:800; color:#00D672; text-transform:uppercase; margin-bottom:6px;">✅ APROVADOS ({len(lista_aprovados)})</div>
-{gerar_linhas_secao(lista_aprovados, '#00D672')}
-</div>
-<div style="background:#070d18; border:1px solid #142842; border-left:3px solid #FF9F1C; border-radius:10px; padding:10px; margin-bottom:10px;">
-<div style="font-size:0.75rem; font-weight:800; color:#FF9F1C; text-transform:uppercase; margin-bottom:6px;">🔄 TROCAS / NÃO CADASTRADOS ({len(lista_trocas)})</div>
-{gerar_linhas_secao(lista_trocas, '#FF9F1C')}
-</div>
-<div style="background:#070d18; border:1px solid #142842; border-left:3px solid #E74C3C; border-radius:10px; padding:10px; margin-bottom:12px;">
-<div style="font-size:0.75rem; font-weight:800; color:#E74C3C; text-transform:uppercase; margin-bottom:6px;">🚨 NÃO REALIZADOS / PENDENTES ({len(lista_pendentes)})</div>
-{gerar_linhas_secao(lista_pendentes, '#E74C3C')}
-</div>
-</div>
-</details>
-"""
-    render_html(html_baf_aberto)
+    # 🔓 CARD DESBLOQUEADO (SEGREGAÇÃO HIERÁRQUICA + TROCAS EM AZUL CLARO)
+    with st.container():
+        st.markdown(f"""
+        <div style="border-left: 6px solid #FFFFFF; padding-left: 10px; margin-bottom: 6px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                <div class="header-layout" style="margin-bottom: 0;">
+                    <div class="icon-box" style="background-color: rgba(255, 255, 255, 0.15); color: #FFFFFF;">🩺</div>
+                    <div class="master-metric-title">Auditoria Bafômetro (H&S)</div>
+                </div>
+                <span style="background: rgba(0, 214, 114, 0.15); border: 1px solid #00D672; color: #00D672; font-size: 0.68rem; font-weight: 800; padding: 2px 8px; border-radius: 999px;">
+                    🔓 ACESSO LIBERADO
+                </span>
+            </div>
+            <div class="value-layout" style="margin-bottom: 2px;">
+                <div class="master-metric-val">{total_registrados_baf}</div>
+                <div class="master-metric-unit">Testes Registrados</div>
+            </div>
+            <div class="master-metric-sub" style="color: #cbd5e1; font-weight: bold; margin-bottom: 8px;">
+                {nome_turno_completo} &nbsp;|&nbsp; 🟢 {len(lista_aprovados)} Aprovados &bull; <span style="color:#38bdf8;">🔄 {len(lista_trocas)} Trocas</span> &bull; 🔴 {len(lista_pendentes)} Pendentes
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
 
-    col_lock, _ = st.columns([1.2, 2])
-    with col_lock:
         if st.button("🔒 Bloquear Relatório", key="btn_lock_baf", use_container_width=True):
             st.session_state.bafometro_autenticado = False
             st.rerun()
+
+        # Renderização das Seções
+        html_secoes = f"""
+        <div style="margin-top: 10px;">
+            <!-- SEÇÃO 1: APROVADOS COM SEGREGAÇÃO POR FUNÇÃO -->
+            <div style="background:#070d18; border:1px solid #142842; border-left:3px solid #00D672; border-radius:10px; padding:10px; margin-bottom:10px;">
+                <div style="font-size:0.75rem; font-weight:800; color:#00D672; text-transform:uppercase; margin-bottom:4px;">
+                    ✅ APROVADOS ({len(lista_aprovados)})
+                </div>
+                {agrupar_e_renderizar_aprovados(lista_aprovados)}
+            </div>
+
+            <!-- SEÇÃO 2: TROCAS NA COR AZUL CLARO (#38bdf8) -->
+            <div style="background:#070d18; border:1px solid #142842; border-left:3px solid #38bdf8; border-radius:10px; padding:10px; margin-bottom:10px;">
+                <div style="font-size:0.75rem; font-weight:800; color:#38bdf8; text-transform:uppercase; margin-bottom:6px;">
+                    🔄 TROCAS / NÃO CADASTRADOS ({len(lista_trocas)})
+                </div>
+                {renderizar_itens_simples(lista_trocas, '#38bdf8')}
+            </div>
+
+            <!-- SEÇÃO 3: NÃO REALIZADOS / PENDENTES -->
+            <div style="background:#070d18; border:1px solid #142842; border-left:3px solid #E74C3C; border-radius:10px; padding:10px; margin-bottom:4px;">
+                <div style="font-size:0.75rem; font-weight:800; color:#E74C3C; text-transform:uppercase; margin-bottom:6px;">
+                    🚨 NÃO REALIZADOS / PENDENTES ({len(lista_pendentes)})
+                </div>
+                {renderizar_itens_simples(lista_pendentes, '#E74C3C')}
+            </div>
+        </div>
+        """
+        render_html(html_secoes)
 
 
 
