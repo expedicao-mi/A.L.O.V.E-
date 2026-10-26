@@ -1872,35 +1872,8 @@ html_frota = f"""
 render_html(html_frota)
 
 # ==============================================================================
-# 🖨️ RENDERIZAÇÃO 9: AUDITORIA BAFÔMETRO (H&S - PADRÃO MASTER BOX COM CADEADO TOPO)
+# 🖨️ RENDERIZAÇÃO 9: AUDITORIA BAFÔMETRO (H&S - MODAL NATIVO SEM RELOAD)
 # ==============================================================================
-# Ação do clique no cadeado via query_param
-if st.query_params.get("baf_action") == "lock":
-    st.session_state.bafometro_autenticado = False
-    st.query_params.clear()
-    st.rerun()
-
-@st.dialog("Segurança Operacional (H&S)")
-def modal_senha_bafometro():
-    st.markdown("<p style='font-size:0.85rem; color:#94a3b8;'>Digite a senha de gestor para visualizar os testes:</p>", unsafe_allow_html=True)
-    senha = st.text_input("Senha de Acesso", type="password", key="input_senha_baf")
-    cc, cf = st.columns(2)
-    with cc:
-        if st.button("Desbloquear", use_container_width=True, type="primary"):
-            if senha == SENHA_BAFOMETRO:
-                st.session_state.bafometro_autenticado = True
-                st.query_params.clear()
-                st.rerun()
-            else:
-                st.error("Senha incorreta.")
-    with cf:
-        if st.button("Cancelar", use_container_width=True):
-            st.query_params.clear()
-            st.rerun()
-
-if st.query_params.get("baf_action") == "unlock":
-    modal_senha_bafometro()
-
 # 1. Identificação do Nome do Turno Real Vigente
 letras_turnos_atuais = descobrir_letras_turnos(hoje_date)
 if agora_br.hour < 8:
@@ -2018,35 +1991,54 @@ def renderizar_itens_simples(lista_dados, cor_texto):
         """
     return h
 
-# 4. Renderização com Contorno Padrão (details.master-box com Borda Branca)
+# 4. Renderização do Card com Contorno Perfeito
 if not st.session_state.bafometro_autenticado:
-    # 🔒 BLOQUEADO (CARD PADRÃO FECHADO COM O CADEADO NO TOPO)
-    html_baf = f"""
-    <div class="master-box" style="border-left-color: #FFFFFF; padding: 14px 16px; margin-bottom: 14px;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-            <div class="header-layout" style="margin-bottom: 0;">
-                <div class="icon-box" style="background-color: rgba(255, 255, 255, 0.12); color: #FFFFFF;">🩺</div>
-                <div class="master-metric-title">Auditoria Bafômetro (H&S)</div>
+    # 🔒 BLOQUEADO: Usa details.master-box idêntico aos outros cartões
+    html_baf_bloq = f"""
+    <style>
+        /* Esconde a seta quando bloqueado para não abrir */
+        details.baf-locked > summary::after {{ display: none !important; }}
+        details.baf-locked > summary {{ cursor: default !important; }}
+    </style>
+    <details class="master-box baf-locked" style="border-left-color: #FFFFFF; margin-bottom: 14px;" open>
+        <summary>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                <div class="header-layout" style="margin-bottom: 0;">
+                    <div class="icon-box" style="background-color: rgba(255, 255, 255, 0.12); color: #FFFFFF;">🩺</div>
+                    <div class="master-metric-title">Auditoria Bafômetro (H&S)</div>
+                </div>
+                <div style="cursor: pointer; background: rgba(255, 255, 255, 0.10); border: 1.5px solid #FFFFFF; color: #FFFFFF; font-size: 0.72rem; font-weight: 800; padding: 4px 10px; border-radius: 999px; display: inline-flex; align-items: center; gap: 4px; box-shadow: 0 0 10px rgba(255,255,255,0.15); -webkit-tap-highlight-color: transparent;">
+                    🔒 Desbloquear
+                </div>
             </div>
-            <a href="?baf_action=unlock" target="_self" 
-               style="background: rgba(255, 255, 255, 0.10); border: 1.5px solid #FFFFFF; color: #FFFFFF; font-size: 0.72rem; font-weight: 800; padding: 4px 10px; border-radius: 999px; text-decoration: none; display: inline-flex; align-items: center; gap: 4px; box-shadow: 0 0 10px rgba(255,255,255,0.15);">
-                🔒 Desbloquear
-            </a>
-        </div>
-        <div class="value-layout" style="margin-bottom: 2px;">
-            <div class="master-metric-val">{total_registrados_baf}</div>
-            <div class="master-metric-unit">Testes Registrados</div>
-        </div>
-        <div class="master-metric-sub" style="color: #94a3b8;">
-            Turno Vigente: <b style="color: #ffffff;">{nome_turno_completo}</b> &nbsp;|&nbsp; Status: <span style="color: #FFFFFF; font-weight: 700;">Autenticação Necessária</span>
-        </div>
-    </div>
+            <div class="value-layout" style="margin-bottom: 2px;">
+                <div class="master-metric-val">{total_registrados_baf}</div>
+                <div class="master-metric-unit">Testes Registrados</div>
+            </div>
+            <div class="master-metric-sub" style="color: #94a3b8;">
+                Turno Vigente: <b style="color: #ffffff;">{nome_turno_completo}</b> &nbsp;|&nbsp; Status: <span style="color: #FFFFFF; font-weight: 700;">Autenticação Necessária</span>
+            </div>
+        </summary>
+    </details>
     """
-    render_html(html_baf)
+    render_html(html_baf_bloq)
+    
+    # Campo de senha embutido diretamente abaixo do card sem recarregar o app
+    with st.expander("🔑 Inserir Senha para Desbloquear", expanded=False):
+        c_in, c_bt = st.columns([2, 1], vertical_alignment="bottom")
+        with c_in:
+            pass_val = st.text_input("Senha", type="password", key="pass_baf_inline", label_visibility="collapsed", placeholder="Digite a senha (1000)...")
+        with c_bt:
+            if st.button("Acessar", key="btn_baf_inline", use_container_width=True, type="primary"):
+                if pass_val == SENHA_BAFOMETRO:
+                    st.session_state.bafometro_autenticado = True
+                    st.rerun()
+                else:
+                    st.error("Senha incorreta.")
 
 else:
-    # 🔓 DESBLOQUEADO (EXPANSÍVEL/RECOLHÍVEL COM O CADEADO BLOQUEAR NO TOPO)
-    html_baf = f"""
+    # 🔓 DESBLOQUEADO: Card com recolhimento e botão bloquear
+    html_baf_aberto = f"""
     <details class="master-box" style="border-left-color: #FFFFFF; margin-bottom: 14px;" open>
         <summary>
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
@@ -2054,10 +2046,9 @@ else:
                     <div class="icon-box" style="background-color: rgba(255, 255, 255, 0.15); color: #FFFFFF;">🩺</div>
                     <div class="master-metric-title">Auditoria Bafômetro (H&S)</div>
                 </div>
-                <a href="?baf_action=lock" target="_self" onclick="event.stopPropagation();"
-                   style="background: rgba(0, 214, 114, 0.15); border: 1.5px solid #00D672; color: #00D672; font-size: 0.72rem; font-weight: 800; padding: 4px 10px; border-radius: 999px; text-decoration: none; display: inline-flex; align-items: center; gap: 4px; box-shadow: 0 0 10px rgba(0,214,114,0.25); margin-right: 20px;">
-                    🔓 Bloquear
-                </a>
+                <div style="background: rgba(0, 214, 114, 0.15); border: 1.5px solid #00D672; color: #00D672; font-size: 0.72rem; font-weight: 800; padding: 4px 10px; border-radius: 999px; display: inline-flex; align-items: center; gap: 4px; margin-right: 20px;">
+                    🔓 Liberado
+                </div>
             </div>
             <div class="value-layout" style="margin-bottom: 2px;">
                 <div class="master-metric-val">{total_registrados_baf}</div>
@@ -2069,7 +2060,11 @@ else:
         </summary>
 
         <div class="master-content" style="padding-top: 14px;">
-            <!-- SEÇÃO 1: APROVADOS (SEGREGAÇÃO COM MECÂNICO E SEM EMOJIS NA FUNÇÃO) -->
+            <div style="display: flex; justify-content: flex-end; margin-bottom: 10px;">
+                <span style="font-size: 0.72rem; color: #64748b;">(Toque no cabeçalho acima para minimizar/expandir)</span>
+            </div>
+
+            <!-- SEÇÃO 1: APROVADOS (SEGREGAÇÃO COM MECÂNICO E SEM EMOJIS) -->
             <div style="background:#070d18; border:1px solid #142842; border-left:3px solid #00D672; border-radius:10px; padding:10px; margin-bottom:10px;">
                 <div style="font-size:0.75rem; font-weight:800; color:#00D672; text-transform:uppercase; margin-bottom:4px;">
                     APROVADOS ({len(lista_aprovados)})
@@ -2086,7 +2081,7 @@ else:
             </div>
 
             <!-- SEÇÃO 3: NÃO REALIZADOS / PENDENTES -->
-            <div style="background:#070d18; border:1px solid #142842; border-left:3px solid #E74C3C; border-radius:10px; padding:10px;">
+            <div style="background:#070d18; border:1px solid #142842; border-left:3px solid #E74C3C; border-radius:10px; padding:10px; margin-bottom: 12px;">
                 <div style="font-size:0.75rem; font-weight:800; color:#E74C3C; text-transform:uppercase; margin-bottom:6px;">
                     NÃO REALIZADOS / PENDENTES ({len(lista_pendentes)})
                 </div>
@@ -2095,10 +2090,14 @@ else:
         </div>
     </details>
     """
-    render_html(html_baf)
+    render_html(html_baf_aberto)
 
-
-
+    # Botão de Bloquear discreto
+    col_lock, _ = st.columns([1.2, 2])
+    with col_lock:
+        if st.button("🔒 Bloquear Relatório", key="btn_lock_baf", use_container_width=True):
+            st.session_state.bafometro_autenticado = False
+            st.rerun()
 
 
 # ==============================================================================
