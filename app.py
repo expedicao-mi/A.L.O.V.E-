@@ -1872,55 +1872,159 @@ html_frota = f"""
 render_html(html_frota)
 
 # ==============================================================================
-# 🖨️ RENDERIZAÇÃO 9: AUDITORIA BAFÔMETRO (H&S)
+# 🖨️ RENDERIZAÇÃO 9: AUDITORIA BAFÔMETRO (H&S - COM CADEADO E TURNO)
 # ==============================================================================
-c1, c2 = st.columns([3, 1], vertical_alignment="center")
-with c1:
-    if not st.session_state.bafometro_autenticado:
-        btn_abrir_modal = st.button("🔒 Acessar Bafômetro", use_container_width=True)
-    else: st.markdown("<div style='color:#00D672; font-size:0.85rem; font-weight:bold;'>🔓 Acesso ao Bafômetro Liberado</div>", unsafe_allow_html=True)
-with c2:
-    if st.session_state.bafometro_autenticado:
-        if st.button("Bloquear", use_container_width=True): st.session_state.bafometro_autenticado = False; st.rerun()
-
-@st.dialog("Segurança Operacional")
+@st.dialog("Segurança Operacional (H&S)")
 def modal_senha_bafometro():
-    st.markdown("<p style='font-size:0.85rem; color:#94a3b8;'>Digite a senha de gestor:</p>", unsafe_allow_html=True)
-    senha = st.text_input("Senha", type="password")
+    st.markdown("<p style='font-size:0.85rem; color:#94a3b8;'>Digite a senha de gestor para visualizar os testes:</p>", unsafe_allow_html=True)
+    senha = st.text_input("Senha de Acesso", type="password", key="input_senha_baf")
     cc, cf = st.columns(2)
     with cc:
-        if st.button("Confirmar", use_container_width=True, type="primary"):
-            if senha == SENHA_BAFOMETRO: st.session_state.bafometro_autenticado = True; st.rerun()
-            else: st.error("Senha incorreta.")
+        if st.button("Desbloquear", use_container_width=True, type="primary"):
+            if senha == SENHA_BAFOMETRO:
+                st.session_state.bafometro_autenticado = True
+                st.rerun()
+            else:
+                st.error("Senha incorreta.")
     with cf:
-        if st.button("Cancelar", use_container_width=True): st.rerun()
+        if st.button("Cancelar", use_container_width=True):
+            st.rerun()
 
-if not st.session_state.bafometro_autenticado and 'btn_abrir_modal' in locals() and btn_abrir_modal: modal_senha_bafometro()
+# 1. Processamento dos dados da aba Bafometro_Status
+tt_baf = len(df_bafometro) if not df_bafometro.empty else 0
+nome_turno_baf = "--"
+ap_baf = 0
+pd_rep_baf = 0
 
-if st.session_state.bafometro_autenticado:
-    tt = len(df_bafometro) if not df_bafometro.empty else 0
-    cr = next((c for c in df_bafometro.columns if any(t in str(c).upper() for t in ["RESULTADO", "STATUS", "PARECER"])), None)
-    ap = int((df_bafometro[cr].astype(str).str.upper().str.contains("APROV|0.00|0,00|OK|NEGATIVO")).sum()) if not df_bafometro.empty and cr else 0
-    pd_rep = max(0, tt - ap)
-    cb = "#00D672" if pd_rep == 0 else "#E74C3C"
+if not df_bafometro.empty:
+    df_bafometro.columns = [str(c).strip().upper() for c in df_bafometro.columns]
+    
+    # Resgata o Turno ativo reportado na coluna TURNO
+    col_turno = next((c for c in df_bafometro.columns if "TURNO" in c), None)
+    if col_turno:
+        valores_turno = [str(x).strip() for x in df_bafometro[col_turno].dropna().tolist() if str(x).strip() not in ["", "nan", "None"]]
+        if valores_turno:
+            nome_turno_baf = valores_turno[0].capitalize()
 
-    hb = f'<details class="master-box" style="border-left-color:{cb};" open><summary><div class="header-layout"><div class="icon-box" style="background-color:rgba(0,214,114,.15); color:{cb};">🩺</div><div class="master-metric-title">Auditoria Bafômetro (H&S)</div></div><div class="value-layout"><div class="master-metric-val">{tt}</div><div class="master-metric-unit">Testes Registrados Hoje</div></div><div class="master-metric-sub" style="color:{cb};">Aprovados: {ap} | Pendentes / Reprovados: {pd_rep}</div></summary><div class="master-content" style="padding-top:16px;">'
+    # Identifica a coluna de resultado
+    cr = next((c for c in df_bafometro.columns if any(t in c for t in ["RESULTADO", "STATUS", "PARECER"])), None)
+    if cr:
+        ap_baf = int((df_bafometro[cr].astype(str).str.upper().str.contains("APROV|0.00|0,00|OK|NEGATIVO")).sum())
+    else:
+        ap_baf = tt_baf
+    pd_rep_baf = max(0, tt_baf - ap_baf)
 
-    if not df_bafometro.empty:
-        cpe = list(df_bafometro.columns[:5])
-        hb += f"<div style='overflow-x:auto;'><table style='width:100%; border-collapse:collapse; font-size:0.75rem; text-align:left; color:#ffffff;'><thead><tr style='border-bottom:1px solid #1c2b42; color:#94a3b8;'>{''.join(f'<th style=\"padding:6px;\">{str(c).upper()}</th>' for c in cpe)}</tr></thead><tbody>"
-        for _, rb in df_bafometro.head(15).iterrows():
-            hb += "<tr style='border-bottom:1px dashed #1c2b42;'>"
-            for c in cpe:
-                vc = str(rb.get(c, ""))
-                vcu = vc.upper()
-                cc = "#00D672" if any(x in vcu for x in ["APROV","OK","0,00","0.00"]) else ("#E74C3C" if any(x in vcu for x in ["REPROV","POSITIV","RECUS"]) else ("#FF9F1C" if any(x in vcu for x in ["PEND","AGUARD"]) else "#ffffff"))
-                hb += f"<td style='padding:6px; color:{cc};'>{vc}</td>"
-            hb += "</tr>"
-        hb += "</tbody></table></div>"
-    else: hb += "<div style='color:gray; text-align:center;'>Nenhum registro encontrado.</div>"
-    hb += "</div></details>"
-    render_html(hb)
+cor_baf_status = "#00D672" if pd_rep_baf == 0 else "#E74C3C"
+
+# 2. Renderização do Card com Cadeado ou Dados Abertos
+if not st.session_state.bafometro_autenticado:
+    # 🔒 CARD BLOQUEADO (MANTÉM O TAMANHO OFICIAL PERFEITO)
+    html_baf_bloqueado = f"""
+    <div class="card-main" style="border-left: 6px solid #FF9F1C; margin-bottom: 14px; position: relative; overflow: hidden;">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
+            <div class="header-layout" style="margin-bottom: 0;">
+                <div class="icon-box" style="background-color: rgba(255, 159, 28, 0.15); color: #FF9F1C;">🩺</div>
+                <div class="master-metric-title">Auditoria Bafômetro (H&S)</div>
+            </div>
+            <span style="background: rgba(255, 159, 28, 0.15); border: 1px solid #FF9F1C; color: #FF9F1C; font-size: 0.68rem; font-weight: 800; padding: 2px 8px; border-radius: 999px;">
+                🔒 BLOQUEADO
+            </span>
+        </div>
+
+        <div class="value-layout" style="margin-bottom: 2px;">
+            <div class="master-metric-val">{tt_baf}</div>
+            <div class="master-metric-unit">Testes Registrados</div>
+        </div>
+
+        <div class="master-metric-sub" style="color: #94a3b8; margin-bottom: 12px;">
+            Turno Vigente: <b style="color: #ffffff;">{nome_turno_baf}</b> &nbsp;|&nbsp; Status: <span style="color: #FF9F1C; font-weight: bold;">Autenticação Necessária</span>
+        </div>
+    </div>
+    """
+    render_html(html_baf_bloqueado)
+    
+    # Botão de desbloqueio elegante integrado
+    col_baf_btn, _ = st.columns([1.5, 1])
+    with col_baf_btn:
+        if st.button("🔑 Desbloquear Relatório", key="btn_desbloquear_baf", use_container_width=True):
+            modal_senha_bafometro()
+
+else:
+    # 🔓 CARD DESBLOQUEADO (TABELA COMPLETA COM NOME DO TURNO E BOTÃO BLOQUEAR)
+    col_t_baf, col_b_lock = st.columns([3, 1], vertical_alignment="center")
+    with col_b_lock:
+        if st.button("🔒 Bloquear", key="btn_lock_baf", use_container_width=True):
+            st.session_state.bafometro_autenticado = False
+            st.rerun()
+
+    # Montagem da tabela com os colaboradores do turno
+    linhas_tabela_baf = ""
+    colunas_exibir = ["TURNO", "COLABORADOR", "FUNCAO", "STATUS", "RESULTADO"]
+    cols_existentes = [c for c in colunas_exibir if c in df_bafometro.columns]
+    
+    if not cols_existentes:
+        cols_existentes = list(df_bafometro.columns[:5])
+
+    for _, rb in df_bafometro.head(30).iterrows():
+        linhas_tabela_baf += "<tr style='border-bottom: 1px dashed #1c2b42;'>"
+        for col_name in cols_existentes:
+            val_cel = str(rb.get(col_name, "")).strip()
+            val_u = val_cel.upper()
+            
+            # Formatação de cores para o resultado/status
+            if any(x in val_u for x in ["APROV", "OK", "0.00", "0,00", "REALIZADO"]):
+                c_txt = "#00D672"
+            elif any(x in val_u for x in ["REPROV", "POSITIV", "RECUS"]):
+                c_txt = "#E74C3C"
+            elif any(x in val_u for x in ["PEND", "AGUARD"]):
+                c_txt = "#FF9F1C"
+            else:
+                c_txt = "#ffffff"
+                
+            linhas_tabela_baf += f"<td style='padding: 8px 6px; color: {c_txt}; white-space: nowrap;'>{html_lib.escape(val_cel)}</td>"
+        linhas_tabela_baf += "</tr>"
+
+    html_baf_aberto = f"""
+    <details class="master-box" style="border-left-color: {cor_baf_status}; margin-bottom: 14px;" open>
+        <summary>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                <div class="header-layout" style="margin-bottom: 0;">
+                    <div class="icon-box" style="background-color: rgba(0, 214, 114, 0.15); color: {cor_baf_status};">🩺</div>
+                    <div class="master-metric-title">Auditoria Bafômetro (H&S)</div>
+                </div>
+                <span style="background: rgba(0, 214, 114, 0.15); border: 1px solid #00D672; color: #00D672; font-size: 0.68rem; font-weight: 800; padding: 2px 8px; border-radius: 999px;">
+                    🔓 ACESSO LIBERADO
+                </span>
+            </div>
+
+            <div class="value-layout" style="margin-bottom: 2px;">
+                <div class="master-metric-val">{tt_baf}</div>
+                <div class="master-metric-unit">Testes Registrados</div>
+            </div>
+
+            <div class="master-metric-sub" style="color: {cor_baf_status}; font-weight: bold; margin-bottom: 2px;">
+                Turno: <b style="color: #ffffff;">{nome_turno_baf}</b> &nbsp;|&nbsp; Aprovados: {ap_baf} &bull; Pendentes: {pd_rep_baf}
+            </div>
+        </summary>
+
+        <div class="master-content" style="padding-top: 14px;">
+            <div style="background-color: #070d18; border: 1.5px solid #1c2b42; border-radius: 12px; padding: 8px; overflow-x: auto;">
+                <table style="width: 100%; border-collapse: collapse; font-size: 0.72rem; text-align: left; color: #ffffff;">
+                    <thead>
+                        <tr style="border-bottom: 1px solid #1c2b42; color: #64748b;">
+                            {''.join(f'<th style="padding: 6px; font-weight: 700;">{c}</th>' for c in cols_existentes)}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {linhas_tabela_baf}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </details>
+    """
+    render_html(html_baf_aberto)
+
 
 # ==============================================================================
 # 🖨️ RENDERIZAÇÃO 10: COMPARATIVO ANUAL (PRODUÇÃO VS EXPEDIÇÃO)
