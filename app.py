@@ -1878,8 +1878,24 @@ render_html(html_frota)
 # ==============================================================================
 # 🖨️ RENDERIZAÇÃO 9: AUDITORIA BAFÔMETRO (H&S - MODAL NATIVO SEM RELOAD)
 # ==============================================================================
-# 1. Identificação do Nome do Turno Real Vigente
 
+@st.dialog("Segurança Operacional (H&S)")
+def modal_senha_bafometro():
+    st.markdown("<p style='font-size:0.85rem; color:#94a3b8;'>Digite a senha de gestor para visualizar os testes:</p>", unsafe_allow_html=True)
+    senha = st.text_input("Senha de Acesso", type="password", key="input_senha_baf")
+    cc, cf = st.columns(2)
+    with cc:
+        if st.button("Desbloquear", use_container_width=True, type="primary"):
+            if senha == SENHA_BAFOMETRO:
+                st.session_state.bafometro_autenticado = True
+                st.rerun()
+            else:
+                st.error("Senha incorreta.")
+    with cf:
+        if st.button("Cancelar", use_container_width=True):
+            st.rerun()
+
+# 1. Identificação do Nome do Turno Real Vigente
 letras_turnos_atuais = descobrir_letras_turnos(hoje_date)
 if agora_br.hour < 8:
     letra_vigente = letras_turnos_atuais.get("madrugada", "D")
@@ -1996,59 +2012,98 @@ def renderizar_itens_simples(lista_dados, cor_texto):
         """
     return h
 
-# 4. Renderização do Card com Contorno Perfeito
+# Customização da pílula do cadeado para integrar o st.button invisible do Streamlit
+st.markdown("""
+<style>
+.baf-btn-container {
+    position: absolute;
+    top: 14px;
+    right: 16px;
+    z-index: 10;
+}
+.baf-btn-container button {
+    background-color: rgba(255, 255, 255, 0.10) !important;
+    border: 1.5px solid #FFFFFF !important;
+    color: #FFFFFF !important;
+    font-size: 0.72rem !important;
+    font-weight: 800 !important;
+    padding: 4px 10px !important;
+    border-radius: 999px !important;
+    min-height: 0 !important;
+    height: auto !important;
+    line-height: 1 !important;
+    box-shadow: 0 0 10px rgba(255,255,255,0.15) !important;
+}
+.baf-btn-container button:hover {
+    background-color: rgba(255, 255, 255, 0.20) !important;
+}
+.baf-btn-container-open {
+    position: absolute;
+    top: 14px;
+    right: 16px;
+    z-index: 10;
+}
+.baf-btn-container-open button {
+    background-color: rgba(0, 214, 114, 0.15) !important;
+    border: 1.5px solid #00D672 !important;
+    color: #00D672 !important;
+    font-size: 0.72rem !important;
+    font-weight: 800 !important;
+    padding: 4px 10px !important;
+    border-radius: 999px !important;
+    min-height: 0 !important;
+    height: auto !important;
+    line-height: 1 !important;
+    box-shadow: 0 0 10px rgba(0,214,114,0.25) !important;
+}
+</style>
+""", unsafe_allow_html=True)
+
+
 if not st.session_state.bafometro_autenticado:
-    # 🔒 BLOQUEADO: Pílula elegante no canto superior com modal de senha limpo
+    # 🔒 BLOQUEADO
+    col1, col2 = st.columns([1, 1])
+    # Container do botão sobreposto
+    st.markdown('<div class="baf-btn-container">', unsafe_allow_html=True)
+    if st.button("🔒 Desbloquear", key="baf_btn_unlock"):
+        modal_senha_bafometro()
+    st.markdown('</div>', unsafe_allow_html=True)
+
     html_baf_bloq = f"""
     <div id="sec-baf"></div>
-    <details class="master-box" style="border-left-color: #FFFFFF; margin-bottom: 14px;" open>
-        <summary style="cursor: default;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-                <div class="header-layout" style="margin-bottom: 0;">
-                    <div class="icon-box" style="background-color: rgba(255, 255, 255, 0.12); color: #FFFFFF;">🩺</div>
-                    <div class="master-metric-title">Auditoria Bafômetro (H&S)</div>
-                </div>
-                <div style="background: rgba(255, 255, 255, 0.10); border: 1.5px solid #FFFFFF; color: #FFFFFF; font-size: 0.72rem; font-weight: 800; padding: 4px 10px; border-radius: 999px; display: inline-flex; align-items: center; gap: 4px; box-shadow: 0 0 10px rgba(255,255,255,0.15);">
-                    🔒 Bloqueado
-                </div>
+    <div class="card-main" style="border-left: 6px solid #FFFFFF; margin-bottom: 14px; position: relative;">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
+            <div class="header-layout" style="margin-bottom: 0;">
+                <div class="icon-box" style="background-color: rgba(255, 255, 255, 0.12); color: #FFFFFF;">🩺</div>
+                <div class="master-metric-title">Auditoria Bafômetro (H&S)</div>
             </div>
-            <div class="value-layout" style="margin-bottom: 2px;">
-                <div class="master-metric-val">{total_registrados_baf}</div>
-                <div class="master-metric-unit">Testes Registrados</div>
-            </div>
-            <div class="master-metric-sub" style="color: #94a3b8;">
-                Turno Vigente: <b style="color: #ffffff;">{nome_turno_completo}</b> &nbsp;|&nbsp; Status: <span style="color: #FFFFFF; font-weight: 700;">Autenticação Necessária</span>
-            </div>
-        </summary>
-    </details>
+        </div>
+        <div class="value-layout" style="margin-bottom: 2px;">
+            <div class="master-metric-val">{total_registrados_baf}</div>
+            <div class="master-metric-unit">Testes Registrados</div>
+        </div>
+        <div class="master-metric-sub" style="color: #94a3b8; margin-bottom: 4px;">
+            Turno Vigente: <b style="color: #ffffff;">{nome_turno_completo}</b> &nbsp;|&nbsp; Status: <span style="color: #FFFFFF; font-weight: 700;">Autenticação Necessária</span>
+        </div>
+    </div>
     """
     render_html(html_baf_bloq)
-    
-    # Campo de senha compacto direto com estilo uniforme
-    c_pass1, c_pass2 = st.columns([2.2, 1], vertical_alignment="center")
-    with c_pass1:
-        senha_digitada = st.text_input("Senha Bafômetro", type="password", key="pass_baf_clean", placeholder="Digite a senha de gestor...", label_visibility="collapsed")
-    with c_pass2:
-        if st.button("🔓 Desbloquear", key="btn_desbloquear_clean", use_container_width=True, type="primary"):
-            if senha_digitada == SENHA_BAFOMETRO:
-                st.session_state.bafometro_autenticado = True
-                st.rerun()
-            else:
-                st.error("Senha incorreta!")
-
-
 else:
-    # 🔓 DESBLOQUEADO: Card com recolhimento e botão bloquear
+    # 🔓 DESBLOQUEADO
+    st.markdown('<div class="baf-btn-container-open">', unsafe_allow_html=True)
+    if st.button("🔓 Bloquear", key="baf_btn_lock"):
+        st.session_state.bafometro_autenticado = False
+        st.rerun()
+    st.markdown('</div>', unsafe_allow_html=True)
+
     html_baf_aberto = f"""
-    <details class="master-box" style="border-left-color: #FFFFFF; margin-bottom: 14px;" open>
+    <div id="sec-baf"></div>
+    <details class="master-box" id="det-baf" style="border-left-color: #FFFFFF; margin-bottom: 14px; position:relative;" open>
         <summary>
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
                 <div class="header-layout" style="margin-bottom: 0;">
                     <div class="icon-box" style="background-color: rgba(255, 255, 255, 0.15); color: #FFFFFF;">🩺</div>
                     <div class="master-metric-title">Auditoria Bafômetro (H&S)</div>
-                </div>
-                <div style="background: rgba(0, 214, 114, 0.15); border: 1.5px solid #00D672; color: #00D672; font-size: 0.72rem; font-weight: 800; padding: 4px 10px; border-radius: 999px; display: inline-flex; align-items: center; gap: 4px; margin-right: 20px;">
-                    🔓 Liberado
                 </div>
             </div>
             <div class="value-layout" style="margin-bottom: 2px;">
@@ -2061,10 +2116,6 @@ else:
         </summary>
 
         <div class="master-content" style="padding-top: 14px;">
-            <div style="display: flex; justify-content: flex-end; margin-bottom: 10px;">
-                <span style="font-size: 0.72rem; color: #64748b;">(Toque no cabeçalho acima para minimizar/expandir)</span>
-            </div>
-
             <!-- SEÇÃO 1: APROVADOS (SEGREGAÇÃO COM MECÂNICO E SEM EMOJIS) -->
             <div style="background:#070d18; border:1px solid #142842; border-left:3px solid #00D672; border-radius:10px; padding:10px; margin-bottom:10px;">
                 <div style="font-size:0.75rem; font-weight:800; color:#00D672; text-transform:uppercase; margin-bottom:4px;">
@@ -2093,12 +2144,7 @@ else:
     """
     render_html(html_baf_aberto)
 
-    # Botão de Bloquear discreto
-    col_lock, _ = st.columns([1.2, 2])
-    with col_lock:
-        if st.button("🔒 Bloquear Relatório", key="btn_lock_baf", use_container_width=True):
-            st.session_state.bafometro_autenticado = False
-            st.rerun()
+
 
 
 # ==============================================================================
@@ -2211,158 +2257,272 @@ with st.expander("🛠️ Console de Telemetria & Logs do Core (Dev)", expanded=
                 )
 
 # ==============================================================================
-# 🍏 ASSISTIVETOUCH IOS: BOTÃO FLUTUANTE FUNCIONAL (HTML/CSS PURO)
+# 🍏 ASSISTIVETOUCH IOS: BOTÃO FLUTUANTE DE ATALHOS RÁPIDOS
 # ==============================================================================
 html_assistive_touch = """
 <style>
-    /* COMPORTAMENTO DE SCROLL SUAVE */
     html { scroll-behavior: smooth !important; }
 
-    /* CONTÊINER FLUTUANTE DO ASSISTIVETOUCH */
-    .ios-touch-container {
+    #iosAssistiveTouch {
         position: fixed;
-        bottom: 80px;
-        right: 16px;
-        z-index: 99999999;
-        -webkit-tap-highlight-color: transparent;
-        user-select: none;
-    }
-
-    /* ESCONDE A SETINHA PADRÃO */
-    .ios-touch-container summary {
-        list-style: none !important;
-        outline: none !important;
-        cursor: pointer;
-    }
-    .ios-touch-container summary::-webkit-details-marker {
-        display: none !important;
-    }
-
-    /* BOTÃO CIRCULAR TRANSLÚCIDO DO IOS */
-    .ios-touch-trigger {
-        width: 52px;
-        height: 52px;
-        background: rgba(15, 23, 42, 0.75);
+        bottom: 85px;
+        right: 18px;
+        width: 56px;
+        height: 56px;
+        background: rgba(18, 32, 53, 0.75);
         backdrop-filter: blur(12px);
         -webkit-backdrop-filter: blur(12px);
-        border: 1.5px solid rgba(0, 214, 114, 0.6);
+        /* Cor Dourado Metálico na borda */
+        border: 2px solid #E5B800;
         border-radius: 50%;
         display: flex;
         align-items: center;
         justify-content: center;
-        box-shadow: 0 6px 20px rgba(0,0,0,0.5), 0 0 14px rgba(0, 214, 114, 0.35);
+        /* Brilho dourado */
+        box-shadow: 0 4px 18px rgba(0, 0, 0, 0.45), 0 0 12px rgba(229, 184, 0, 0.3);
+        z-index: 9999999;
+        cursor: pointer;
+        touch-action: none;
+        user-select: none;
+        -webkit-user-select: none;
+        -webkit-tap-highlight-color: transparent;
         transition: transform 0.15s ease;
     }
-    .ios-touch-trigger:active {
-        transform: scale(0.90);
+
+    #iosAssistiveTouch:active {
+        transform: scale(0.92);
     }
-    .ios-touch-core {
-        width: 22px;
-        height: 22px;
-        background: radial-gradient(circle, #00D672 30%, #0084FF 100%);
+
+    .assistive-inner-dot {
+        width: 24px;
+        height: 24px;
+        /* Cor núcleo Dourado/Metálico */
+        background: radial-gradient(circle, #FFE770 30%, #E5B800 100%);
         border-radius: 50%;
-        box-shadow: 0 0 10px rgba(0, 214, 114, 0.9);
+        box-shadow: 0 0 8px rgba(229, 184, 0, 0.8);
     }
 
-    /* POPUP DE ATALHOS EM GRADE */
-    .ios-touch-menu {
-        position: absolute;
-        bottom: 65px;
-        right: 0;
-        width: 270px;
-        background: rgba(11, 24, 48, 0.94);
-        backdrop-filter: blur(16px);
-        -webkit-backdrop-filter: blur(16px);
+    /* O MENU POPUP DE ATALHOS */
+    #assistiveMenu {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background: rgba(5, 9, 17, 0.7);
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+        z-index: 10000000;
+        align-items: center;
+        justify-content: center;
+        animation: assistiveFadeIn 0.2s ease;
+    }
+
+    .assistive-card {
+        background: #0b1830;
         border: 1.5px solid #142842;
-        border-radius: 20px;
-        padding: 14px 12px;
-        box-shadow: 0 12px 36px rgba(0,0,0,0.7), 0 0 20px rgba(0, 180, 255, 0.18);
-        animation: touchPop 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-    }
-
-    .ios-touch-header {
-        font-size: 0.75rem;
-        font-weight: 800;
-        color: #94a3b8;
-        letter-spacing: 0.5px;
+        border-radius: 22px;
+        padding: 20px 16px;
+        width: 300px;
+        max-width: 88vw;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.6), 0 0 20px rgba(229, 184, 0, 0.15);
         text-align: center;
-        margin-bottom: 10px;
-        text-transform: uppercase;
     }
 
-    .ios-touch-grid {
-        display: grid;
-        grid-template-columns: repeat(3, 1fr);
+    .assistive-title {
+        color: #ffffff;
+        font-size: 0.95rem;
+        font-weight: 800;
+        letter-spacing: 0.5px;
+        margin-bottom: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
         gap: 8px;
     }
 
-    .ios-touch-item {
+    .assistive-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 12px;
+    }
+
+    .assistive-btn {
         background: #070d18;
         border: 1px solid #1c2b42;
-        border-radius: 12px;
-        padding: 8px 4px;
-        text-decoration: none;
+        border-radius: 14px;
+        padding: 10px 4px;
+        color: #cbd5e1;
+        font-size: 0.72rem;
+        font-weight: 700;
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 4px;
-        color: #cbd5e1;
-        font-size: 0.68rem;
-        font-weight: 700;
-        transition: border-color 0.15s, transform 0.15s;
-    }
-    .ios-touch-item:active {
-        border-color: #00D672;
-        transform: scale(0.92);
-    }
-    .ios-touch-item .touch-ico {
-        font-size: 1.35rem;
+        gap: 6px;
+        text-decoration: none;
+        cursor: pointer;
+        transition: transform 0.15s ease, border-color 0.15s;
+        -webkit-tap-highlight-color: transparent;
     }
 
-    @keyframes touchPop {
-        from { opacity: 0; transform: scale(0.85) translateY(10px); }
-        to { opacity: 1; transform: scale(1) translateY(0); }
+    .assistive-btn:active {
+        transform: scale(0.92);
+        border-color: #E5B800;
+    }
+
+    .assistive-btn span.ico {
+        font-size: 1.5rem;
+    }
+
+    @keyframes assistiveFadeIn {
+        from { opacity: 0; transform: scale(0.96); }
+        to { opacity: 1; transform: scale(1); }
     }
 </style>
 
-<details class="ios-touch-container">
-    <summary>
-        <div class="ios-touch-trigger">
-            <div class="ios-touch-core"></div>
+<!-- BOTÃO CIRCULAR ARRASTÁVEL -->
+<div id="iosAssistiveTouch">
+    <div class="assistive-inner-dot"></div>
+</div>
+
+<!-- MENU POPUP DO ASSISTIVETOUCH -->
+<div id="assistiveMenu" onclick="fecharAssistive(event)">
+    <div class="assistive-card" onclick="event.stopPropagation()">
+        <div class="assistive-title">
+            <span style="color:#E5B800;">⚡</span> ATALHOS RÁPIDOS
         </div>
-    </summary>
-    <div class="ios-touch-menu">
-        <div class="ios-touch-header">⚡ Navegação A.L.O.V.E.</div>
-        <div class="ios-touch-grid">
-            <a href="#sec-topo" class="ios-touch-item">
-                <span class="touch-ico">🔝</span>
+        <div class="assistive-grid">
+            <a class="assistive-btn" onclick="rolarPara('sec-topo')">
+                <span class="ico">🔝</span>
                 <span>Topo</span>
             </a>
-            <a href="#sec-patio" class="ios-touch-item">
-                <span class="touch-ico">🏭</span>
+            <a class="assistive-btn" onclick="rolarPara('sec-patio')">
+                <span class="ico">🏭</span>
                 <span>Pátio</span>
             </a>
-            <a href="#sec-prod" class="ios-touch-item">
-                <span class="touch-ico">⚙️</span>
+            <a class="assistive-btn" onclick="rolarPara('sec-prod')">
+                <span class="ico">⚙️</span>
                 <span>Produção</span>
             </a>
-            <a href="#sec-exp" class="ios-touch-item">
-                <span class="touch-ico">🚚</span>
+            <a class="assistive-btn" onclick="rolarPara('sec-exp')">
+                <span class="ico">🚚</span>
                 <span>Expedição</span>
             </a>
-            <a href="#sec-est" class="ios-touch-item">
-                <span class="touch-ico">📦</span>
+            <a class="assistive-btn" onclick="rolarPara('sec-est')">
+                <span class="ico">📦</span>
                 <span>Estoque</span>
             </a>
-            <a href="#sec-baf" class="ios-touch-item">
-                <span class="touch-ico">🩺</span>
+            <a class="assistive-btn" onclick="rolarPara('sec-baf')">
+                <span class="ico">🩺</span>
                 <span>Bafômetro</span>
+            </a>
+            <a class="assistive-btn" onclick="window.print()" style="grid-column: span 3;">
+                <span class="ico">📸</span>
+                <span>Print / Imprimir Tela</span>
             </a>
         </div>
     </div>
-</details>
+</div>
+
+<script>
+    const touchBtn = document.getElementById('iosAssistiveTouch');
+    const menu = document.getElementById('assistiveMenu');
+    let isDragging = false;
+    let startX, startY, initialX, initialY;
+    let hasMoved = false;
+    let lastTap = 0;
+
+    // Arrasto no iPhone (Touch Events)
+    touchBtn.addEventListener('touchstart', function(e) {
+        const touch = e.touches[0];
+        startX = touch.clientX;
+        startY = touch.clientY;
+        const rect = touchBtn.getBoundingClientRect();
+        initialX = rect.left;
+        initialY = rect.top;
+        hasMoved = false;
+        isDragging = true;
+    }, {passive: false});
+
+    document.addEventListener('touchmove', function(e) {
+        if (!isDragging) return;
+        const touch = e.touches[0];
+        const dx = touch.clientX - startX;
+        const dy = touch.clientY - startY;
+
+        if (Math.abs(dx) > 10 || Math.abs(dy) > 10) {
+            hasMoved = true;
+            e.preventDefault(); 
+        }
+
+        let newX = initialX + dx;
+        let newY = initialY + dy;
+
+        // Limites da tela
+        newX = Math.max(10, Math.min(window.innerWidth - 64, newX));
+        newY = Math.max(20, Math.min(window.innerHeight - 80, newY));
+
+        touchBtn.style.left = newX + 'px';
+        touchBtn.style.top = newY + 'px';
+        touchBtn.style.right = 'auto';
+        touchBtn.style.bottom = 'auto';
+    }, {passive: false});
+
+    document.addEventListener('touchend', function(e) {
+        if (!isDragging) return;
+        isDragging = false;
+        
+        const currentTime = new Date().getTime();
+        const tapLength = currentTime - lastTap;
+        
+        // Trata o toque rápido vs o arraste
+        if (!hasMoved && tapLength < 300) { 
+             abrirAssistive();
+        } else if (!hasMoved) {
+            abrirAssistive(); 
+        }
+        lastTap = currentTime;
+
+    });
+    
+    // Evita scroll acidental do botão
+    touchBtn.addEventListener('mousedown', function(e) { e.preventDefault(); });
+
+    // Clique para desktop/mouse
+    touchBtn.addEventListener('click', function(e) {
+        if (!hasMoved) {
+            abrirAssistive();
+        }
+    });
+
+    window.abrirAssistive = function() {
+        menu.style.display = 'flex';
+    };
+
+    window.fecharAssistive = function(event) {
+        if (event && event.target !== menu) return; 
+        menu.style.display = 'none';
+    };
+
+    window.rolarPara = function(ancoraId) {
+        menu.style.display = 'none'; 
+        const elem = document.getElementById(ancoraId);
+        if (elem) {
+             // Se o elemento estiver dentro de um detail fechado, o abre!
+            let detailsWrapper = elem.closest('details') || elem.nextElementSibling;
+            if (detailsWrapper && detailsWrapper.tagName === 'DETAILS' && !detailsWrapper.open) {
+                detailsWrapper.open = true;
+            }
+            elem.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    };
+</script>
 """
 render_html(html_assistive_touch)
+
+st.markdown("<br><center><span style='color:#64748b; font-size:0.75rem; letter-spacing:0.5px;'>A.L.O.V.E - Mobile / Developed by Crist Ciriaco</span></center>", unsafe_allow_html=True)
+
 
 
 st.markdown("<br><center><span style='color:#64748b; font-size:0.75rem; letter-spacing:0.5px;'>A.L.O.V.E - Mobile / Developed by Crist Ciriaco</span></center>", unsafe_allow_html=True)
