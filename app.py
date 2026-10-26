@@ -651,8 +651,8 @@ st.markdown("""
     <div class="alove-loader-bg"><div class="alove-loader-text">A.L.O.V.E</div></div>
 """, unsafe_allow_html=True)
 
-st.markdown(f'<div class="topo-banner"><img src="{BANNER_TOPO_URL}"></div>', unsafe_allow_html=True)
-⁠<div id="sec-topo"></div>⁠
+st.markdown(f'<div id="sec-topo"></div><div class="topo-banner"><img src="{BANNER_TOPO_URL}"></div>', unsafe_allow_html=True)
+
 # ==============================================================================
 # 🖨️ RENDERIZAÇÃO 1: STATUS DO SISTEMA + SEMÁFORO (CONFORME IMAGEM 3)
 # ==============================================================================
@@ -818,9 +818,9 @@ render_html(html_previsoes)
 # ==============================================================================
 txt_att_patio = f" | 🕒 Base: {hora_att_patio.split(' ')[1][:5]}" if hora_att_patio and " " in hora_att_patio else ""
 
-html_patio = f"""
-<div id="sec-patio"></div>
-<details class="master-box" style="border-left-color: #38a9ff;" open>
+html_est = f"""
+<div id="sec-est"></div>
+<details class="master-box" style="border-left-color: #00E676;" open>
     <summary>
         <div class="header-layout">
             <div class="icon-box" style="background-color: rgba(56, 169, 255, 0.15); color: #38a9ff;">🏭</div>
@@ -1879,7 +1879,7 @@ render_html(html_frota)
 # 🖨️ RENDERIZAÇÃO 9: AUDITORIA BAFÔMETRO (H&S - MODAL NATIVO SEM RELOAD)
 # ==============================================================================
 # 1. Identificação do Nome do Turno Real Vigente
-<div id="sec-baf"></div>
+
 letras_turnos_atuais = descobrir_letras_turnos(hoje_date)
 if agora_br.hour < 8:
     letra_vigente = letras_turnos_atuais.get("madrugada", "D")
