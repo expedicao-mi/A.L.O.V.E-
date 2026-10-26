@@ -2117,9 +2117,119 @@ with st.expander("🛠️ Console de Telemetria & Logs do Core (Dev)", expanded=
                     unsafe_allow_html=True
                 )
 
-tp or "TALHA" in eq else "e"
-            cnd = "AVARIA" if "AVARIA" in cd else ("ATENÇÃO" if "ATEN" in cd else "OK")
-            
-            exist = next((i for i in frota_agr[dk][ck
+# ==============================================================================
+# 🍏 MENU FLUTUANTE PREMIUM (COM LOGO, SUBLINHADOS E AUTO-FECHAMENTO NATIVO)
+# ==============================================================================
+html_menu_fixo = f"""
+<style>
+    /* Comportamento de rolagem suave nativa do iPhone */
+    html {{ scroll-behavior: smooth !important; }}
+
+    /* Oculta o checkbox de controle invisível */
+    #fab-toggle {{ display: none; }}
+
+    /* Container Flutuante Principal */
+    .fab-wrapper {{
+        position: fixed; bottom: 25px; right: 16px; z-index: 9999999;
+        -webkit-tap-highlight-color: transparent;
+        display: flex; flex-direction: column; align-items: flex-end; gap: 14px;
+    }}
+
+    /* Menu de Atalhos Vertical Premium */
+    .fab-menu {{
+        display: flex; flex-direction: column; gap: 10px;
+        background: rgba(11, 24, 48, 0.96);
+        backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+        border: 1.5px solid #1c2b42; border-radius: 20px; padding: 18px 14px;
+        width: 220px;
+        box-shadow: 0 12px 35px rgba(0,0,0,0.8), 0 0 20px rgba(56, 189, 248, 0.15);
+        
+        /* Estado Fechado (Invisível e Encolhido) */
+        opacity: 0; transform: translateY(20px) scale(0.9); pointer-events: none;
+        transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        transform-origin: bottom right;
+    }}
+
+    /* Quando ativado (Checkbox Checado) -> Mostra o Menu */
+    #fab-toggle:checked ~ .fab-menu {{
+        opacity: 1; transform: translateY(0) scale(1); pointer-events: auto;
+    }}
+
+    /* Itens do Menu (Estilo do Print - Fundo Escuro, Sublinhado Azul) */
+    .fab-item-label {{ display: block; width: 100%; cursor: pointer; margin: 0; }}
+    
+    .fab-item {{
+        display: flex; align-items: center; gap: 14px;
+        background: #121c2f; border-radius: 12px; padding: 14px 18px;
+        color: #ffffff; text-decoration: none; font-size: 0.95rem; font-weight: 800;
+        border: 1px solid #1c2b42; transition: all 0.2s ease;
+    }}
+    
+    /* Sublinhado perfeito embaixo dos textos */
+    .fab-item span {{
+        text-decoration: underline; text-decoration-color: #38bdf8; text-underline-offset: 4px; text-decoration-thickness: 2px;
+    }}
+
+    .fab-item:active {{ background: #1c2b42; border-color: #38bdf8; transform: scale(0.96); }}
+
+    /* Botão Flutuante (O Acionador) */
+    .fab-btn {{
+        width: 60px; height: 60px; border-radius: 50%;
+        display: flex; align-items: center; justify-content: center;
+        cursor: pointer; position: relative;
+        transition: transform 0.2s ease;
+        -webkit-tap-highlight-color: transparent;
+    }}
+    .fab-btn:active {{ transform: scale(0.90); }}
+
+    /* Logo A.L.O.V.E (Estado Fechado - Borda Verde) */
+    .fab-ico-closed {{
+        width: 100%; height: 100%; border-radius: 50%;
+        background-image: url('{LOGO_ALOVE_URL}');
+        background-size: cover; background-position: center;
+        border: 2px solid #00D672;
+        box-shadow: 0 4px 15px rgba(0, 214, 114, 0.4), 0 0 15px rgba(0,214,114,0.3) inset;
+        transition: all 0.3s ease;
+    }}
+
+    /* Botão Amarelo com X (Estado Aberto) */
+    .fab-ico-open {{
+        position: absolute; inset: 0; border-radius: 50%;
+        background: #E5B800; border: 2.5px solid #FFFFFF;
+        color: #0a101d; font-size: 2.2rem; font-weight: 900;
+        display: flex; align-items: center; justify-content: center;
+        opacity: 0; transform: rotate(-90deg) scale(0.5);
+        transition: all 0.3s ease; line-height: 1; padding-bottom: 4px;
+    }}
+
+    /* Animações de Transição do Botão (Gira e Troca de Ícone) */
+    #fab-toggle:checked ~ .fab-btn .fab-ico-closed {{ opacity: 0; transform: rotate(90deg) scale(0.5); }}
+    #fab-toggle:checked ~ .fab-btn .fab-ico-open {{ opacity: 1; transform: rotate(0) scale(1); box-shadow: 0 0 20px rgba(229,184,0,0.6); }}
+
+</style>
+
+<div class="fab-wrapper">
+    <!-- O Checkbox Invisível que controla tudo magicamente (sem travar) -->
+    <input type="checkbox" id="fab-toggle">
+    
+    <!-- O Menu Premium Vertical -->
+    <div class="fab-menu">
+        <label class="fab-item-label" for="fab-toggle"><a href="#sec-topo" class="fab-item">🔝 <span>Topo</span></a></label>
+        <label class="fab-item-label" for="fab-toggle"><a href="#sec-patio" class="fab-item">🏭 <span>Pátio</span></a></label>
+        <label class="fab-item-label" for="fab-toggle"><a href="#sec-prod" class="fab-item">⚙️ <span>Produção</span></a></label>
+        <label class="fab-item-label" for="fab-toggle"><a href="#sec-exp" class="fab-item">🚚 <span>Expedição</span></a></label>
+        <label class="fab-item-label" for="fab-toggle"><a href="#sec-est" class="fab-item">📦 <span>Estoque</span></a></label>
+        <label class="fab-item-label" for="fab-toggle"><a href="#sec-baf" class="fab-item">🩺 <span>Bafômetro</span></a></label>
+    </div>
+
+    <!-- O Botão (Alterna entre Logo e o X Amarelo) -->
+    <label for="fab-toggle" class="fab-btn">
+        <div class="fab-ico-closed"></div>
+        <div class="fab-ico-open">×</div>
+    </label>
+</div>
+"""
+render_html(html_menu_fixo)
+
 
 st.markdown("<br><center><span style='color:#64748b; font-size:0.75rem; letter-spacing:0.5px;'>A.L.O.V.E - Mobile / Developed by Crist Ciriaco</span></center>", unsafe_allow_html=True)
