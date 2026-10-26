@@ -617,39 +617,37 @@ if not df_balanco_dest.empty:
 # ==============================================================================
 # 🖨️ RECARGA NATIVA & SPLASH SCREEN (A.L.O.V.E TYPING EFFECT)
 # ==============================================================================
-# Tratamento de atualização instantânea via botão HTML nativo
 if st.query_params.get("refresh") == "1":
     st.cache_data.clear()
     st.query_params.clear()
+    st.session_state.pop("splash_exibida", None) # Força a animação a rodar ao atualizar
     st.rerun()
 
-st.markdown("""
-    <style>
-        /* Oculta o widget nativo 'Running...' do Streamlit */
-        [data-testid="stStatusWidget"] {
-            display: none !important;
-            visibility: hidden !important;
-        }
-        /* Tela preta com efeito digitando A.L.O.V.E */
-        .alove-loader-bg {
-            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-            background: #050911; z-index: 99999999;
-            display: flex; justify-content: center; align-items: center;
-            animation: loaderFadeOut 0.4s 1.2s forwards; pointer-events: none;
-        }
-        .alove-loader-text {
-            font-size: 2.8rem; font-weight: 900; color: #00D672;
-            letter-spacing: 6px; text-shadow: 0 0 20px rgba(0,214,114,0.6);
-            overflow: hidden; white-space: nowrap; border-right: 4px solid #00D672;
-            width: 0;
-            animation: loaderTyping 1s steps(7, end) forwards, loaderBlink 0.5s step-end infinite alternate;
-        }
-        @keyframes loaderTyping { from { width: 0 } to { width: 5.5em } }
-        @keyframes loaderBlink { 50% { border-color: transparent } }
-        @keyframes loaderFadeOut { to { opacity: 0; visibility: hidden; display: none; } }
-    </style>
-    <div class="alove-loader-bg"><div class="alove-loader-text">A.L.O.V.E</div></div>
-""", unsafe_allow_html=True)
+# A animação só é desenhada na tela se for o primeiro carregamento
+if "splash_exibida" not in st.session_state:
+    st.session_state.splash_exibida = True
+    st.markdown("""
+        <style>
+            [data-testid="stStatusWidget"] { display: none !important; visibility: hidden !important; }
+            .alove-loader-bg {
+                position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+                background: #050911; z-index: 99999999;
+                display: flex; justify-content: center; align-items: center;
+                animation: loaderFadeOut 0.4s 1.2s forwards; pointer-events: none;
+            }
+            .alove-loader-text {
+                font-size: 2.8rem; font-weight: 900; color: #00D672;
+                letter-spacing: 6px; text-shadow: 0 0 20px rgba(0,214,114,0.6);
+                overflow: hidden; white-space: nowrap; border-right: 4px solid #00D672;
+                width: 0;
+                animation: loaderTyping 1s steps(7, end) forwards, loaderBlink 0.5s step-end infinite alternate;
+            }
+            @keyframes loaderTyping { from { width: 0 } to { width: 5.5em } }
+            @keyframes loaderBlink { 50% { border-color: transparent } }
+            @keyframes loaderFadeOut { to { opacity: 0; visibility: hidden; display: none; } }
+        </style>
+        <div class="alove-loader-bg"><div class="alove-loader-text">A.L.O.V.E</div></div>
+    """, unsafe_allow_html=True)
 
 st.markdown(f'<div id="sec-topo"></div><div class="topo-banner"><img src="{BANNER_TOPO_URL}"></div>', unsafe_allow_html=True)
 
@@ -1878,545 +1876,198 @@ render_html(html_frota)
 
 
 # ==============================================================================
-# 🔒 RENDERIZAÇÃO 9: AUDITORIA BAFÔMETRO (H&S - BOTÃO DE CADEADO À DIREITA)
+# 🖨️ RENDERIZAÇÃO 9: AUDITORIA BAFÔMETRO (H&S - CADEADO NA DIREITA EXATA)
 # ==============================================================================
-
-if st.query_params.get("baf_action") == "lock":
-    st.session_state.bafometro_autenticado = False
-    st.query_params.clear()
-
 @st.dialog("Segurança Operacional (H&S)")
 def modal_senha_bafometro():
-    st.markdown(
-        "<p style='font-size:0.85rem; color:#94a3b8;'>"
-        "Digite a senha de gestor para visualizar os testes:</p>",
-        unsafe_allow_html=True
-    )
-
-    senha = st.text_input(
-        "Senha de Acesso",
-        type="password",
-        key="input_senha_baf"
-    )
-
+    st.markdown("<p style='font-size:0.85rem; color:#94a3b8;'>Digite a senha de gestor para visualizar os testes:</p>", unsafe_allow_html=True)
+    senha = st.text_input("Senha de Acesso", type="password", key="input_senha_baf")
     cc, cf = st.columns(2)
-
     with cc:
-        if st.button(
-            "Desbloquear",
-            use_container_width=True,
-            type="primary"
-        ):
+        if st.button("Desbloquear", use_container_width=True, type="primary"):
             if senha == SENHA_BAFOMETRO:
                 st.session_state.bafometro_autenticado = True
-                st.query_params.clear()
                 st.rerun()
             else:
                 st.error("Senha incorreta.")
-
     with cf:
         if st.button("Cancelar", use_container_width=True):
-            st.query_params.clear()
             st.rerun()
 
-
-if st.query_params.get("baf_action") == "unlock":
-    st.query_params.clear()
-    modal_senha_bafometro()
-
-
-# ==============================================================================
-# DEFINIÇÃO DO TURNO VIGENTE
-# ==============================================================================
-
 letras_turnos_atuais = descobrir_letras_turnos(hoje_date)
-
 if agora_br.hour < 8:
     letra_vigente = letras_turnos_atuais.get("madrugada", "D")
     periodo_rotulo = "Madrugada"
-
 elif 8 <= agora_br.hour < 16:
     letra_vigente = letras_turnos_atuais.get("08_16", "C")
     periodo_rotulo = "Manhã"
-
 else:
     letra_vigente = letras_turnos_atuais.get("16_00", "B")
     periodo_rotulo = "Tarde"
-
-
-# ==============================================================================
-# CLASSIFICAÇÃO DOS REGISTROS
-# ==============================================================================
 
 lista_aprovados = []
 lista_trocas = []
 lista_pendentes = []
 
 if not df_bafometro.empty:
-
-    df_bafometro.columns = [
-        str(c).strip().upper()
-        for c in df_bafometro.columns
-    ]
-
-    c_turno = next(
-        (c for c in df_bafometro.columns if "TURNO" in c),
-        None
-    )
-
+    df_bafometro.columns = [str(c).strip().upper() for c in df_bafometro.columns]
+    
+    c_turno = next((c for c in df_bafometro.columns if "TURNO" in c), None)
     if c_turno:
-        v_turnos = [
-            str(x).strip()
-            for x in df_bafometro[c_turno].dropna().tolist()
-            if str(x).strip() not in ["", "nan", "None"]
-        ]
-
+        v_turnos = [str(x).strip() for x in df_bafometro[c_turno].dropna().tolist() if str(x).strip() not in ["", "nan", "None"]]
         if v_turnos:
             periodo_rotulo = v_turnos[0].capitalize()
 
     for _, r_baf in df_bafometro.iterrows():
-
         colab = str(r_baf.get("COLABORADOR", "")).strip()
-
-        if not colab or colab.upper() in ["NAN", "NONE", ""]:
-            continue
-
-        funcao = str(
-            r_baf.get("FUNCAO", r_baf.get("FUNÇÃO", "--"))
-        ).strip()
-
+        if not colab or colab.upper() in ["NAN", "NONE", ""]: continue
+        
+        funcao = str(r_baf.get("FUNCAO", r_baf.get("FUNÇÃO", "--"))).strip()
         status = str(r_baf.get("STATUS", "")).strip().upper()
         resultado = str(r_baf.get("RESULTADO", "")).strip().upper()
-
-        dado_colab = {
-            "nome": colab,
-            "funcao": funcao,
-            "status": status,
-            "res": resultado
-        }
-
-        if (
-            "TROCA" in status
-            or "TROCA" in resultado
-            or "NÃO CADAST" in status
-            or "NAO CADAST" in status
-        ):
+        
+        dado_colab = {"nome": colab, "funcao": funcao, "status": status, "res": resultado}
+        
+        if "TROCA" in status or "TROCA" in resultado or "NÃO CADAST" in status or "NAO CADAST" in status:
             lista_trocas.append(dado_colab)
-
-        elif any(
-            x in resultado
-            for x in ["APROV", "OK", "0.00", "0,00", "NEGATIVO"]
-        ):
+        elif any(x in resultado for x in ["APROV", "OK", "0.00", "0,00", "NEGATIVO"]):
             lista_aprovados.append(dado_colab)
-
         else:
             lista_pendentes.append(dado_colab)
 
-
-total_registrados_baf = (
-    len(lista_aprovados)
-    + len(lista_trocas)
-    + len(lista_pendentes)
-)
-
+total_registrados_baf = len(lista_aprovados) + len(lista_trocas) + len(lista_pendentes)
 nome_turno_completo = f"Turno {letra_vigente} ({periodo_rotulo})"
 
-
-# ==============================================================================
-# ORDENAÇÃO DAS FUNÇÕES
-# ==============================================================================
-
 def obter_ordem_funcao(funcao_str):
-
     f_up = funcao_str.upper()
-
-    if "LÍDER" in f_up or "LIDER" in f_up:
-        return 1
-
-    elif "ASS" in f_up or "ASSIST" in f_up:
-        return 2
-
-    elif "EMP" in f_up or "OPERADOR" in f_up:
-        return 3
-
-    elif "AUX" in f_up:
-        return 4
-
-    elif "MEC" in f_up or "MECÂNICO" in f_up or "MECANICO" in f_up:
-        return 5
-
+    if "LÍDER" in f_up or "LIDER" in f_up: return 1
+    elif "ASS" in f_up or "ASSIST" in f_up: return 2
+    elif "EMP" in f_up or "OPERADOR" in f_up: return 3
+    elif "AUX" in f_up: return 4
+    elif "MEC" in f_up or "MECÂNICO" in f_up or "MECANICO" in f_up: return 5
     return 6
 
-
-# ==============================================================================
-# RENDERIZAÇÃO DOS APROVADOS AGRUPADOS POR FUNÇÃO
-# ==============================================================================
-
 def agrupar_e_renderizar_aprovados(colaboradores):
-
-    if not colaboradores:
-        return (
-            "<div style='color:#64748b; font-size:0.75rem; padding:6px 8px;'>"
-            "Nenhum colaborador nesta seção.</div>"
-        )
-
-    colaboradores_ordenados = sorted(
-        colaboradores,
-        key=lambda x: (obter_ordem_funcao(x["funcao"]), x["nome"])
-    )
-
-    grupos = {
-        1: ("LÍDER", []),
-        2: ("ASSISTENTE", []),
-        3: ("OPERADOR DE EMPILHADEIRA", []),
-        4: ("AUXILIAR DE EXPEDIÇÃO", []),
-        5: ("MECÂNICO", []),
-        6: ("OUTRAS FUNÇÕES", [])
-    }
-
-    for c in colaboradores_ordenados:
-        grupos[obter_ordem_funcao(c["funcao"])][1].append(c)
-
+    if not colaboradores: return "<div style='color:#64748b; font-size:0.75rem; padding:6px 8px;'>Nenhum colaborador nesta seção.</div>"
+    colaboradores_ordenados = sorted(colaboradores, key=lambda x: (obter_ordem_funcao(x["funcao"]), x["nome"]))
+    grupos = {1: ("LÍDER", []), 2: ("ASSISTENTE", []), 3: ("OPERADOR DE EMPILHADEIRA", []), 4: ("AUXILIAR DE EXPEDIÇÃO", []), 5: ("MECÂNICO", []), 6: ("OUTRAS FUNÇÕES", [])}
+    for c in colaboradores_ordenados: grupos[obter_ordem_funcao(c["funcao"])][1].append(c)
     html_out = ""
-
     for _, (rotulo, membros) in grupos.items():
-
-        if not membros:
-            continue
-
-        html_out += (
-            f'<div style="font-size:0.70rem; font-weight:800; '
-            f'color:#94a3b8; letter-spacing:0.4px; margin-top:8px; '
-            f'margin-bottom:4px; padding-left:4px; '
-            f'border-left:2px solid #00D672;">'
-            f'{rotulo} ({len(membros)})</div>'
-        )
-
+        if not membros: continue
+        html_out += f'<div style="font-size:0.70rem; font-weight:800; color:#94a3b8; letter-spacing:0.4px; margin-top:8px; margin-bottom:4px; padding-left:4px; border-left:2px solid #00D672;">{rotulo} ({len(membros)})</div>'
         for item in membros:
-
-            html_out += (
-                f'<div style="display:flex; justify-content:space-between; '
-                f'align-items:center; padding:5px 8px; '
-                f'border-bottom:1px dashed #1c2b42; font-size:0.78rem;">'
-
-                f'<div>'
-                f'<b style="color:#ffffff;">'
-                f'{html_lib.escape(item["nome"])}</b>'
-                f'<div style="color:#64748b; font-size:0.67rem;">'
-                f'{html_lib.escape(item["funcao"])}</div>'
-                f'</div>'
-
-                f'<span style="color:#00D672; font-weight:800; '
-                f'font-size:0.72rem;">'
-                f'{html_lib.escape(item["res"] or item["status"])}</span>'
-
-                f'</div>'
-            )
-
+            html_out += f'<div style="display:flex; justify-content:space-between; align-items:center; padding:5px 8px; border-bottom:1px dashed #1c2b42; font-size:0.78rem;"><div><b style="color:#ffffff;">{html_lib.escape(item["nome"])}</b><div style="color:#64748b; font-size:0.67rem;">{html_lib.escape(item["funcao"])}</div></div><span style="color:#00D672; font-weight:800; font-size:0.72rem;">{item["res"] or item["status"]}</span></div>'
     return html_out
 
-
-# ==============================================================================
-# RENDERIZAÇÃO DAS LISTAS SIMPLES
-# ==============================================================================
-
 def renderizar_itens_simples(lista_dados, cor_texto):
-
-    if not lista_dados:
-        return (
-            "<div style='color:#64748b; font-size:0.75rem; padding:6px 8px;'>"
-            "Nenhum colaborador nesta seção.</div>"
-        )
-
+    if not lista_dados: return "<div style='color:#64748b; font-size:0.75rem; padding:6px 8px;'>Nenhum colaborador nesta seção.</div>"
     h = ""
-
     for item in sorted(lista_dados, key=lambda x: x["nome"]):
-
-        h += (
-            f'<div style="display:flex; justify-content:space-between; '
-            f'align-items:center; padding:6px 8px; '
-            f'border-bottom:1px dashed #1c2b42; font-size:0.78rem;">'
-
-            f'<div>'
-            f'<b style="color:#ffffff;">'
-            f'{html_lib.escape(item["nome"])}</b>'
-            f'<div style="color:#64748b; font-size:0.67rem;">'
-            f'{html_lib.escape(item["funcao"])}</div>'
-            f'</div>'
-
-            f'<span style="color:{cor_texto}; font-weight:800; '
-            f'font-size:0.72rem;">'
-            f'{html_lib.escape(item["res"] or item["status"])}</span>'
-
-            f'</div>'
-        )
-
+        h += f'<div style="display:flex; justify-content:space-between; align-items:center; padding:6px 8px; border-bottom:1px dashed #1c2b42; font-size:0.78rem;"><div><b style="color:#ffffff;">{html_lib.escape(item["nome"])}</b><div style="color:#64748b; font-size:0.67rem;">{html_lib.escape(item["funcao"])}</div></div><span style="color:{cor_texto}; font-weight:800; font-size:0.72rem;">{item["res"] or item["status"]}</span></div>'
     return h
 
+# CSS MÁGICO: Transforma o botão nativo do Streamlit na Pílula Fixa à Direita
+st.markdown("""
+<style>
+    .baf-btn-wrapper { position: absolute; top: 14px; right: 16px; z-index: 9999; }
+    .baf-btn-wrapper div[data-testid="stButton"] { width: auto !important; }
+    .baf-btn-wrapper div[data-testid="stButton"] button {
+        background-color: transparent !important;
+        border: 1.5px solid #FFFFFF !important;
+        color: #FFFFFF !important;
+        font-size: 0.72rem !important; font-weight: 800 !important;
+        padding: 4px 12px !important; border-radius: 999px !important;
+        min-height: 28px !important; height: 28px !important; line-height: 1 !important;
+        box-shadow: 0 0 10px rgba(255,255,255,0.15) !important;
+    }
+    .baf-btn-wrapper div[data-testid="stButton"] button p {
+        color: #FFFFFF !important; font-size: 0.72rem !important; font-weight: 800 !important; margin: 0 !important;
+    }
+    .baf-btn-wrapper.unlocked div[data-testid="stButton"] button {
+        border-color: #00D672 !important; background-color: rgba(0, 214, 114, 0.15) !important; box-shadow: 0 0 10px rgba(0,214,114,0.25) !important;
+    }
+    .baf-btn-wrapper.unlocked div[data-testid="stButton"] button p { color: #00D672 !important; }
+</style>
+""", unsafe_allow_html=True)
 
-# ==============================================================================
-# ESTILO DO BOTÃO DE CADEADO
-# ==============================================================================
-
-def gerar_botao_cadeado(autenticado):
-
-    if autenticado:
-        # Cadeado aberto: permite bloquear novamente.
-        acao = "lock"
-        titulo = "Bloquear auditoria"
-        icone = """
-            <svg xmlns="http://www.w3.org/2000/svg"
-                 width="27" height="27" viewBox="0 0 24 24"
-                 fill="none" stroke="currentColor"
-                 stroke-width="2.2" stroke-linecap="round"
-                 stroke-linejoin="round">
-                <rect x="4" y="10" width="16" height="11" rx="2"/>
-                <path d="M8 10V7a4 4 0 0 1 7.5-2"/>
-                <circle cx="12" cy="15" r="1" fill="currentColor"/>
-                <path d="M12 16v2"/>
-            </svg>
-        """
-    else:
-        # Cadeado fechado: solicita a senha para desbloquear.
-        acao = "unlock"
-        titulo = "Desbloquear auditoria"
-        icone = """
-            <svg xmlns="http://www.w3.org/2000/svg"
-                 width="27" height="27" viewBox="0 0 24 24"
-                 fill="none" stroke="currentColor"
-                 stroke-width="2.2" stroke-linecap="round"
-                 stroke-linejoin="round">
-                <rect x="4" y="10" width="16" height="11" rx="2"/>
-                <path d="M8 10V7a4 4 0 0 1 8 0"/>
-                <circle cx="12" cy="15" r="1" fill="currentColor"/>
-                <path d="M12 16v2"/>
-            </svg>
-        """
-
-    return f"""
-        <a href="?baf_action={acao}#sec-baf"
-           title="{titulo}"
-           aria-label="{titulo}"
-           style="
-                flex-shrink:0;
-                width:58px;
-                height:48px;
-                box-sizing:border-box;
-                background:rgba(0,191,255,0.10);
-                border:2px solid #00BFFF;
-                color:#FFFFFF;
-                border-radius:12px;
-                text-decoration:none;
-                display:flex;
-                align-items:center;
-                justify-content:center;
-                box-shadow:0 0 12px rgba(0,191,255,0.22);
-                pointer-events:auto;
-                transition:all 0.2s ease;
-           ">
-            {icone}
-        </a>
-    """
-
-
-# ==============================================================================
-# CABEÇALHO DO CARTÃO
-# ==============================================================================
-
-def gerar_cabecalho_bafometro(autenticado):
-
-    botao = gerar_botao_cadeado(autenticado)
-
-    return f"""
-        <div style="
-            display:flex;
-            align-items:center;
-            justify-content:space-between;
-            gap:12px;
-            margin-bottom:12px;
-            width:100%;
-        ">
-
-            <div class="master-metric-title" style="
-                color:#FFFFFF;
-                font-size:0.95rem;
-                display:flex;
-                align-items:center;
-                gap:10px;
-                flex:1;
-                min-width:0;
-            ">
-                Auditoria Bafômetro (H&S)
-            </div>
-
-            {botao}
-
-        </div>
-    """
-
-
-# ==============================================================================
-# RENDERIZAÇÃO DO CARTÃO BLOQUEADO / DESBLOQUEADO
-# ==============================================================================
+# Container Pai do Bafômetro
+st.markdown('<div id="sec-baf" style="position: relative;">', unsafe_allow_html=True)
 
 if not st.session_state.bafometro_autenticado:
+    # 🔒 BLOQUEADO: Botão Flutuando à direita + Card Mudo
+    st.markdown('<div class="baf-btn-wrapper">', unsafe_allow_html=True)
+    if st.button("🔒 Desbloquear", key="baf_btn_unlock"):
+        modal_senha_bafometro()
+    st.markdown('</div>', unsafe_allow_html=True)
 
-    # 🔒 BLOQUEADO
     html_baf_bloq = f"""
-    <div id="sec-baf"></div>
-
-    <details class="master-box"
-             style="border-left-color:#FFFFFF; margin-bottom:14px;">
-
-        <summary style="pointer-events:none;">
-
-            {gerar_cabecalho_bafometro(False)}
-
-            <div class="value-layout" style="margin-bottom:2px;">
-                <div class="master-metric-val">
-                    {total_registrados_baf}
-                </div>
-
-                <div class="master-metric-unit">
-                    Testes Registrados
-                </div>
+    <style>
+        details.baf-locked > summary::after {{ display: none !important; }}
+        details.baf-locked > summary {{ cursor: default !important; pointer-events: none; }}
+    </style>
+    <details class="master-box baf-locked" style="border-left-color: #FFFFFF; margin-bottom: 14px;" open>
+        <summary>
+            <div style="display: flex; align-items: center; margin-bottom: 12px; gap: 10px;">
+                <div class="icon-box" style="background-color: rgba(255, 255, 255, 0.12); color: #FFFFFF;">🩺</div>
+                <div class="master-metric-title" style="color: #FFFFFF; font-size: 0.95rem;">Auditoria Bafômetro (H&S)</div>
             </div>
-
-            <div class="master-metric-sub" style="color:#94a3b8;">
-                Turno Vigente:
-                <b style="color:#ffffff;">{html_lib.escape(nome_turno_completo)}</b>
-                &nbsp;|&nbsp;
-                Status:
-                <span style="color:#FFFFFF; font-weight:700;">
-                    Autenticação Necessária
-                </span>
+            <div class="value-layout" style="margin-bottom: 2px;">
+                <div class="master-metric-val">{total_registrados_baf}</div>
+                <div class="master-metric-unit">Testes Registrados</div>
             </div>
-
+            <div class="master-metric-sub" style="color: #94a3b8;">
+                Turno Vigente: <b style="color: #ffffff;">{nome_turno_completo}</b> &nbsp;|&nbsp; Status: <span style="color: #FFFFFF; font-weight: 700;">Autenticação Necessária</span>
+            </div>
         </summary>
-
     </details>
     """
-
     render_html(html_baf_bloq)
 
-
 else:
+    # 🔓 DESBLOQUEADO: Botão Flutuando à direita + Card Aberto
+    st.markdown('<div class="baf-btn-wrapper unlocked">', unsafe_allow_html=True)
+    if st.button("🔓 Bloquear", key="baf_btn_lock"):
+        st.session_state.bafometro_autenticado = False
+        st.rerun()
+    st.markdown('</div>', unsafe_allow_html=True)
 
-    # 🔓 DESBLOQUEADO
     html_baf_aberto = f"""
-    <div id="sec-baf"></div>
-
-    <details class="master-box"
-             style="border-left-color:#FFFFFF; margin-bottom:14px;">
-
+    <details class="master-box" style="border-left-color: #FFFFFF; margin-bottom: 14px;" open>
         <summary>
-
-            {gerar_cabecalho_bafometro(True)}
-
-            <div class="value-layout" style="margin-bottom:2px;">
-                <div class="master-metric-val">
-                    {total_registrados_baf}
-                </div>
-
-                <div class="master-metric-unit">
-                    Testes Registrados
-                </div>
+            <div style="display: flex; align-items: center; margin-bottom: 12px; gap: 10px;">
+                <div class="icon-box" style="background-color: rgba(255, 255, 255, 0.15); color: #FFFFFF;">🩺</div>
+                <div class="master-metric-title" style="color: #FFFFFF; font-size: 0.95rem;">Auditoria Bafômetro (H&S)</div>
             </div>
-
-            <div class="master-metric-sub"
-                 style="color:#cbd5e1; font-weight:bold;">
-
-                {html_lib.escape(nome_turno_completo)}
-                &nbsp;|&nbsp;
-
-                🟢 {len(lista_aprovados)} Aprovados
-                &bull;
-
-                <span style="color:#38bdf8;">
-                    🔄 {len(lista_trocas)} Trocas
-                </span>
-
-                &bull;
-
-                🔴 {len(lista_pendentes)} Pendentes
-
+            <div class="value-layout" style="margin-bottom: 2px;">
+                <div class="master-metric-val">{total_registrados_baf}</div>
+                <div class="master-metric-unit">Testes Registrados</div>
             </div>
-
+            <div class="master-metric-sub" style="color: #cbd5e1; font-weight: bold;">
+                {nome_turno_completo} &nbsp;|&nbsp; 🟢 {len(lista_aprovados)} Aprovados &bull; <span style="color:#38bdf8;">🔄 {len(lista_trocas)} Trocas</span> &bull; 🔴 {len(lista_pendentes)} Pendentes
+            </div>
         </summary>
-
-        <div class="master-content" style="padding-top:14px;">
-
-            <div style="
-                background:#070d18;
-                border:1px solid #142842;
-                border-left:3px solid #00D672;
-                border-radius:10px;
-                padding:10px;
-                margin-bottom:10px;
-            ">
-                <div style="
-                    font-size:0.75rem;
-                    font-weight:800;
-                    color:#00D672;
-                    text-transform:uppercase;
-                    margin-bottom:4px;
-                ">
-                    APROVADOS ({len(lista_aprovados)})
-                </div>
-
+        <div class="master-content" style="padding-top: 14px;">
+            <div style="background:#070d18; border:1px solid #142842; border-left:3px solid #00D672; border-radius:10px; padding:10px; margin-bottom:10px;">
+                <div style="font-size:0.75rem; font-weight:800; color:#00D672; text-transform:uppercase; margin-bottom:4px;">APROVADOS ({len(lista_aprovados)})</div>
                 {agrupar_e_renderizar_aprovados(lista_aprovados)}
             </div>
-
-
-            <div style="
-                background:#070d18;
-                border:1px solid #142842;
-                border-left:3px solid #38bdf8;
-                border-radius:10px;
-                padding:10px;
-                margin-bottom:10px;
-            ">
-                <div style="
-                    font-size:0.75rem;
-                    font-weight:800;
-                    color:#38bdf8;
-                    text-transform:uppercase;
-                    margin-bottom:6px;
-                ">
-                    TROCAS / NÃO CADASTRADOS ({len(lista_trocas)})
-                </div>
-
+            <div style="background:#070d18; border:1px solid #142842; border-left:3px solid #38bdf8; border-radius:10px; padding:10px; margin-bottom:10px;">
+                <div style="font-size:0.75rem; font-weight:800; color:#38bdf8; text-transform:uppercase; margin-bottom:6px;">TROCAS / NÃO CADASTRADOS ({len(lista_trocas)})</div>
                 {renderizar_itens_simples(lista_trocas, '#38bdf8')}
             </div>
-
-
-            <div style="
-                background:#070d18;
-                border:1px solid #142842;
-                border-left:3px solid #E74C3C;
-                border-radius:10px;
-                padding:10px;
-                margin-bottom:12px;
-            ">
-                <div style="
-                    font-size:0.75rem;
-                    font-weight:800;
-                    color:#E74C3C;
-                    text-transform:uppercase;
-                    margin-bottom:6px;
-                ">
-                    NÃO REALIZADOS / PENDENTES ({len(lista_pendentes)})
-                </div>
-
+            <div style="background:#070d18; border:1px solid #142842; border-left:3px solid #E74C3C; border-radius:10px; padding:10px; margin-bottom: 12px;">
+                <div style="font-size:0.75rem; font-weight:800; color:#E74C3C; text-transform:uppercase; margin-bottom:6px;">NÃO REALIZADOS / PENDENTES ({len(lista_pendentes)})</div>
                 {renderizar_itens_simples(lista_pendentes, '#E74C3C')}
             </div>
-
         </div>
-
     </details>
     """
-
     render_html(html_baf_aberto)
+
+# Fecha o Container Pai do Bafômetro
+st.markdown('</div>', unsafe_allow_html=True)
+
 
 
 
