@@ -2118,272 +2118,126 @@ with st.expander("🛠️ Console de Telemetria & Logs do Core (Dev)", expanded=
                 )
 
 # ==============================================================================
-# 🍏 ASSISTIVETOUCH IOS: BOTÃO FLUTUANTE DE ATALHOS RÁPIDOS
+# 🍏 MENU FLUTUANTE FIXO (CSS PURO - À PROVA DE FALHAS)
 # ==============================================================================
-html_assistive_touch = """
+html_menu_fixo = """
 <style>
+    /* Comportamento de rolagem suave nativa do iPhone */
     html { scroll-behavior: smooth !important; }
 
-    #iosAssistiveTouch {
+    /* Fixa o menu no canto inferior direito */
+    .alove-fab-container {
         position: fixed;
-        bottom: 85px;
-        right: 18px;
-        width: 56px;
-        height: 56px;
-        background: rgba(18, 32, 53, 0.75);
-        backdrop-filter: blur(12px);
-        -webkit-backdrop-filter: blur(12px);
-        /* Cor Dourado Metálico na borda */
+        bottom: 25px;
+        right: 16px;
+        z-index: 9999999;
+        -webkit-tap-highlight-color: transparent;
+    }
+
+    /* Esconde a setinha padrão do HTML */
+    .alove-fab-container summary {
+        list-style: none;
+        outline: none;
+        cursor: pointer;
+    }
+    .alove-fab-container summary::-webkit-details-marker {
+        display: none;
+    }
+
+    /* O Botão Dourado Principal */
+    .alove-fab-btn {
+        width: 54px;
+        height: 54px;
+        background: rgba(11, 24, 48, 0.95);
         border: 2px solid #E5B800;
         border-radius: 50%;
         display: flex;
         align-items: center;
         justify-content: center;
-        /* Brilho dourado */
-        box-shadow: 0 4px 18px rgba(0, 0, 0, 0.45), 0 0 12px rgba(229, 184, 0, 0.3);
-        z-index: 9999999;
-        cursor: pointer;
-        touch-action: none;
-        user-select: none;
-        -webkit-user-select: none;
-        -webkit-tap-highlight-color: transparent;
-        transition: transform 0.15s ease;
+        box-shadow: 0 4px 15px rgba(229, 184, 0, 0.4);
+        transition: transform 0.2s ease, background 0.2s;
+    }
+    
+    .alove-fab-container summary:active .alove-fab-btn {
+        transform: scale(0.88);
     }
 
-    #iosAssistiveTouch:active {
-        transform: scale(0.92);
+    /* Troca o ícone de Raio (⚡) para X (×) quando abre */
+    .ico-fechado { display: block; font-size: 1.5rem; }
+    .ico-aberto { display: none; font-size: 2rem; color: #0a101d; font-weight: bold; line-height: 1; margin-top: -4px;}
+    
+    .alove-fab-container[open] .alove-fab-btn {
+        background: #E5B800; /* Fica todo dourado quando aberto */
+        border-color: #FFFFFF;
+        box-shadow: 0 0 20px rgba(229, 184, 0, 0.6);
     }
+    .alove-fab-container[open] .ico-fechado { display: none; }
+    .alove-fab-container[open] .ico-aberto { display: block; }
 
-    .assistive-inner-dot {
-        width: 24px;
-        height: 24px;
-        /* Cor núcleo Dourado/Metálico */
-        background: radial-gradient(circle, #FFE770 30%, #E5B800 100%);
-        border-radius: 50%;
-        box-shadow: 0 0 8px rgba(229, 184, 0, 0.8);
-    }
-
-    /* O MENU POPUP DE ATALHOS */
-    #assistiveMenu {
-        display: none;
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100vw;
-        height: 100vh;
-        background: rgba(5, 9, 17, 0.7);
-        backdrop-filter: blur(8px);
-        -webkit-backdrop-filter: blur(8px);
-        z-index: 10000000;
-        align-items: center;
-        justify-content: center;
-        animation: assistiveFadeIn 0.2s ease;
-    }
-
-    .assistive-card {
-        background: #0b1830;
+    /* Caixa de Atalhos que sobe */
+    .alove-fab-menu {
+        position: absolute;
+        bottom: 70px;
+        right: 0;
+        background: rgba(7, 13, 24, 0.92);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
         border: 1.5px solid #142842;
-        border-radius: 22px;
-        padding: 20px 16px;
-        width: 300px;
-        max-width: 88vw;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.6), 0 0 20px rgba(229, 184, 0, 0.15);
-        text-align: center;
-    }
-
-    .assistive-title {
-        color: #ffffff;
-        font-size: 0.95rem;
-        font-weight: 800;
-        letter-spacing: 0.5px;
-        margin-bottom: 16px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 8px;
-    }
-
-    .assistive-grid {
-        display: grid;
-        grid-template-columns: repeat(3, 1fr);
-        gap: 12px;
-    }
-
-    .assistive-btn {
-        background: #070d18;
-        border: 1px solid #1c2b42;
-        border-radius: 14px;
-        padding: 10px 4px;
-        color: #cbd5e1;
-        font-size: 0.72rem;
-        font-weight: 700;
+        border-radius: 16px;
+        padding: 12px;
         display: flex;
         flex-direction: column;
+        gap: 8px;
+        width: 170px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+        animation: slideUpFab 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+    }
+
+    /* Estilo de cada botão do menu */
+    .alove-fab-item {
+        display: flex;
         align-items: center;
-        gap: 6px;
+        gap: 12px;
+        color: #ffffff;
         text-decoration: none;
-        cursor: pointer;
-        transition: transform 0.15s ease, border-color 0.15s;
-        -webkit-tap-highlight-color: transparent;
+        font-size: 0.85rem;
+        font-weight: 800;
+        background: rgba(255, 255, 255, 0.05);
+        padding: 10px 14px;
+        border-radius: 10px;
+        border: 1px solid transparent;
+        transition: background 0.15s, border-color 0.15s;
     }
-
-    .assistive-btn:active {
-        transform: scale(0.92);
+    
+    .alove-fab-item:active {
+        background: rgba(229, 184, 0, 0.15);
         border-color: #E5B800;
+        color: #E5B800;
     }
 
-    .assistive-btn span.ico {
-        font-size: 1.5rem;
-    }
-
-    @keyframes assistiveFadeIn {
-        from { opacity: 0; transform: scale(0.96); }
-        to { opacity: 1; transform: scale(1); }
+    @keyframes slideUpFab {
+        from { opacity: 0; transform: translateY(20px) scale(0.9); }
+        to { opacity: 1; transform: translateY(0) scale(1); }
     }
 </style>
 
-<!-- BOTÃO CIRCULAR ARRASTÁVEL -->
-<div id="iosAssistiveTouch">
-    <div class="assistive-inner-dot"></div>
-</div>
-
-<!-- MENU POPUP DO ASSISTIVETOUCH -->
-<div id="assistiveMenu" onclick="fecharAssistive(event)">
-    <div class="assistive-card" onclick="event.stopPropagation()">
-        <div class="assistive-title">
-            <span style="color:#E5B800;">⚡</span> ATALHOS RÁPIDOS
+<details class="alove-fab-container">
+    <summary>
+        <div class="alove-fab-btn">
+            <span class="ico-fechado">⚡</span>
+            <span class="ico-aberto">×</span>
         </div>
-        <div class="assistive-grid">
-            <a class="assistive-btn" onclick="rolarPara('sec-topo')">
-                <span class="ico">🔝</span>
-                <span>Topo</span>
-            </a>
-            <a class="assistive-btn" onclick="rolarPara('sec-patio')">
-                <span class="ico">🏭</span>
-                <span>Pátio</span>
-            </a>
-            <a class="assistive-btn" onclick="rolarPara('sec-prod')">
-                <span class="ico">⚙️</span>
-                <span>Produção</span>
-            </a>
-            <a class="assistive-btn" onclick="rolarPara('sec-exp')">
-                <span class="ico">🚚</span>
-                <span>Expedição</span>
-            </a>
-            <a class="assistive-btn" onclick="rolarPara('sec-est')">
-                <span class="ico">📦</span>
-                <span>Estoque</span>
-            </a>
-            <a class="assistive-btn" onclick="rolarPara('sec-baf')">
-                <span class="ico">🩺</span>
-                <span>Bafômetro</span>
-            </a>
-            <a class="assistive-btn" onclick="window.print()" style="grid-column: span 3;">
-                <span class="ico">📸</span>
-                <span>Print / Imprimir Tela</span>
-            </a>
-        </div>
+    </summary>
+    <div class="alove-fab-menu">
+        <a href="#sec-topo" target="_self" class="alove-fab-item">🔝 Topo</a>
+        <a href="#sec-patio" target="_self" class="alove-fab-item">🏭 Pátio</a>
+        <a href="#sec-prod" target="_self" class="fab-item" style="display: flex; align-items: center; gap: 12px; color: #ffffff; text-decoration: none; font-size: 0.85rem; font-weight: 800; background: rgba(255, 255, 255, 0.05); padding: 10px 14px; border-radius: 10px; border: 1px solid transparent;">⚙️ Produção</a>
+        <a href="#sec-exp" target="_self" class="alove-fab-item">🚚 Expedição</a>
+        <a href="#sec-est" target="_self" class="alove-fab-item">📦 Estoque</a>
+        <a href="#sec-baf" target="_self" class="alove-fab-item">🩺 Bafômetro</a>
     </div>
-</div>
-
-<script>
-    const touchBtn = document.getElementById('iosAssistiveTouch');
-    const menu = document.getElementById('assistiveMenu');
-    let isDragging = false;
-    let startX, startY, initialX, initialY;
-    let hasMoved = false;
-    let lastTap = 0;
-
-    // Arrasto no iPhone (Touch Events)
-    touchBtn.addEventListener('touchstart', function(e) {
-        const touch = e.touches[0];
-        startX = touch.clientX;
-        startY = touch.clientY;
-        const rect = touchBtn.getBoundingClientRect();
-        initialX = rect.left;
-        initialY = rect.top;
-        hasMoved = false;
-        isDragging = true;
-    }, {passive: false});
-
-    document.addEventListener('touchmove', function(e) {
-        if (!isDragging) return;
-        const touch = e.touches[0];
-        const dx = touch.clientX - startX;
-        const dy = touch.clientY - startY;
-
-        if (Math.abs(dx) > 10 || Math.abs(dy) > 10) {
-            hasMoved = true;
-            e.preventDefault(); 
-        }
-
-        let newX = initialX + dx;
-        let newY = initialY + dy;
-
-        // Limites da tela
-        newX = Math.max(10, Math.min(window.innerWidth - 64, newX));
-        newY = Math.max(20, Math.min(window.innerHeight - 80, newY));
-
-        touchBtn.style.left = newX + 'px';
-        touchBtn.style.top = newY + 'px';
-        touchBtn.style.right = 'auto';
-        touchBtn.style.bottom = 'auto';
-    }, {passive: false});
-
-    document.addEventListener('touchend', function(e) {
-        if (!isDragging) return;
-        isDragging = false;
-        
-        const currentTime = new Date().getTime();
-        const tapLength = currentTime - lastTap;
-        
-        // Trata o toque rápido vs o arraste
-        if (!hasMoved && tapLength < 300) { 
-             abrirAssistive();
-        } else if (!hasMoved) {
-            abrirAssistive(); 
-        }
-        lastTap = currentTime;
-
-    });
-    
-    // Evita scroll acidental do botão
-    touchBtn.addEventListener('mousedown', function(e) { e.preventDefault(); });
-
-    // Clique para desktop/mouse
-    touchBtn.addEventListener('click', function(e) {
-        if (!hasMoved) {
-            abrirAssistive();
-        }
-    });
-
-    window.abrirAssistive = function() {
-        menu.style.display = 'flex';
-    };
-
-    window.fecharAssistive = function(event) {
-        if (event && event.target !== menu) return; 
-        menu.style.display = 'none';
-    };
-
-    window.rolarPara = function(ancoraId) {
-        menu.style.display = 'none'; 
-        const elem = document.getElementById(ancoraId);
-        if (elem) {
-             // Se o elemento estiver dentro de um detail fechado, o abre!
-            let detailsWrapper = elem.closest('details') || elem.nextElementSibling;
-            if (detailsWrapper && detailsWrapper.tagName === 'DETAILS' && !detailsWrapper.open) {
-                detailsWrapper.open = true;
-            }
-            elem.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }
-    };
-</script>
+</details>
 """
-render_html(html_assistive_touch)
-
-st.markdown("<br><center><span style='color:#64748b; font-size:0.75rem; letter-spacing:0.5px;'>A.L.O.V.E - Mobile / Developed by Crist Ciriaco</span></center>", unsafe_allow_html=True)
-
-
+render_html(html_menu_fixo)
 
 st.markdown("<br><center><span style='color:#64748b; font-size:0.75rem; letter-spacing:0.5px;'>A.L.O.V.E - Mobile / Developed by Crist Ciriaco</span></center>", unsafe_allow_html=True)
