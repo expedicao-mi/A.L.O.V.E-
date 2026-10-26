@@ -18,14 +18,49 @@
 
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    html, body { width: 100vw; height: 100vh; overflow: hidden; background-color: #0a101d; }
-    .app-wrapper { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; overflow: hidden; background-color: #0a101d; }
-    iframe { position: absolute; top: -12px; left: -12px; width: calc(100vw + 24px); height: calc(100vh + 82px); border: 0; outline: 0; background-color: #0a101d; }
+    html, body { 
+        width: 100vw; height: 100vh; 
+        background-color: #0a101d; 
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        display: flex; flex-direction: column; justify-content: center; align-items: center;
+        text-align: center; color: #fff;
+    }
+    .loader-box {
+        padding: 20px;
+    }
+    .logo-img {
+        width: 80px; height: 80px; border-radius: 20px;
+        object-fit: cover; margin-bottom: 16px;
+        box-shadow: 0 0 20px rgba(0, 214, 114, 0.4);
+    }
+    .btn-entrar {
+        display: inline-block;
+        background-color: #00D672;
+        color: #050911;
+        padding: 14px 32px;
+        font-size: 1rem;
+        font-weight: 800;
+        border-radius: 999px;
+        text-decoration: none;
+        box-shadow: 0 0 20px rgba(0, 214, 114, 0.4);
+        margin-top: 18px;
+        transition: transform 0.2s;
+    }
+    .btn-entrar:active { transform: scale(0.95); }
   </style>
+
+  <script>
+    // Redireciona instantaneamente para o seu link do Streamlit Cloud
+    window.top.location.href = "https://expedicao-mi-a-l-o-v-e--app-k4ytmd.streamlit.app";
+  </script>
 </head>
 <body>
-  <div class="app-wrapper">
-    <iframe src="https://expedicao-mi-a-l-o-v-e--app-k4ytmd.streamlit.app" frameborder="0"></iframe>
+  <div class="loader-box">
+    <img src="./app_icon.png" class="logo-img" alt="A.L.O.V.E.">
+    <h3 style="color: #00D672; font-weight: 800; letter-spacing: 0.5px;">A.L.O.V.E.</h3>
+    <p style="color: #94a3b8; font-size: 0.85rem; margin-top: 6px;">Carregando painel operacional...</p>
+    <a href="https://expedicao-mi-a-l-o-v-e--app-k4ytmd.streamlit.app" class="btn-entrar">Abrir Sistema</a>
   </div>
 </body>
 </html>
+
