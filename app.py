@@ -652,7 +652,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 st.markdown(f'<div class="topo-banner"><img src="{BANNER_TOPO_URL}"></div>', unsafe_allow_html=True)
-
+⁠<div id="sec-topo"></div>⁠
 # ==============================================================================
 # 🖨️ RENDERIZAÇÃO 1: STATUS DO SISTEMA + SEMÁFORO (CONFORME IMAGEM 3)
 # ==============================================================================
@@ -819,6 +819,7 @@ render_html(html_previsoes)
 txt_att_patio = f" | 🕒 Base: {hora_att_patio.split(' ')[1][:5]}" if hora_att_patio and " " in hora_att_patio else ""
 
 html_patio = f"""
+<div id="sec-patio"></div>
 <details class="master-box" style="border-left-color: #38a9ff;" open>
     <summary>
         <div class="header-layout">
@@ -958,6 +959,7 @@ for maq in ["MS1", "MS2"]:
         html_prod_content += f"<div style='color:gray; padding:10px 0;'>Aguardando dados da {maq}...</div>"
 
 html_prod_completo = f"""
+<div id="sec-prod"></div>
 <details class="master-box" style="border-left-color: #E5B800;" open>
     <summary>
         <div class="header-layout">
@@ -1162,6 +1164,7 @@ html_destinos = f"{tabela_linhas_html}{totais_rodape_html}"
 # MONTAGEM MASTER (SWITCH DESLIZANTE IOS COM AUTO-RESET PARA HOJE)
 # ----------------------------------------------------
 html_exp_completo = f"""
+<div id="sec-exp"></div>
 <style>
     /* CONTROLES OCULTOS DE NAVEGAÇÃO */
     .exp-wrapper input[type="radio"] {{ display: none !important; }}
@@ -1727,6 +1730,7 @@ svg_donut = f"""
 """
 
 html_est = f"""
+<div id="sec-est"></div>⁠
 <details class="master-box" style="border-left-color: #00E676;" open>
     <summary>
         <!-- TOPO DO CARD -->
@@ -1875,6 +1879,7 @@ render_html(html_frota)
 # 🖨️ RENDERIZAÇÃO 9: AUDITORIA BAFÔMETRO (H&S - MODAL NATIVO SEM RELOAD)
 # ==============================================================================
 # 1. Identificação do Nome do Turno Real Vigente
+<div id="sec-baf"></div>
 letras_turnos_atuais = descobrir_letras_turnos(hoje_date)
 if agora_br.hour < 8:
     letra_vigente = letras_turnos_atuais.get("madrugada", "D")
@@ -2208,5 +2213,243 @@ with st.expander("🛠️ Console de Telemetria & Logs do Core (Dev)", expanded=
                     """,
                     unsafe_allow_html=True
                 )
+
+# ==============================================================================
+# 🍏 ASSISTIVETOUCH IOS: BOTÃO FLUTUANTE DE ATALHOS RÁPIDOS
+# ==============================================================================
+html_assistive_touch = """
+<style>
+    /* O BOTÃO FLUTUANTE CIRCULAR ESTILO IOS */
+    #iosAssistiveTouch {
+        position: fixed;
+        bottom: 85px;
+        right: 18px;
+        width: 54px;
+        height: 54px;
+        background: rgba(18, 32, 53, 0.75);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border: 1.5px solid rgba(0, 214, 114, 0.5);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 4px 18px rgba(0, 0, 0, 0.45), 0 0 12px rgba(0, 214, 114, 0.3);
+        z-index: 9999999;
+        cursor: pointer;
+        touch-action: none;
+        user-select: none;
+        -webkit-user-select: none;
+        -webkit-tap-highlight-color: transparent;
+    }
+
+    #iosAssistiveTouch:active {
+        transform: scale(0.92);
+    }
+
+    .assistive-inner-dot {
+        width: 22px;
+        height: 22px;
+        background: radial-gradient(circle, #00D672 30%, #0084FF 100%);
+        border-radius: 50%;
+        box-shadow: 0 0 8px rgba(0, 214, 114, 0.8);
+    }
+
+    /* O MENU POPUP DE ATALHOS */
+    #assistiveMenu {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background: rgba(5, 9, 17, 0.7);
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+        z-index: 10000000;
+        align-items: center;
+        justify-content: center;
+        animation: assistiveFadeIn 0.2s ease;
+    }
+
+    .assistive-card {
+        background: #0b1830;
+        border: 1.5px solid #142842;
+        border-radius: 22px;
+        padding: 20px 16px;
+        width: 300px;
+        max-width: 88vw;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.6), 0 0 20px rgba(0, 180, 255, 0.15);
+        text-align: center;
+    }
+
+    .assistive-title {
+        color: #ffffff;
+        font-size: 0.95rem;
+        font-weight: 800;
+        letter-spacing: 0.5px;
+        margin-bottom: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+    }
+
+    .assistive-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 12px;
+    }
+
+    .assistive-btn {
+        background: #070d18;
+        border: 1px solid #1c2b42;
+        border-radius: 14px;
+        padding: 10px 4px;
+        color: #cbd5e1;
+        font-size: 0.72rem;
+        font-weight: 700;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 6px;
+        text-decoration: none;
+        cursor: pointer;
+        transition: transform 0.15s ease, border-color 0.15s;
+        -webkit-tap-highlight-color: transparent;
+    }
+
+    .assistive-btn:active {
+        transform: scale(0.92);
+        border-color: #00D672;
+    }
+
+    .assistive-btn span.ico {
+        font-size: 1.5rem;
+    }
+
+    @keyframes assistiveFadeIn {
+        from { opacity: 0; transform: scale(0.96); }
+        to { opacity: 1; transform: scale(1); }
+    }
+</style>
+
+<!-- BOTÃO CIRCULAR ARRASTÁVEL -->
+<div id="iosAssistiveTouch">
+    <div class="assistive-inner-dot"></div>
+</div>
+
+<!-- MENU POPUP DO ASSISTIVETOUCH -->
+<div id="assistiveMenu" onclick="fecharAssistive(event)">
+    <div class="assistive-card" onclick="event.stopPropagation()">
+        <div class="assistive-title">
+            <span style="color:#00D672;">⚡</span> ATALHOS RÁPIDOS
+        </div>
+        <div class="assistive-grid">
+            <a class="assistive-btn" onclick="rolarPara('sec-topo')">
+                <span class="ico">🔝</span>
+                <span>Topo</span>
+            </a>
+            <a class="assistive-btn" onclick="rolarPara('sec-patio')">
+                <span class="ico">🏭</span>
+                <span>Pátio</span>
+            </a>
+            <a class="assistive-btn" onclick="rolarPara('sec-prod')">
+                <span class="ico">⚙️</span>
+                <span>Produção</span>
+            </a>
+            <a class="assistive-btn" onclick="rolarPara('sec-exp')">
+                <span class="ico">🚚</span>
+                <span>Expedição</span>
+            </a>
+            <a class="assistive-btn" onclick="rolarPara('sec-est')">
+                <span class="ico">📦</span>
+                <span>Estoque</span>
+            </a>
+            <a class="assistive-btn" onclick="rolarPara('sec-baf')">
+                <span class="ico">🩺</span>
+                <span>Bafômetro</span>
+            </a>
+        </div>
+    </div>
+</div>
+
+<script>
+    (function() {
+        const touchBtn = document.getElementById('iosAssistiveTouch');
+        const menu = document.getElementById('assistiveMenu');
+        let isDragging = false;
+        let startX, startY, initialX, initialY;
+        let hasMoved = false;
+
+        // Arrasto no iPhone (Touch Events)
+        touchBtn.addEventListener('touchstart', function(e) {
+            const touch = e.touches[0];
+            startX = touch.clientX;
+            startY = touch.clientY;
+            const rect = touchBtn.getBoundingClientRect();
+            initialX = rect.left;
+            initialY = rect.top;
+            hasMoved = false;
+            isDragging = true;
+        }, {passive: false});
+
+        document.addEventListener('touchmove', function(e) {
+            if (!isDragging) return;
+            const touch = e.touches[0];
+            const dx = touch.clientX - startX;
+            const dy = touch.clientY - startY;
+
+            if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
+                hasMoved = true;
+                e.preventDefault();
+            }
+
+            let newX = initialX + dx;
+            let newY = initialY + dy;
+
+            // Limites da tela
+            newX = Math.max(10, Math.min(window.innerWidth - 64, newX));
+            newY = Math.max(20, Math.min(window.innerHeight - 80, newY));
+
+            touchBtn.style.left = newX + 'px';
+            touchBtn.style.top = newY + 'px';
+            touchBtn.style.right = 'auto';
+            touchBtn.style.bottom = 'auto';
+        }, {passive: false});
+
+        document.addEventListener('touchend', function() {
+            if (!isDragging) return;
+            isDragging = false;
+            // Se foi apenas um toque sem arrastar, abre o menu
+            if (!hasMoved) {
+                abrirAssistive();
+            }
+        });
+
+        // Clique para desktop/mouse
+        touchBtn.addEventListener('click', function() {
+            if (!hasMoved) abrirAssistive();
+        });
+
+        window.abrirAssistive = function() {
+            menu.style.display = 'flex';
+        };
+
+        window.fecharAssistive = function() {
+            menu.style.display = 'none';
+        };
+
+        window.rolarPara = function(ancoraId) {
+            fecharAssistive();
+            const elem = document.getElementById(ancoraId);
+            if (elem) {
+                elem.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        };
+    })();
+</script>
+"""
+render_html(html_assistive_touch)
 
 st.markdown("<br><center><span style='color:#64748b; font-size:0.75rem; letter-spacing:0.5px;'>A.L.O.V.E - Mobile / Developed by Crist Ciriaco</span></center>", unsafe_allow_html=True)
