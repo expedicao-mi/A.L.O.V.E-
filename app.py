@@ -1232,7 +1232,7 @@ html_exp_completo = f"""
         box-shadow: 0 0 10px rgba(56, 189, 248, 0.35);
     }}
 
-        /* 🍏 SWITCH DESLIZANTE IOS NATIVO COMPACTO */
+            /* 🍏 SWITCH DESLIZANTE IOS NATIVO */
     details:not([open]) .ios-slider-capsule {
         display: none !important;
     }
@@ -1244,9 +1244,9 @@ html_exp_completo = f"""
         border: 1.5px solid #142842 !important;
         border-radius: 999px !important;
         padding: 2px !important;
-        margin-right: 2px !important;
-        width: 130px !important;
-        height: 26px !important;
+        margin-right: 22px !important;
+        width: 154px !important;
+        height: 28px !important;
         box-sizing: border-box !important;
         flex-shrink: 0 !important;
         user-select: none !important;
@@ -1254,13 +1254,13 @@ html_exp_completo = f"""
         transition: all 0.3s ease;
     }
 
-    /* Pastilha deslizante verde menor */
+    /* Pastilha deslizante verde */
     .ios-slider-thumb {
         position: absolute;
         top: 2px;
         left: 2px;
-        width: 61px;
-        height: 18px;
+        width: 73px;
+        height: 20px;
         background: #00D672;
         border-radius: 999px;
         box-shadow: 0 0 10px rgba(0, 214, 114, 0.45);
@@ -1269,10 +1269,11 @@ html_exp_completo = f"""
         pointer-events: none;
     }
 
-    /* Quando seleciona Ontem (D-1), desliza para a direita proporcional */
+    /* Quando seleciona Ontem (D-1), desliza para a direita */
     #day_ontem:checked ~ details .ios-slider-thumb {
-        transform: translateX(63px);
+        transform: translateX(75px);
     }
+
 
 
     /* Textos dos botões sobrepostos */
