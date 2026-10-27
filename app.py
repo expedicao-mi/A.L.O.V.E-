@@ -90,7 +90,6 @@ st.markdown("""
         .stAppDeployButton,
         div[class^="viewerBadge"],
         div[class*="_profileContainer"],
-        div[class*="_container_"],
         div[class*="_link_"],
         a[href*="streamlit.io"],
         iframe[title="streamlit_autorefresh.st_autorefresh"],
@@ -107,7 +106,7 @@ st.markdown("""
         /* COLUNA CENTRAL ESTILO APP */
         .block-container {
             padding-top: 0rem !important; 
-            padding-bottom: 6rem !important;
+            padding-bottom: 8rem !important;
             padding-left: 0.8rem !important; 
             padding-right: 0.8rem !important;
             max-width: 560px !important; 
