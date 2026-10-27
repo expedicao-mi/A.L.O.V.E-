@@ -31,26 +31,33 @@
       overscroll-behavior: none;
     }
 
-    /* Moldura que corta o que passar da tela */
     .frame {
       position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
+      inset: 0;
       overflow: hidden;
       background-color: #050911;
     }
 
-    /* Iframe 90px mais alto: a barra "Built with Streamlit"
-       fica para fora da área visível e é cortada pela moldura */
     iframe {
       display: block;
       width: 100%;
-      height: calc(100% + 150px);
+      height: 100%;
       border: 0;
       background-color: #050911;
       color-scheme: dark;
+    }
+
+    /* Tampa só o canto inferior direito (coroa + avatar do Streamlit).
+       pointer-events: none deixa o toque passar para o app. */
+    .mask-canto {
+      position: fixed;
+      right: 0;
+      bottom: 0;
+      width: 130px;
+      height: 70px;
+      background: #050911;
+      z-index: 10;
+      pointer-events: none;
     }
   </style>
 </head>
@@ -58,10 +65,11 @@
 <body>
   <div class="frame">
     <iframe
-      src="https://expedicao-mi-a-l-o-v-e--app-k4ytmd.streamlit.app/?embed=true&embed_options=dark_theme&embed_options=hide_loading_screen"
+      src="https://expedicao-mi-a-l-o-v-e--app-k4ytmd.streamlit.app/?embed=true&embed_options=dark_theme"
       title="A.L.O.V.E. Painel"
       allowfullscreen>
     </iframe>
+    <div class="mask-canto"></div>
   </div>
 </body>
 </html>
