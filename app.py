@@ -52,7 +52,27 @@ st.markdown(f"""
 
 st.markdown("""
     <style>
-                /* MATA AS MARCAS DO STREAMLIT E O RUNNING/CACHING */
+        /* 🚀 1. BLOQUEIO DE TRAVAMENTO MOBILE (FIX DE SCROLL) */
+        .stApp {
+            overflow-x: hidden !important;
+            overflow-y: auto !important;
+            -webkit-overflow-scrolling: touch !important;
+        }
+        
+        /* 🚀 2. FIXA AS COLUNAS NATIVAS DO STREAMLIT PARA NÃO ENCAVALAREM */
+        [data-testid="column"], [data-testid="stVerticalBlock"] {
+            overflow: hidden !important;
+            clear: both !important;
+        }
+        
+        /* 🚀 3. IMPEDE QUE CAIXAS HTML VAZEM POR CIMA DAS OUTRAS */
+        .clear-fix {
+            clear: both;
+            display: table;
+            content: "";
+        }
+
+        /* MATA AS MARCAS DO STREAMLIT E O RUNNING/CACHING */
         #MainMenu, footer, header, 
         [data-testid="manage-app-button"], 
         [data-testid="stToolbar"], 
@@ -68,7 +88,6 @@ st.markdown("""
             position: absolute !important;
             pointer-events: none !important;
         }
-
 
         /* FUNDO E SCROLL */
         html, body, [data-testid="stAppViewContainer"], .stApp, .main {
@@ -212,7 +231,11 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
+# ==============================================================================
+# 🔧 UTILITÁRIOS E EXTRAÇÃO DE DADOS
+# ==============================================================================
 SHEET_ID = "10FluiIwlynIlPDA74QI8mpHSIrAc-62H1hZNRBsvfCA"
+
 
 # ==============================================================================
 # 🔧 UTILITÁRIOS E EXTRAÇÃO DE DADOS
