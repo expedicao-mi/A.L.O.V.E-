@@ -4,7 +4,6 @@
   <meta charset="UTF-8">
   <title>A.L.O.V.E.</title>
 
-  <!-- PWA e tela cheia no iPhone -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -24,47 +23,38 @@
       -webkit-tap-highlight-color: transparent;
     }
 
-    html, body {
-      position: fixed;
-      inset: 0;
-      overflow: hidden !important;
-      overscroll-behavior: none !important;
-      background-color: #050911 !important;
+    html {
+      background-color: #050911;
       color-scheme: dark;
+      height: 100%;
     }
 
-    /* Preso nas 4 bordas da tela, sem usar vw/vh */
-    .app-wrapper {
-      position: fixed;
-      inset: 0;
-      overflow: hidden !important;
-      overscroll-behavior: none !important;
-      background-color: #050911 !important;
+    body {
+      background-color: #050911;
+      color-scheme: dark;
+      height: 100%;
+      min-height: 100dvh;
+      overflow: hidden;
+      overscroll-behavior: none;
     }
 
-    /* Iframe mais alto que a tela: os ícones do Streamlit
-       ficam para fora da área visível. */
+    /* Iframe ocupa a tela toda (altura dinâmica do iOS) */
     iframe {
-      position: absolute;
-      top: 0;
-      left: 0;
+      display: block;
       width: 100%;
-      height: calc(100% + 75px);
+      height: 100dvh;
       border: 0;
-      background-color: #050911 !important;
+      background-color: #050911;
       color-scheme: dark;
-      overscroll-behavior: none !important;
     }
   </style>
 </head>
 
 <body>
-  <div class="app-wrapper">
-    <iframe
-      src="https://expedicao-mi-a-l-o-v-e--app-k4ytmd.streamlit.app/?embed=true&embed_options=dark_theme"
-      title="A.L.O.V.E. Painel"
-      allowfullscreen>
-    </iframe>
-  </div>
+  <iframe
+    src="https://expedicao-mi-a-l-o-v-e--app-k4ytmd.streamlit.app/?embed=true&embed_options=dark_theme"
+    title="A.L.O.V.E. Painel"
+    allowfullscreen>
+  </iframe>
 </body>
 </html>
