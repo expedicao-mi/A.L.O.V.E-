@@ -106,7 +106,7 @@ st.markdown("""
         /* COLUNA CENTRAL ESTILO APP */
         .block-container {
             padding-top: 0rem !important; 
-            padding-bottom: 14rem !important;
+            padding-bottom: 6rem !important;
             padding-left: 0.8rem !important; 
             padding-right: 0.8rem !important;
             max-width: 560px !important; 
