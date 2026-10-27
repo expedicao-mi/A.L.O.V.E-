@@ -24,6 +24,7 @@
     }
 
     html, body {
+      width: 100%;
       height: 100%;
       background-color: #050911;
       color-scheme: dark;
@@ -31,45 +32,35 @@
       overscroll-behavior: none;
     }
 
-    /* Moldura: corta tudo que passar da tela */
+    /* Moldura com a altura MÁXIMA da tela (inclui área da barra inferior) */
     .frame {
       position: fixed;
-      inset: 0;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100vh;
+      height: 100lvh;
       overflow: hidden;
       background-color: #050911;
     }
 
-    /* Iframe mais alto que a moldura: a barra "Built with Streamlit",
-       a coroa e o avatar ficam no fundo, fora da área visível. */
+    /* Iframe mais alto que a moldura: a barra do Streamlit
+       fica no fundo, fora da área visível. */
     iframe {
       position: absolute;
       top: 0;
       left: 0;
       width: 100%;
-      height: calc(100% + 120px);
+      height: calc(100vh + 120px);
+      height: calc(100lvh + 120px);
       border: 0;
       background-color: #050911;
       color-scheme: dark;
-    }
-
-    /* TESTE: faixa vermelha no topo. Se aparecer, o HTML novo carregou.
-       Depois do teste, apague este bloco e o <div class="teste-versao"> do body. */
-    .teste-versao {
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      height: 6px;
-      background: red;
-      z-index: 99999;
-      pointer-events: none;
     }
   </style>
 </head>
 
 <body>
-  <div class="teste-versao"></div>
-
   <div class="frame">
     <iframe
       src="https://expedicao-mi-a-l-o-v-e--app-k4ytmd.streamlit.app/?embed=true&embed_options=dark_theme"
