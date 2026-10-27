@@ -1258,11 +1258,11 @@ html_exp_completo = f"""
         box-shadow: 0 0 10px rgba(56, 189, 248, 0.35);
     }}
 
-    /* 🍏 SWITCH DESLIZANTE IOS NATIVO */
-    details:not([open]) .ios-slider-capsule {{
+        /* 🍏 SWITCH DESLIZANTE IOS NATIVO COMPACTO */
+    details:not([open]) .ios-slider-capsule {
         display: none !important;
-    }}
-    details[open] .ios-slider-capsule {{
+    }
+    details[open] .ios-slider-capsule {
         display: inline-flex !important;
         position: relative !important;
         align-items: center !important;
@@ -1270,35 +1270,36 @@ html_exp_completo = f"""
         border: 1.5px solid #142842 !important;
         border-radius: 999px !important;
         padding: 2px !important;
-        margin-right: 22px !important;
-        width: 154px !important;
-        height: 28px !important;
+        margin-right: 2px !important;
+        width: 130px !important;
+        height: 26px !important;
         box-sizing: border-box !important;
         flex-shrink: 0 !important;
         user-select: none !important;
         -webkit-user-select: none !important;
         transition: all 0.3s ease;
-    }}
+    }
 
-    /* Pastilha deslizante verde */
-    .ios-slider-thumb {{
+    /* Pastilha deslizante verde menor */
+    .ios-slider-thumb {
         position: absolute;
         top: 2px;
         left: 2px;
-        width: 73px;
-        height: 20px;
+        width: 61px;
+        height: 18px;
         background: #00D672;
         border-radius: 999px;
         box-shadow: 0 0 10px rgba(0, 214, 114, 0.45);
         transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
         z-index: 1;
         pointer-events: none;
-    }}
+    }
 
-    /* Quando seleciona Ontem (D-1), desliza para a direita */
-    #day_ontem:checked ~ details .ios-slider-thumb {{
-        transform: translateX(75px);
-    }}
+    /* Quando seleciona Ontem (D-1), desliza para a direita proporcional */
+    #day_ontem:checked ~ details .ios-slider-thumb {
+        transform: translateX(63px);
+    }
+
 
     /* Textos dos botões sobrepostos */
     .ios-slider-btn {{
