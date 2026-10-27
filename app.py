@@ -45,33 +45,62 @@ st.markdown(f"""
     <meta name="apple-mobile-web-app-title" content="A.L.O.V.E.">
     <link rel="apple-touch-icon" href="{LOGO_ALOVE_URL}">
     <meta name="mobile-web-app-capable" content="yes">
-    <meta name="theme-color" content="#0a101d">
+    <meta name="theme-color" content="#050911">
     <link rel="icon" type="image/png" href="{LOGO_ALOVE_URL}">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 """, unsafe_allow_html=True)
 
 st.markdown("""
     <style>
-        /* 🚀 1. TRAVA O FUNDO E IMPEDE A TELA BRANCA DE ELASTICIDADE NO IPHONE */
+        /* 🚀 1. CONGELA O FUNDO BRANCO DO NAVEGADOR PARA ELE NUNCA APARECER */
         html, body {
+            margin: 0 !important;
+            padding: 0 !important;
+            width: 100% !important;
+            height: 100% !important;
+            overflow: hidden !important;
+            overscroll-behavior: none !important;
             background-color: #050911 !important;
-            overscroll-behavior-y: none !important;
-            overflow-x: hidden !important;
+            position: fixed !important;
+            inset: 0 !important;
         }
 
-        [data-testid="stAppViewContainer"], .stApp, .main {
-            background: radial-gradient(ellipse at top, #0c1a33 0%, #070d18 55%, #050911 100%) !important;
+        /* 🚀 2. TRANSFORMA O APP EM CONTAINER FIXO COM SCROLL NATIVO LISO (O QUE DEU BOA!) */
+        [data-testid="stAppViewContainer"], .stApp {
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            right: 0 !important;
+            bottom: 0 !important;
+            width: 100vw !important;
+            height: 100vh !important;
+            height: 100dvh !important;
             overflow-x: hidden !important;
+            overflow-y: scroll !important;
+            -webkit-overflow-scrolling: touch !important;
             overscroll-behavior-y: contain !important;
-            border: none !important; outline: none !important; box-shadow: none !important;
+            background: radial-gradient(ellipse at top, #0c1a33 0%, #070d18 55%, #050911 100%) !important;
+            z-index: 999999 !important;
         }
 
-        /* 🚀 2. IMPORTANTE: NUNCA USAR OVERFLOW HIDDEN NO VERTICAL BLOCK (ISSO QUE TRAVAVA O SCROLL!) */
-        [data-testid="stVerticalBlock"] {
-            overflow: visible !important;
+        .main, [data-testid="stMain"] {
+            background: transparent !important;
+            overflow-x: hidden !important;
         }
 
-        /* 🚀 3. ESCONDE CABEÇALHO, RODAPÉ E BOTÕES FLUTUANTES DO STREAMLIT CLOUD */
+        /* 🚀 3. FIXA AS COLUNAS DO STREAMLIT (COMO ESTAVA QUANDO DEU CERTO) */
+        [data-testid="column"], [data-testid="stVerticalBlock"] {
+            overflow: hidden !important;
+            clear: both !important;
+        }
+
+        .clear-fix {
+            clear: both;
+            display: table;
+            content: "";
+        }
+
+        /* 🚀 4. DESTRÓI QUALQUER BARRA BRANCA, HEADER, FOOTER E ÍCONES DO STREAMLIT */
         #MainMenu, footer, header,
         [data-testid="stHeader"],
         [data-testid="stFooter"],
@@ -83,7 +112,9 @@ st.markdown("""
         .stAppDeployButton,
         div[class^="viewerBadge"],
         div[class*="_profileContainer"],
-        div[class*="_container_gzau3"],
+        div[class*="_container_"],
+        div[class*="_link_"],
+        a[href*="streamlit.io"],
         iframe[title="streamlit_autorefresh.st_autorefresh"],
         div[data-testid="stChatMessageSpinner"],
         div[role="status"] {
@@ -92,21 +123,23 @@ st.markdown("""
             opacity: 0 !important;
             height: 0 !important;
             width: 0 !important;
+            max-height: 0 !important;
+            overflow: hidden !important;
             position: fixed !important;
             bottom: -9999px !important;
+            z-index: -1 !important;
             pointer-events: none !important;
         }
 
-        /* COLUNA CENTRAL ESTILO APP (COM ESPAÇO EXTRA NO FINAL PARA O MENU FLUTUANTE) */
+        /* COLUNA CENTRAL ESTILO APP */
         .block-container {
             padding-top: 0rem !important; 
-            padding-bottom: 6.5rem !important;
+            padding-bottom: 6rem !important;
             padding-left: 0.8rem !important; 
             padding-right: 0.8rem !important;
             max-width: 560px !important; 
             margin: 0 auto !important;
         }
-
 
         /* BANNER */
         .topo-banner { margin: 0 -0.8rem 14px -0.8rem; background: #050d1a; border-bottom: 1px solid #12506e; text-align: center; }
@@ -233,11 +266,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# ==============================================================================
-# 🔧 UTILITÁRIOS E EXTRAÇÃO DE DADOS
-# ==============================================================================
 SHEET_ID = "10FluiIwlynIlPDA74QI8mpHSIrAc-62H1hZNRBsvfCA"
-
 
 # ==============================================================================
 # 🔧 UTILITÁRIOS E EXTRAÇÃO DE DADOS
