@@ -31,6 +31,7 @@
       overscroll-behavior: none;
     }
 
+    /* Moldura: corta tudo que passar da tela */
     .frame {
       position: fixed;
       inset: 0;
@@ -38,28 +39,19 @@
       background-color: #050911;
     }
 
+    /* Iframe mais alto que a moldura. A barra "Built with Streamlit",
+       a coroa e o avatar ficam no fundo do iframe, ou seja,
+       fora da área visível. */
     iframe {
-      display: block;
+      position: absolute;
+      top: 0;
+      left: 0;
       width: 100%;
-      height: 100%;
+      height: calc(100% + 120px);
       border: 0;
       background-color: #050911;
       color-scheme: dark;
     }
-
-    /* Tampa só o canto inferior direito (coroa + avatar do Streamlit).
-       pointer-events: none deixa o toque passar para o app. */
-        .mask-canto {
-      position: fixed;
-      right: 0;
-      bottom: 0;
-      width: 240px;
-      height: 150px;
-      background: #050911;
-      z-index: 10;
-      pointer-events: none;
-    }
-
   </style>
 </head>
 
@@ -70,7 +62,6 @@
       title="A.L.O.V.E. Painel"
       allowfullscreen>
     </iframe>
-    <div class="mask-canto"></div>
   </div>
 </body>
 </html>
