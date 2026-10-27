@@ -2172,4 +2172,4 @@ with st.expander("🛠️ Console de Telemetria & Logs do Core (Dev)", expanded=
                 )
 
 
-st.markdown("<br><center><span style='color:#64748b; font-size:0.75rem; letter-spacing:0.5px;'>A.L.O.V.E - Mobile / Developed by Crist Ciriaco</span></center>", unsafe_allow_html=True)
+st.markdown("<br><center><span style='color:#64748b; font-size:0.75rem; letter-spacing:0.5px;'>A.L.O.V.E - Mobile / Developed by Cristiano Ciriaco</span></center>", unsafe_allow_html=True)
