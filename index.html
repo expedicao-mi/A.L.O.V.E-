@@ -44,27 +44,17 @@
       background-color: #050911 !important;
     }
 
+    /* O iframe é mais alto que a tela: os ícones do Streamlit
+       (coroa, avatar) ficam para fora da área visível. */
     iframe {
       position: absolute;
       top: 0;
       left: 0;
       width: 100%;
-      height: calc(100% + 55px);
+      height: calc(100% + 75px);
       border: 0;
       background-color: #050911 !important;
       overscroll-behavior: none !important;
-    }
-
-    /* MÁSCARA DO CANTO INFERIOR DIREITO (TAMPA COROA VERMELHA E AVATAR) */
-    .mask-bottom-right {
-      position: fixed;
-      right: 0;
-      bottom: 0;
-      width: 185px;
-      height: 62px;
-      background-color: #050911;
-      z-index: 99999;
-      pointer-events: auto;
     }
   </style>
 </head>
@@ -76,9 +66,6 @@
       title="A.L.O.V.E. Painel"
       allowfullscreen>
     </iframe>
-
-    <!-- Tampa os ícones do Streamlit no rodapé direito -->
-    <div class="mask-bottom-right"></div>
   </div>
 </body>
 </html>
