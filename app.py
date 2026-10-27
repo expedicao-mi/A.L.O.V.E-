@@ -52,59 +52,61 @@ st.markdown(f"""
 
 st.markdown("""
     <style>
-        /* 🚀 1. BLOQUEIO DE TRAVAMENTO MOBILE (FIX DE SCROLL) */
-        .stApp {
+        /* 🚀 1. TRAVA O FUNDO E IMPEDE A TELA BRANCA DE ELASTICIDADE NO IPHONE */
+        html, body {
+            background-color: #050911 !important;
+            overscroll-behavior-y: none !important;
             overflow-x: hidden !important;
-            overflow-y: auto !important;
-            -webkit-overflow-scrolling: touch !important;
-        }
-        
-        /* 🚀 2. FIXA AS COLUNAS NATIVAS DO STREAMLIT PARA NÃO ENCAVALAREM */
-        [data-testid="column"], [data-testid="stVerticalBlock"] {
-            overflow: hidden !important;
-            clear: both !important;
-        }
-        
-        /* 🚀 3. IMPEDE QUE CAIXAS HTML VAZEM POR CIMA DAS OUTRAS */
-        .clear-fix {
-            clear: both;
-            display: table;
-            content: "";
         }
 
-        /* MATA AS MARCAS DO STREAMLIT E O RUNNING/CACHING */
-        #MainMenu, footer, header, 
-        [data-testid="manage-app-button"], 
-        [data-testid="stToolbar"], 
+        [data-testid="stAppViewContainer"], .stApp, .main {
+            background: radial-gradient(ellipse at top, #0c1a33 0%, #070d18 55%, #050911 100%) !important;
+            overflow-x: hidden !important;
+            overscroll-behavior-y: contain !important;
+            border: none !important; outline: none !important; box-shadow: none !important;
+        }
+
+        /* 🚀 2. IMPORTANTE: NUNCA USAR OVERFLOW HIDDEN NO VERTICAL BLOCK (ISSO QUE TRAVAVA O SCROLL!) */
+        [data-testid="stVerticalBlock"] {
+            overflow: visible !important;
+        }
+
+        /* 🚀 3. ESCONDE CABEÇALHO, RODAPÉ E BOTÕES FLUTUANTES DO STREAMLIT CLOUD */
+        #MainMenu, footer, header,
+        [data-testid="stHeader"],
+        [data-testid="stFooter"],
+        [data-testid="manage-app-button"],
+        [data-testid="stToolbar"],
         [data-testid="stDecoration"],
         [data-testid="stStatusWidget"],
         .stStatusWidget,
+        .stAppDeployButton,
+        div[class^="viewerBadge"],
+        div[class*="_profileContainer"],
+        div[class*="_container_gzau3"],
+        iframe[title="streamlit_autorefresh.st_autorefresh"],
         div[data-testid="stChatMessageSpinner"],
         div[role="status"] {
-            display: none !important; 
+            display: none !important;
             visibility: hidden !important;
             opacity: 0 !important;
             height: 0 !important;
-            position: absolute !important;
+            width: 0 !important;
+            position: fixed !important;
+            bottom: -9999px !important;
             pointer-events: none !important;
         }
 
-        /* FUNDO E SCROLL */
-        html, body, [data-testid="stAppViewContainer"], .stApp, .main {
-            background: radial-gradient(ellipse at top, #0c1a33 0%, #070d18 55%, #050911 100%) !important;
-            border: none !important; outline: none !important; box-shadow: none !important;
-        }
-        [data-testid="stMain"], section.main { scroll-behavior: smooth; }
-
-        /* COLUNA CENTRAL ESTILO APP */
+        /* COLUNA CENTRAL ESTILO APP (COM ESPAÇO EXTRA NO FINAL PARA O MENU FLUTUANTE) */
         .block-container {
             padding-top: 0rem !important; 
-            padding-bottom: 2rem !important;
+            padding-bottom: 6.5rem !important;
             padding-left: 0.8rem !important; 
             padding-right: 0.8rem !important;
             max-width: 560px !important; 
             margin: 0 auto !important;
         }
+
 
         /* BANNER */
         .topo-banner { margin: 0 -0.8rem 14px -0.8rem; background: #050d1a; border-bottom: 1px solid #12506e; text-align: center; }
@@ -2151,9 +2153,9 @@ html_menu_fixo = f"""
     /* Oculta o checkbox de controle invisível */
     #fab-toggle {{ display: none; }}
 
-    /* Container Flutuante Principal */
+        /* Container Flutuante Principal */
     .fab-wrapper {{
-        position: fixed; bottom: 25px; right: 16px; z-index: 9999999;
+        position: fixed; bottom: 72px; right: 16px; z-index: 9999999;
         -webkit-tap-highlight-color: transparent;
         display: flex; flex-direction: column; align-items: flex-end; gap: 14px;
     }}
