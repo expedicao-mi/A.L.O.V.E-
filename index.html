@@ -10,7 +10,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="A.L.O.V.E.">
   <meta name="mobile-web-app-capable" content="yes">
-  <meta name="theme-color" content="#0a101d">
+  <meta name="theme-color" content="#050911">
 
   <link rel="apple-touch-icon" sizes="180x180" href="./app_icon.png">
   <link rel="icon" type="image/png" sizes="192x192" href="./app_icon.png">
@@ -20,78 +20,66 @@
       margin: 0;
       padding: 0;
       box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
     }
 
-    html,
-    body {
+    /* TRAVA DEFINITIVA DO ELÁSTICO BRANCO DO IPHONE */
+    html, body {
       width: 100%;
       height: 100%;
-      overflow: hidden;
-      background: #0a101d;
+      overflow: hidden !important;
+      overscroll-behavior: none !important;
+      background-color: #050911 !important;
+      position: fixed;
+      inset: 0;
     }
 
     .app-wrapper {
       position: fixed;
       inset: 0;
-      overflow: hidden;
-      background: #0a101d;
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden !important;
+      overscroll-behavior: none !important;
+      background-color: #050911 !important;
     }
 
     iframe {
       position: absolute;
-      top: -12px;
-      left: -12px;
-      width: calc(100% + 24px);
-      height: calc(100% + 82px);
-      border: 0;
-      background: #0a101d;
-    }
-
-    /* MÁSCARA SUPERIOR */
-    .mask-top {
-      position: fixed;
       top: 0;
       left: 0;
       width: 100%;
-      height: 105px;
-      background: #0a101d;
-      z-index: 9999;
-      pointer-events: none;
+      /* Estica o final para empurrar o rodapé do Streamlit pra fora da tela */
+      height: calc(100% + 55px);
+      border: 0;
+      background-color: #050911 !important;
+      overscroll-behavior: none !important;
     }
 
-    /* MÁSCARA DO CANTO INFERIOR DIREITO */
+    /* MÁSCARA DO CANTO INFERIOR DIREITO (TAMPA COROA VERMELHA E AVATAR) */
     .mask-bottom-right {
       position: fixed;
       right: 0;
       bottom: 0;
-      width: 110px;
-      height: 100px;
-      background: #0a101d;
-      z-index: 9999;
-      pointer-events: none;
-    }
-
-    /* Respeita a área segura do iPhone */
-    @supports (padding-top: env(safe-area-inset-top)) {
-      .mask-top {
-        height: calc(env(safe-area-inset-top) + 55px);
-      }
+      width: 185px;
+      height: 62px;
+      background-color: #050911;
+      z-index: 99999;
+      pointer-events: auto; /* Bloqueia clique acidental no botão do Streamlit */
     }
   </style>
 </head>
 
 <body>
   <div class="app-wrapper">
-
     <iframe
-      src="https://alove-painel-gestor.streamlit.app/?embed=true"
+      src="https://alove-painel-gestor.streamlit.app/?embed=true&embed_options=dark_theme"
       title="A.L.O.V.E. Painel"
       allowfullscreen>
     </iframe>
 
-    <div class="mask-top"></div>
+    <!-- Tampa os ícones do Streamlit no rodapé direito -->
     <div class="mask-bottom-right"></div>
-
   </div>
 </body>
 </html>
