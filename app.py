@@ -37,7 +37,7 @@ def render_html(html_str: str):
     st.markdown(" ".join(linhas_limpas), unsafe_allow_html=True)
 
 # ==============================================================================
-# 🎨 CSS (LAYOUT VERTICAL COM DESIGN DE APP - SEM BARRA INFERIOR)
+# 🎨 CSS (LAYOUT VERTICAL COM DESIGN DE APP - SEM TRAVAMENTOS)
 # ==============================================================================
 st.markdown(f"""
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -52,35 +52,13 @@ st.markdown(f"""
 
 st.markdown("""
     <style>
-        /* 🚀 1. CONGELA O FUNDO BRANCO DO NAVEGADOR PARA ELE NUNCA APARECER */
-        html, body {
-            margin: 0 !important;
-            padding: 0 !important;
-            width: 100% !important;
-            height: 100% !important;
-            overflow: hidden !important;
-            overscroll-behavior: none !important;
-            background-color: #050911 !important;
-            position: fixed !important;
-            inset: 0 !important;
-        }
-
-        /* 🚀 2. TRANSFORMA O APP EM CONTAINER FIXO COM SCROLL NATIVO LISO (O QUE DEU BOA!) */
-        [data-testid="stAppViewContainer"], .stApp {
-            position: fixed !important;
-            top: 0 !important;
-            left: 0 !important;
-            right: 0 !important;
-            bottom: 0 !important;
-            width: 100vw !important;
-            height: 100vh !important;
-            height: 100dvh !important;
+        /* 🚀 1. TRAVA O FUNDO E GARANTE SCROLL NATIVO LISO NO IPHONE */
+        html, body, [data-testid="stAppViewContainer"], .stApp {
+            background: radial-gradient(ellipse at top, #0c1a33 0%, #070d18 55%, #050911 100%) !important;
             overflow-x: hidden !important;
-            overflow-y: scroll !important;
+            overflow-y: auto !important;
             -webkit-overflow-scrolling: touch !important;
             overscroll-behavior-y: contain !important;
-            background: radial-gradient(ellipse at top, #0c1a33 0%, #070d18 55%, #050911 100%) !important;
-            z-index: 999999 !important;
         }
 
         .main, [data-testid="stMain"] {
@@ -88,7 +66,7 @@ st.markdown("""
             overflow-x: hidden !important;
         }
 
-        /* 🚀 3. FIXA AS COLUNAS DO STREAMLIT (COMO ESTAVA QUANDO DEU CERTO) */
+        /* 🚀 2. FIXA AS COLUNAS DO STREAMLIT PARA NÃO ENCAVALAREM */
         [data-testid="column"], [data-testid="stVerticalBlock"] {
             overflow: hidden !important;
             clear: both !important;
@@ -100,7 +78,7 @@ st.markdown("""
             content: "";
         }
 
-        /* 🚀 4. DESTRÓI QUALQUER BARRA BRANCA, HEADER, FOOTER E ÍCONES DO STREAMLIT */
+        /* 🚀 3. ESCONDE CABEÇALHO, RODAPÉ E BOTÕES DO STREAMLIT */
         #MainMenu, footer, header,
         [data-testid="stHeader"],
         [data-testid="stFooter"],
@@ -123,11 +101,6 @@ st.markdown("""
             opacity: 0 !important;
             height: 0 !important;
             width: 0 !important;
-            max-height: 0 !important;
-            overflow: hidden !important;
-            position: fixed !important;
-            bottom: -9999px !important;
-            z-index: -1 !important;
             pointer-events: none !important;
         }
 
@@ -265,6 +238,7 @@ st.markdown("""
         @keyframes pulso { 0% { box-shadow: 0 0 0 0 rgba(0,214,114,.55); } 70% { box-shadow: 0 0 0 9px rgba(0,214,114,0); } 100% { box-shadow: 0 0 0 0 rgba(0,214,114,0); } }
     </style>
 """, unsafe_allow_html=True)
+
 
 SHEET_ID = "10FluiIwlynIlPDA74QI8mpHSIrAc-62H1hZNRBsvfCA"
 
