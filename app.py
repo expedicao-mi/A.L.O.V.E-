@@ -1816,8 +1816,15 @@ html_est = f"""
             </div>
         </div>
 
-        <!-- 2. CARD INFERIOR: DONUT ROSCA (MATERIAL EQ vs SQ) -->
-                    <div style="display: flex; flex-direction: column; gap: 8px; min-width: 130px;">
+                <!-- 2. CARD INFERIOR: DONUT ROSCA (MATERIAL EQ vs SQ vs OS) -->
+        <div style="background: #070d18; border: 1.5px solid #142842; border-radius: 14px; padding: 14px 18px; display: flex; align-items: center; justify-content: space-around; gap: 14px; box-shadow: 0 4px 12px rgba(0,0,0,0.25);">
+            <!-- GRÁFICO DE PIZZA / ROSCA -->
+            <div style="position: relative; width: 115px; height: 115px; flex-shrink: 0;">
+                {svg_donut}
+            </div>
+
+            <!-- COLUNA DAS LEGENDAS -->
+            <div style="display: flex; flex-direction: column; gap: 8px; min-width: 130px;">
                 <div>
                     <div style="display: flex; align-items: center; gap: 8px; font-size: 0.80rem; color: #cbd5e1; font-weight: 700;">
                         <span style="width: 10px; height: 10px; border-radius: 50%; background: #00E676; display: inline-block;"></span>
@@ -1848,7 +1855,10 @@ html_est = f"""
                     </div>
                 </div>
             </div>
+        </div>
+    </div>
 </details>
+
 """
 render_html(html_est)
 
