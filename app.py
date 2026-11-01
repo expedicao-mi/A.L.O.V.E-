@@ -1688,11 +1688,6 @@ CAPACIDADE_MAX_ARMAZEM = 25000.0
 pct_ocupacao_est = min(100.0, max(0.0, (estoque_total / CAPACIDADE_MAX_ARMAZEM * 100.0)))
 espaco_livre_est = max(0.0, CAPACIDADE_MAX_ARMAZEM - estoque_total)
 
-# 1. Processamento e segregação dos materiais
-itens_barras = []
-tot_eq = 0.0
-tot_sq = 0.0
-
 # LINHA EXATA DA TROCA (Identifica OS, SQ e EQ separadamente):
 itens_barras = []
 tot_eq = 0.0
@@ -1822,34 +1817,37 @@ html_est = f"""
         </div>
 
         <!-- 2. CARD INFERIOR: DONUT ROSCA (MATERIAL EQ vs SQ) -->
-        <div style="background: #070d18; border: 1.5px solid #142842; border-radius: 14px; padding: 14px 18px; display: flex; align-items: center; justify-content: space-around; gap: 14px; box-shadow: 0 4px 12px rgba(0,0,0,0.25);">
-            <div style="position: relative; width: 115px; height: 115px; flex-shrink: 0;">
-                {svg_donut}
-            </div>
-
-            <div style="display: flex; flex-direction: column; gap: 12px; min-width: 130px;">
+                    <div style="display: flex; flex-direction: column; gap: 8px; min-width: 130px;">
                 <div>
-                    <div style="display: flex; align-items: center; gap: 8px; font-size: 0.82rem; color: #cbd5e1; font-weight: 700;">
+                    <div style="display: flex; align-items: center; gap: 8px; font-size: 0.80rem; color: #cbd5e1; font-weight: 700;">
                         <span style="width: 10px; height: 10px; border-radius: 50%; background: #00E676; display: inline-block;"></span>
                         Material EQ
                     </div>
-                    <div style="color: #ffffff; font-size: 1.25rem; font-weight: 800; margin-left: 18px; line-height: 1.15;">
-                        {fmt(tot_eq)} <span style="font-size: 0.8rem; font-weight: normal; color: #94a3b8;">t</span>
+                    <div style="color: #ffffff; font-size: 1.15rem; font-weight: 800; margin-left: 18px; line-height: 1.15;">
+                        {fmt(tot_eq)} <span style="font-size: 0.75rem; font-weight: normal; color: #94a3b8;">t</span>
                     </div>
                 </div>
 
                 <div>
-                    <div style="display: flex; align-items: center; gap: 8px; font-size: 0.82rem; color: #cbd5e1; font-weight: 700;">
+                    <div style="display: flex; align-items: center; gap: 8px; font-size: 0.80rem; color: #cbd5e1; font-weight: 700;">
                         <span style="width: 10px; height: 10px; border-radius: 50%; background: #FFD600; display: inline-block;"></span>
                         Material SQ
                     </div>
-                    <div style="color: #ffffff; font-size: 1.25rem; font-weight: 800; margin-left: 18px; line-height: 1.15;">
-                        {fmt(tot_sq)} <span style="font-size: 0.8rem; font-weight: normal; color: #94a3b8;">t</span>
+                    <div style="color: #ffffff; font-size: 1.15rem; font-weight: 800; margin-left: 18px; line-height: 1.15;">
+                        {fmt(tot_sq)} <span style="font-size: 0.75rem; font-weight: normal; color: #94a3b8;">t</span>
+                    </div>
+                </div>
+
+                <div>
+                    <div style="display: flex; align-items: center; gap: 8px; font-size: 0.80rem; color: #cbd5e1; font-weight: 700;">
+                        <span style="width: 10px; height: 10px; border-radius: 50%; background: #FF5722; display: inline-block;"></span>
+                        Material OS
+                    </div>
+                    <div style="color: #ffffff; font-size: 1.15rem; font-weight: 800; margin-left: 18px; line-height: 1.15;">
+                        {fmt(tot_os)} <span style="font-size: 0.75rem; font-weight: normal; color: #94a3b8;">t</span>
                     </div>
                 </div>
             </div>
-        </div>
-    </div>
 </details>
 """
 render_html(html_est)
