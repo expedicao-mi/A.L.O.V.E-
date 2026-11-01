@@ -1693,19 +1693,27 @@ itens_barras = []
 tot_eq = 0.0
 tot_sq = 0.0
 
+# LINHA EXATA DA TROCA (Identifica OS, SQ e EQ separadamente):
+itens_barras = []
+tot_eq = 0.0
+tot_sq = 0.0
+tot_os = 0.0
+
 if dados_segregados:
     for m_raw, v_raw in dados_segregados.items():
         t_val = forcar_par(safe_to_numeric(v_raw))
         if t_val <= 0:
             continue
         m_str = str(m_raw).strip().upper()
-        is_sq = "SQ" in m_str
+        is_os = "OS" in m_str or "BQ" in m_str
+        is_sq = "SQ" in m_str and not is_os
         
-        # Separa o código do material e o tipo (EQ ou SQ)
         cod_mat = re.sub(r'[^0-9]', '', m_str) or m_str.split()[0]
-        tipo_mat = "SQ" if is_sq else "EQ"
+        tipo_mat = "OS" if is_os else ("SQ" if is_sq else "EQ")
         
-        if is_sq:
+        if is_os:
+            tot_os += t_val
+        elif is_sq:
             tot_sq += t_val
         else:
             tot_eq += t_val
@@ -1714,20 +1722,29 @@ if dados_segregados:
             "cod": cod_mat,
             "tipo": tipo_mat,
             "ton": t_val,
-            "is_sq": is_sq
+            "tipo_cat": tipo_mat
         })
 
 itens_barras.sort(key=lambda x: x["ton"], reverse=True)
 max_ton_est = max([x["ton"] for x in itens_barras], default=1.0)
-tot_geral_calc = (tot_eq + tot_sq) if (tot_eq + tot_sq) > 0 else (estoque_total if estoque_total > 0 else 1.0)
-pct_sq = min(100.0, max(0.0, (tot_sq / tot_geral_calc) * 100.0))
-pct_eq = 100.0 - pct_sq
+tot_geral_calc = (tot_eq + tot_sq + tot_os) if (tot_eq + tot_sq + tot_os) > 0 else (estoque_total if estoque_total > 0 else 1.0)
+pct_eq = max(0.0, (tot_eq / tot_geral_calc) * 100.0)
+pct_sq = max(0.0, (tot_sq / tot_geral_calc) * 100.0)
+pct_os = max(0.0, (tot_os / tot_geral_calc) * 100.0)
+
 
 # 2. Montagem das Barras Verticais com escala rebaixada (folga no teto)
 barras_html = ""
+# LINHA EXATA DA TROCA:
 for item in itens_barras[:8]:
-    cor_b = "#FFD600" if item["is_sq"] else "#00E676"
+    if item["tipo_cat"] == "OS":
+        cor_b = "#FF5722"  # Laranja quase vermelho vibrante
+    elif item["tipo_cat"] == "SQ":
+        cor_b = "#FFD600"  # Amarelo SQ
+    else:
+        cor_b = "#00E676"  # Verde EQ
     h_px = max(6, int((item["ton"] / max_ton_est) * 68))
+
     
     barras_html += f"""
     <div style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; min-width: 38px;">
@@ -1743,14 +1760,27 @@ for item in itens_barras[:8]:
     """
 
 # 3. Montagem do Gráfico Donut (SVG Vetorial)
+# LINHA EXATA DA TROCA (Calcula os 3 arcos sem sobreposição):
+c_circ = 100.0
+offset_sq = 100.0 - pct_eq
+offset_os = 100.0 - (pct_eq + pct_sq)
+
 svg_donut = f"""
 <svg width="115" height="115" viewBox="0 0 42 42" style="transform: rotate(-90deg); display: block;">
-    <circle cx="21" cy="21" r="15.91549430918954" fill="transparent" stroke="#00E676" stroke-width="5.5"></circle>
-    <circle cx="21" cy="21" r="15.91549430918954" fill="transparent" stroke="#FFD600" stroke-width="5.6"
-            stroke-dasharray="{pct_sq:.1f} {100.0 - pct_sq:.1f}" stroke-dashoffset="0"
-            stroke-linecap="round"></circle>
+    <!-- Fundo vazio -->
+    <circle cx="21" cy="21" r="15.91549430918954" fill="transparent" stroke="#162438" stroke-width="5.5"></circle>
+    <!-- Fatia EQ (Verde) -->
+    <circle cx="21" cy="21" r="15.91549430918954" fill="transparent" stroke="#00E676" stroke-width="5.5"
+            stroke-dasharray="{pct_eq:.1f} {100.0 - pct_eq:.1f}" stroke-dashoffset="0"></circle>
+    <!-- Fatia SQ (Amarelo) -->
+    <circle cx="21" cy="21" r="15.91549430918954" fill="transparent" stroke="#FFD600" stroke-width="5.5"
+            stroke-dasharray="{pct_sq:.1f} {100.0 - pct_sq:.1f}" stroke-dashoffset="-{pct_eq:.1f}"></circle>
+    <!-- Fatia OS (Laranja quase vermelho) -->
+    <circle cx="21" cy="21" r="15.91549430918954" fill="transparent" stroke="#FF5722" stroke-width="5.5"
+            stroke-dasharray="{pct_os:.1f} {100.0 - pct_os:.1f}" stroke-dashoffset="-{pct_eq + pct_sq:.1f}"></circle>
 </svg>
 """
+
 
 html_est = f"""
 <div id="sec-est"></div>
