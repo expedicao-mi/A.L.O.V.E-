@@ -4,3 +4,4 @@ pandas>=2.0.0
 streamlit-autorefresh
 gspread
 google-auth
+extra-streamlit-components
