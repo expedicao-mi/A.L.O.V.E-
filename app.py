@@ -1284,7 +1284,7 @@ html_exp_completo = f"""
         transition: color 0.25s ease;
         white-space: nowrap;
         -webkit-tap-highlight-color: transparent;
-    }}
+    }
 
     #day_hoje:checked ~ details .btn-txt-hoje {{ color: #0a101d !important; }}
     #day_hoje:checked ~ details .btn-txt-ontem {{ color: #64748b !important; }}
