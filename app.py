@@ -446,14 +446,16 @@ def carregar_dados_mobile_otimizados():
     if d_baf.empty: d_baf = carregar_dados_nuvem("Auditoria_Bafometro", cabecalho=0)
     d_frot = carregar_dados_nuvem("Historico_DKRO", cabecalho=0)
     
-    d_bal, _ = carregar_tabela_cega("Balanco_Expedicao_Destino", "DESTINO")
+        d_bal, _ = carregar_tabela_cega("Balanco_Expedicao_Destino", "DESTINO")
     d_pat, h_pat = carregar_tabela_cega("Patio_Destino_Status", "DESTINO")
     d_tr, _ = carregar_tabela_cega("Status_TR", "PLACA")
+    d_sinal, h_sinal = carregar_tabela_cega("Sinal_de_Vida", "APLICATIVO")
     d_pran = carregar_prancheta_direto()
     
-    return d_dash, d_qual, d_alert, d_cache, d_virada, d_bal, d_baf, d_frot, d_pran, d_pat, h_pat, d_tr
+    return d_dash, d_qual, d_alert, d_cache, d_virada, d_bal, d_baf, d_frot, d_pran, d_pat, h_pat, d_tr, d_sinal, h_sinal
 
-df_dash, df_qual, df_alertas, df_cache, df_status_virada, df_balanco_dest, df_bafometro, df_frota, df_prancheta, df_patio_dest, hora_att_patio, df_status_tr = carregar_dados_mobile_otimizados()
+df_dash, df_qual, df_alertas, df_cache, df_status_virada, df_balanco_dest, df_bafometro, df_frota, df_prancheta, df_patio_dest, hora_att_patio, df_status_tr, df_sinal_vida, hora_att_sinal = carregar_dados_mobile_otimizados()
+
 
 cache_dict = {str(row.iloc[0]).strip(): str(row.iloc[1]).strip() for _, row in df_cache.iterrows()} if not df_cache.empty else {}
 dados_segregados = parse_robusto(cache_dict.get("dados_segregados", "{}"))
