@@ -681,76 +681,152 @@ if "splash_exibida" not in st.session_state:
 st.markdown(f'<div id="sec-topo"></div><div class="topo-banner"><img src="{BANNER_TOPO_URL}"></div>', unsafe_allow_html=True)
 
 # ==============================================================================
-# 🖨️ RENDERIZAÇÃO 1: STATUS DO SISTEMA + SEMÁFORO (CONFORME IMAGEM 3)
+# 🖨️ RENDERIZAÇÃO 1: STATUS DO SISTEMA (NOC TELEMETRY - SEMPRE FECHADO AO ABRIR)
 # ==============================================================================
-led_core = "#00D672"
-borda_core = "#00D672"
-led_off = "#E74C3C"
-borda_off = "#142842"
+modulos_config = [
+    {"chave": "CORE",  "nome": "CORE",  "sub": "Motor SAP",    "ico": "🤖", "status": "OFFLINE", "pulso": "--:--", "diag": "Sem comunicação com o motor SAP"},
+    {"chave": "TORRE", "nome": "TORRE", "sub": "Controle YMS", "ico": "📡", "status": "OFFLINE", "pulso": "--:--", "diag": "Painel do assistente sem sinal"},
+    {"chave": "TOTEM", "nome": "TOTEM", "sub": "Autoatend.",   "ico": "📱", "status": "OFFLINE", "pulso": "--:--", "diag": "Totem sem sinal ou desligado"},
+    {"chave": "TV",    "nome": "TV",    "sub": "Painel Pátio", "ico": "📺", "status": "OFFLINE", "pulso": "--:--", "diag": "TV sem resposta na rede"},
+]
+
+sinal_expirado = False
+hora_sinal_exibir = conn_hora
+if hora_att_sinal:
+    try:
+        dt_sinal = datetime.strptime(hora_att_sinal[:19], "%d/%m/%Y %H:%M:%S")
+        hora_sinal_exibir = dt_sinal.strftime("%H:%M:%S") if dt_sinal.date() == hoje_date else dt_sinal.strftime("%d/%m %H:%M")
+        if (agora_br - dt_sinal).total_seconds() / 60.0 > 20:
+            sinal_expirado = True
+    except Exception:
+        pass
+
+if not df_sinal_vida.empty and "APLICATIVO" in df_sinal_vida.columns:
+    for _, rs in df_sinal_vida.iterrows():
+        app_nome = str(rs.get("APLICATIVO", "")).strip().upper()
+        st_app = str(rs.get("STATUS", "OFFLINE")).strip().upper()
+        pulso_app = str(rs.get("ÚLTIMO_PULSO", rs.get("ULTIMO_PULSO", "--:--"))).strip() or "--:--"
+        diag_raw = str(rs.get("DIAGNÓSTICO", rs.get("DIAGNOSTICO", ""))).strip()
+        diag_limpo = re.sub(r'^[🟢🔴🟡⚠️✅❌\s]+', '', diag_raw).strip()
+
+        for mod in modulos_config:
+            if mod["chave"] in app_nome:
+                if sinal_expirado:
+                    mod["status"] = "OFFLINE"
+                    mod["pulso"] = pulso_app
+                    mod["diag"] = f"Pulso congelado desde {hora_sinal_exibir}"
+                else:
+                    mod["status"] = "ONLINE" if "ONLINE" in st_app else "OFFLINE"
+                    mod["pulso"] = pulso_app
+                    if diag_limpo:
+                        mod["diag"] = diag_limpo
+
+qtd_online = sum(1 for m in modulos_config if m["status"] == "ONLINE")
+if sinal_expirado or qtd_online == 0:
+    st_geral_txt, st_geral_cor = "SISTEMA OFFLINE", "#E74C3C"
+elif qtd_online < 4:
+    st_geral_txt, st_geral_cor = f"OPERAÇÃO PARCIAL ({qtd_online}/4)", "#FFD600"
+else:
+    st_geral_txt, st_geral_cor = "SISTEMA 100% ONLINE", "#00D672"
+
+barra_saude_html = ""
+cards_noc_html = ""
+
+for mod in modulos_config:
+    is_on = mod["status"] == "ONLINE"
+    c_main = "#00D672" if is_on else "#E74C3C"
+    c_glow = "rgba(0, 214, 114, 0.22)" if is_on else "rgba(231, 76, 60, 0.12)"
+    bg_card = "linear-gradient(180deg, rgba(0,214,114,0.09) 0%, #070d18 100%)" if is_on else "linear-gradient(180deg, rgba(231,76,60,0.07) 0%, #070d18 100%)"
+    borda_card = "#00D672" if is_on else "#261924"
+
+    # Segmento da barra superior (visível com o card fechado)
+    barra_saude_html += f"""
+    <div style="flex:1; background:#060b14; border:1px solid {borda_card}; border-radius:8px; padding:6px 4px; text-align:center;">
+        <div style="height:4px; border-radius:999px; background:{c_main}; box-shadow:0 0 8px {c_main}; margin-bottom:5px;"></div>
+        <div style="color:{'#ffffff' if is_on else '#64748b'}; font-size:0.68rem; font-weight:800; letter-spacing:0.4px;">{mod['nome']}</div>
+    </div>
+    """
+
+    # Card detalhado (visível quando você toca para abrir)
+    cards_noc_html += f"""
+    <div style="background:{bg_card}; border:1.5px solid {borda_card}; border-radius:14px; padding:12px; box-shadow:0 4px 14px {c_glow}; display:flex; flex-direction:column; justify-content:space-between; gap:8px;">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+            <div style="display:flex; align-items:center; gap:8px;">
+                <div style="width:32px; height:32px; border-radius:9px; background:#0b1526; border:1px solid {borda_card}; display:flex; align-items:center; justify-content:center; font-size:1.05rem;">
+                    {mod['ico']}
+                </div>
+                <div>
+                    <div style="color:#ffffff; font-size:0.84rem; font-weight:800; line-height:1.1;">{mod['nome']}</div>
+                    <div style="color:#64748b; font-size:0.65rem; font-weight:600;">{mod['sub']}</div>
+                </div>
+            </div>
+            <span style="width:9px; height:9px; border-radius:50%; background:{c_main}; box-shadow:0 0 8px {c_main}; margin-top:3px;"></span>
+        </div>
+
+        <div style="color:#cbd5e1; font-size:0.72rem; line-height:1.25; min-height:28px;">
+            {html_lib.escape(mod['diag'])}
+        </div>
+
+        <div style="border-top:1px solid #14243b; padding-top:6px; display:flex; justify-content:space-between; align-items:center;">
+            <span style="color:{c_main}; font-size:0.65rem; font-weight:800; letter-spacing:0.4px;">{mod['status']}</span>
+            <span style="color:#e2e8f0; font-family:monospace; font-size:0.74rem; font-weight:700;">🕒 {html_lib.escape(mod['pulso'])}</span>
+        </div>
+    </div>
+    """
 
 html_status_sistema = f"""
-<div class="card-main" style="margin-bottom: 14px; padding: 14px 16px; border: 1.5px solid #142842; border-radius: 14px; background: #070d18;">
-    <details open style="border: none; background: transparent;">
-        <summary style="list-style: none; cursor: pointer; outline: none;">
-            <!-- LINHA 1: TÍTULO COM BARRA VERDE -->
-            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
-                <div style="width: 4px; height: 18px; background: #00D672; border-radius: 2px;"></div>
-                <div style="color: #ffffff; font-size: 1.05rem; font-weight: 800; letter-spacing: 0.5px;">STATUS DO SISTEMA</div>
-            </div>
-
-            <!-- LINHA 2: STATUS, HORA E BOTÃO ATUALIZAR QUADRADO À DIREITA -->
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-                <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
-                    <div style="color: #00D672; font-weight: 800; font-size: 0.95rem; display: flex; align-items: center; gap: 6px;">
-                        <span style="width: 10px; height: 10px; border-radius: 50%; background: #00D672; display: inline-block; box-shadow: 0 0 6px #00D672;"></span>
-                        ATUALIZADO
+<style>
+    details.noc-box > summary .noc-chev {{
+        transition: transform 0.25s ease;
+        display: inline-block;
+    }}
+    details.noc-box[open] > summary .noc-chev {{
+        transform: rotate(180deg);
+    }}
+</style>
+<div class="card-main" style="margin-bottom: 14px; padding: 14px 15px; border: 1.5px solid #163252; border-radius: 16px; background: linear-gradient(180deg, #0d1d38 0%, #070d18 100%); box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);">
+    <details class="noc-box" style="border: none; background: transparent;">
+        <summary style="list-style: none; cursor: pointer; outline: none; -webkit-tap-highlight-color: transparent;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <div style="width: 36px; height: 36px; border-radius: 10px; background: rgba(0, 180, 255, 0.12); border: 1px solid #00b4ff; display: flex; align-items: center; justify-content: center; font-size: 1.15rem; box-shadow: 0 0 12px rgba(0, 180, 255, 0.2);">
+                        🛡️
                     </div>
-                    <div style="color: #94a3b8; font-size: 0.78rem; font-weight: 500;">
-                        🕒 Última atualização: <span style="color: #cbd5e1;">{conn_hora}</span>
+                    <div>
+                        <div style="color: #ffffff; font-size: 0.92rem; font-weight: 800; letter-spacing: 0.5px;">TELEMETRIA DO ECOSSISTEMA</div>
+                        <div style="color: {st_geral_cor}; font-size: 0.76rem; font-weight: 800; margin-top: 2px;">
+                            ● {st_geral_txt} <span style="color: #64748b; font-weight: 500;">• {hora_sinal_exibir}</span>
+                        </div>
                     </div>
                 </div>
-                <!-- BOTÃO COMPACTO QUADRADO COM BORDA CIANO -->
-                <a href="?refresh=1" target="_self" onclick="event.stopPropagation();" 
-                   style="width: 38px; height: 38px; border: 1.5px solid #00b4ff; border-radius: 8px; background: #070d18; display: flex; align-items: center; justify-content: center; font-size: 1.15rem; color: #ffffff; text-decoration: none; box-shadow: 0 0 10px rgba(0, 180, 255, 0.25); flex-shrink: 0; margin-left: 8px;">
-                   🔄
-                </a>
+
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <a href="?refresh=1" target="_self" onclick="event.stopPropagation();" 
+                       style="width: 38px; height: 38px; border: 1.5px solid #00b4ff; border-radius: 10px; background: #070d18; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; color: #ffffff; text-decoration: none; box-shadow: 0 0 10px rgba(0, 180, 255, 0.25);">
+                       🔄
+                    </a>
+                    <span class="noc-chev" style="color: #64748b; font-size: 0.8rem; padding: 4px;">▼</span>
+                </div>
+            </div>
+
+            <!-- BARRA DE INTEGRIDADE DOS 4 PILARES (VISÍVEL MESMO FECHADO) -->
+            <div style="display: flex; gap: 6px;">
+                {barra_saude_html}
             </div>
         </summary>
 
-        <!-- LINHA 3: OS 4 CARDS DO SEMÁFORO (CORE, TORRE, TOTEM, TV) -->
-        <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: 14px; padding-top: 12px; border-top: 1px solid #14243b;">
-            <!-- CORE (ONLINE 🟢) -->
-            <div style="flex: 1; background: #070d18; border: 1.5px solid {borda_core}; border-radius: 12px; padding: 12px 2px; text-align: center; position: relative; box-shadow: 0 0 12px rgba(0, 214, 114, 0.2);">
-                <span style="width: 8px; height: 8px; border-radius: 50%; background: {led_core}; box-shadow: 0 0 8px {led_core}; position: absolute; top: 8px; right: 8px;"></span>
-                <div style="font-size: 1.45rem; margin-top: 4px; margin-bottom: 4px;">🤖</div>
-                <div style="color: #ffffff; font-size: 0.75rem; font-weight: 800; letter-spacing: 0.5px;">CORE</div>
-            </div>
-
-            <!-- TORRE (OFFLINE 🔴) -->
-            <div style="flex: 1; background: #070d18; border: 1.5px solid {borda_off}; border-radius: 12px; padding: 12px 2px; text-align: center; position: relative;">
-                <span style="width: 8px; height: 8px; border-radius: 50%; background: {led_off}; box-shadow: 0 0 8px {led_off}; position: absolute; top: 8px; right: 8px;"></span>
-                <div style="font-size: 1.45rem; margin-top: 4px; margin-bottom: 4px;">📡</div>
-                <div style="color: #64748b; font-size: 0.75rem; font-weight: 800; letter-spacing: 0.5px;">TORRE</div>
-            </div>
-
-            <!-- TOTEM (OFFLINE 🔴) -->
-            <div style="flex: 1; background: #070d18; border: 1.5px solid {borda_off}; border-radius: 12px; padding: 12px 2px; text-align: center; position: relative;">
-                <span style="width: 8px; height: 8px; border-radius: 50%; background: {led_off}; box-shadow: 0 0 8px {led_off}; position: absolute; top: 8px; right: 8px;"></span>
-                <div style="font-size: 1.45rem; margin-top: 4px; margin-bottom: 4px;">📱</div>
-                <div style="color: #64748b; font-size: 0.75rem; font-weight: 800; letter-spacing: 0.5px;">TOTEM</div>
-            </div>
-
-            <!-- TV (OFFLINE 🔴) -->
-            <div style="flex: 1; background: #070d18; border: 1.5px solid {borda_off}; border-radius: 12px; padding: 12px 2px; text-align: center; position: relative;">
-                <span style="width: 8px; height: 8px; border-radius: 50%; background: {led_off}; box-shadow: 0 0 8px {led_off}; position: absolute; top: 8px; right: 8px;"></span>
-                <div style="font-size: 1.45rem; margin-top: 4px; margin-bottom: 4px;">📺</div>
-                <div style="color: #64748b; font-size: 0.75rem; font-weight: 800; letter-spacing: 0.5px;">TV</div>
-            </div>
+        <!-- PAINEL EXPANDIDO 2x2 -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; padding-top: 12px; border-top: 1px solid #163252;">
+            {cards_noc_html}
+        </div>
+        <div style="margin-top: 10px; text-align: center; font-size: 0.68rem; color: #64748b;">
+            Fonte: <b style="color: #94a3b8;">A.L.O.V.E Core</b> • Toque no cabeçalho para recolher
         </div>
     </details>
 </div>
 """
 render_html(html_status_sistema)
+
 
 # ==============================================================================
 # 🖨️ RENDERIZAÇÃO 2: AVISOS & PRANCHETA (COM BOTÕES IDÊNTICOS À FOTO 3)
