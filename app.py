@@ -446,7 +446,7 @@ def carregar_dados_mobile_otimizados():
     if d_baf.empty:
         d_baf = carregar_dados_nuvem("Auditoria_Bafometro", cabecalho=0)
     d_frot = carregar_dados_nuvem("Historico_DKRO", cabecalho=0)
-        d_bal, _ = carregar_tabela_cega("Balanco_Expedicao_Destino", "DESTINO")
+    d_bal, _ = carregar_tabela_cega("Balanco_Expedicao_Destino", "DESTINO")
     d_pat, h_pat = carregar_tabela_cega("Patio_Destino_Status", "DESTINO")
     d_tr, _ = carregar_tabela_cega("Status_TR", "PLACA")
     d_sinal, h_sinal = carregar_tabela_cega("Sinal_de_Vida", "APLICATIVO")
@@ -455,6 +455,7 @@ def carregar_dados_mobile_otimizados():
     return d_dash, d_qual, d_alert, d_cache, d_virada, d_bal, d_baf, d_frot, d_pran, d_pat, h_pat, d_tr, d_sinal, h_sinal, d_prev, h_prev
 
 df_dash, df_qual, df_alertas, df_cache, df_status_virada, df_balanco_dest, df_bafometro, df_frota, df_prancheta, df_patio_dest, hora_att_patio, df_status_tr, df_sinal_vida, hora_att_sinal, df_prev_insp, hora_att_prev = carregar_dados_mobile_otimizados()
+
 
 
 
