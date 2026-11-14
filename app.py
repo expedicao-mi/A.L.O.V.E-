@@ -1231,60 +1231,61 @@ html_exp_completo = f"""
         box-shadow: 0 0 10px rgba(56, 189, 248, 0.35);
     }}
 
-                /* 🍏 SWITCH DESLIZANTE IOS NATIVO */
-    details:not([open]) .ios-slider-capsule {
+            /* 🍏 SWITCH DESLIZANTE IOS NATIVO (TOQUE AMPLIADO MOBILE) */
+    details:not([open]) .ios-slider-capsule {{
         display: none !important;
-    }
-    details[open] .ios-slider-capsule {
+    }}
+    details[open] .ios-slider-capsule {{
         display: inline-flex !important;
         position: relative !important;
         align-items: center !important;
         background: #060b14 !important;
         border: 1.5px solid #142842 !important;
         border-radius: 999px !important;
-        padding: 2px !important;
-        margin-right: 22px !important;
-        width: 154px !important;
-        height: 28px !important;
+        padding: 3px !important;
+        margin-right: 24px !important;
+        width: 174px !important;
+        height: 38px !important;
         box-sizing: border-box !important;
         flex-shrink: 0 !important;
         user-select: none !important;
         -webkit-user-select: none !important;
         transition: all 0.3s ease;
-    }
+    }}
 
-    .ios-slider-thumb {
+    .ios-slider-thumb {{
         position: absolute;
-        top: 2px;
-        left: 2px;
-        width: 73px;
-        height: 20px;
+        top: 3px;
+        left: 3px;
+        width: 82px;
+        height: 29px;
         background: #00D672;
         border-radius: 999px;
         box-shadow: 0 0 10px rgba(0, 214, 114, 0.45);
         transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
         z-index: 1;
         pointer-events: none;
-    }
+    }}
 
-    #day_ontem:checked ~ details .ios-slider-thumb {
-        transform: translateX(75px);
-    }
+    #day_ontem:checked ~ details .ios-slider-thumb {{
+        transform: translateX(83px);
+    }}
 
     /* Textos dos botões sobrepostos */
-    .ios-slider-btn {
+    .ios-slider-btn {{
         position: relative;
         flex: 1;
         text-align: center;
-        font-size: 0.68rem;
+        font-size: 0.78rem;
         font-weight: 800;
-        line-height: 20px;
+        line-height: 29px;
         cursor: pointer;
         z-index: 2;
         transition: color 0.25s ease;
         white-space: nowrap;
         -webkit-tap-highlight-color: transparent;
-    }
+    }}
+
 
     #day_hoje:checked ~ details .btn-txt-hoje {{ color: #0a101d !important; }}
     #day_hoje:checked ~ details .btn-txt-ontem {{ color: #64748b !important; }}
