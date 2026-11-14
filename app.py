@@ -278,8 +278,16 @@ def carregar_dados_nuvem(worksheet_name: str, cabecalho=0):
 def carregar_tabela_cega(worksheet_name: str, coluna_chave: str = "DESTINO"):
     """
     Lê abas do Google Sheets de forma 100% segura usando gspread,
+    fazendo busca flexível no nome da aba (ignora acentos, cedilha e espaços),
     identificando a linha do cabeçalho e extraindo o carimbo da Linha 1.
     """
+    import os
+    import unicodedata
+
+    def norm_txt(s):
+        s_str = str(s).strip().upper()
+        return "".join(c for c in unicodedata.normalize("NFD", s_str) if unicodedata.category(c) != "Mn")
+
     try:
         if hasattr(st, "secrets") and "gcp_service_account" in st.secrets:
             dados_secret = dict(st.secrets["gcp_service_account"])
@@ -290,28 +298,48 @@ def carregar_tabela_cega(worksheet_name: str, coluna_chave: str = "DESTINO"):
             return pd.DataFrame(), None
 
         planilha = cliente.open_by_key(SHEET_ID)
-        aba = planilha.worksheet(worksheet_name)
-        linhas = aba.get_all_values()
+        alvo_norm = norm_txt(worksheet_name)
+        aba = None
 
+        # 1. Tenta match exato normalizado (ignora acento/cedilha/espaço)
+        todas_abas = planilha.worksheets()
+        for ws in todas_abas:
+            if norm_txt(ws.title) == alvo_norm:
+                aba = ws
+                break
+
+        # 2. Se não achar exato, tenta match parcial (ex: Preventiva_Inspeção_Core)
+        if aba is None:
+            termo_busca = alvo_norm.split("_")[0]
+            for ws in todas_abas:
+                if termo_busca and termo_busca in norm_txt(ws.title):
+                    aba = ws
+                    break
+
+        if aba is None:
+            return pd.DataFrame(), None
+
+        linhas = aba.get_all_values()
         if not linhas:
             return pd.DataFrame(), None
 
-        # 1. Resgata carimbo de atualização se estiver na Linha 1
+        # 3. Resgata carimbo de atualização se estiver na Linha 1 ou na última coluna
         carimbo_att = None
         if len(linhas) > 0 and len(linhas[0]) >= 2:
-            if "ATUALIZADO" in str(linhas[0][0]).upper():
+            if "ATUALIZADO" in norm_txt(linhas[0][0]):
                 carimbo_att = str(linhas[0][1]).strip()
 
-        # 2. Localiza a linha do cabeçalho que contém a coluna_chave
+        # 4. Localiza a linha do cabeçalho que contém a coluna_chave
         header_idx = -1
+        chave_norm = norm_txt(coluna_chave)
         for i, row in enumerate(linhas[:10]):
-            row_vals = [str(x).strip().upper() for x in row]
-            if coluna_chave.upper() in row_vals:
+            row_vals = [norm_txt(x) for x in row]
+            if chave_norm in row_vals:
                 header_idx = i
                 break
 
         if header_idx != -1:
-            cabecalho = [str(c).strip().upper() for c in linhas[header_idx]]
+            cabecalho = [norm_txt(c) for c in linhas[header_idx]]
             dados = []
             for row in linhas[header_idx + 1:]:
                 if not any(str(c).strip() for c in row):
@@ -321,15 +349,21 @@ def carregar_tabela_cega(worksheet_name: str, coluna_chave: str = "DESTINO"):
                 elif len(row) > len(cabecalho):
                     row = row[:len(cabecalho)]
                 dados.append(row)
-            
+
             df = pd.DataFrame(dados, columns=cabecalho)
             df = df.loc[:, df.columns != ""].reset_index(drop=True)
+
+            # Se carimbo não estava na Linha 1, busca na coluna ULTIMA_ATUALIZACAO (linha 1 de dados)
+            if not carimbo_att and "ULTIMA_ATUALIZACAO" in df.columns and not df.empty:
+                carimbo_att = str(df.iloc[0]["ULTIMA_ATUALIZACAO"]).strip()
+
             return df, carimbo_att
 
-    except Exception as e:
-        st.warning(f"⚠️ Erro ao ler aba {worksheet_name}: {e}")
+    except Exception:
+        pass
 
     return pd.DataFrame(), None
+
 
 # ==============================================================================
 # 📋 LEITURA BLINDADA DA PRANCHETA (COM GID DIRETO DA ABA)
