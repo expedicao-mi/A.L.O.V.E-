@@ -446,14 +446,16 @@ def carregar_dados_mobile_otimizados():
     if d_baf.empty:
         d_baf = carregar_dados_nuvem("Auditoria_Bafometro", cabecalho=0)
     d_frot = carregar_dados_nuvem("Historico_DKRO", cabecalho=0)
-    d_bal, _ = carregar_tabela_cega("Balanco_Expedicao_Destino", "DESTINO")
+        d_bal, _ = carregar_tabela_cega("Balanco_Expedicao_Destino", "DESTINO")
     d_pat, h_pat = carregar_tabela_cega("Patio_Destino_Status", "DESTINO")
     d_tr, _ = carregar_tabela_cega("Status_TR", "PLACA")
     d_sinal, h_sinal = carregar_tabela_cega("Sinal_de_Vida", "APLICATIVO")
+    d_prev, h_prev = carregar_tabela_cega("Preventiva_Inspecao", "TAG")
     d_pran = carregar_prancheta_direto()
-    return d_dash, d_qual, d_alert, d_cache, d_virada, d_bal, d_baf, d_frot, d_pran, d_pat, h_pat, d_tr, d_sinal, h_sinal
+    return d_dash, d_qual, d_alert, d_cache, d_virada, d_bal, d_baf, d_frot, d_pran, d_pat, h_pat, d_tr, d_sinal, h_sinal, d_prev, h_prev
 
-df_dash, df_qual, df_alertas, df_cache, df_status_virada, df_balanco_dest, df_bafometro, df_frota, df_prancheta, df_patio_dest, hora_att_patio, df_status_tr, df_sinal_vida, hora_att_sinal = carregar_dados_mobile_otimizados()
+df_dash, df_qual, df_alertas, df_cache, df_status_virada, df_balanco_dest, df_bafometro, df_frota, df_prancheta, df_patio_dest, hora_att_patio, df_status_tr, df_sinal_vida, hora_att_sinal, df_prev_insp, hora_att_prev = carregar_dados_mobile_otimizados()
+
 
 
 cache_dict = {str(row.iloc[0]).strip(): str(row.iloc[1]).strip() for _, row in df_cache.iterrows()} if not df_cache.empty else {}
@@ -1944,36 +1946,272 @@ render_html(html_est)
 
 
 # ==============================================================================
-# 🖨️ RENDERIZAÇÃO 8: FROTA E EQUIPAMENTOS (DKRO)
+# 🖨️ RENDERIZAÇÃO 8: FROTA, DISPONIBILIDADE, HORÍMETRO & PREVENTIVA/INSPEÇÃO
 # ==============================================================================
+# 1. Processamento Checklist DKRO (Hoje e Ontem)
 frota_agr = {"h": {"e": [], "t": []}, "o": {"e": [], "t": []}}
+avarias_hoje_map = {}
+
 if not df_frota.empty and len(df_frota.columns) >= 7:
     for _, r in df_frota.iterrows():
         try:
-            dt, tp, eq, cd = str(r.iloc[1]).strip(), str(r.iloc[5]).strip().upper(), str(r.iloc[6]).strip().upper(), str(r.iloc[8]).strip().upper() if len(r)>8 else "OK"
-            if not eq or eq in ["NAN", "NONE", ""]: continue
+            dt = str(r.iloc[1]).strip()
+            tp = str(r.iloc[5]).strip().upper()
+            eq = str(r.iloc[6]).strip().upper()
+            cd = str(r.iloc[8]).strip().upper() if len(r) > 8 else "OK"
+            if not eq or eq in ["NAN", "NONE", ""]:
+                continue
             dto = pd.to_datetime(dt, format="%d/%m/%Y %H:%M:%S", errors="coerce")
-            if pd.isna(dto): dto = pd.to_datetime(dt, errors="coerce", dayfirst=True)
-            if pd.isna(dto): continue
-            
+            if pd.isna(dto):
+                dto = pd.to_datetime(dt, errors="coerce", dayfirst=True)
+            if pd.isna(dto):
+                continue
+
             dk = "h" if dto.date() == hoje_date else ("o" if dto.date() == ontem_date else None)
-            if not dk: continue
-            
+            if not dk:
+                continue
+
             ck = "t" if "TALHA" in tp or "PONTE" in tp or "TALHA" in eq else "e"
             cnd = "AVARIA" if "AVARIA" in cd else ("ATENÇÃO" if "ATEN" in cd else "OK")
-            
+
+            if dk == "h":
+                prev_c = avarias_hoje_map.get(eq, "OK")
+                if cnd == "AVARIA" or prev_c == "AVARIA":
+                    avarias_hoje_map[eq] = "AVARIA"
+                elif cnd == "ATENÇÃO" or prev_c == "ATENÇÃO":
+                    avarias_hoje_map[eq] = "ATENÇÃO"
+                else:
+                    avarias_hoje_map[eq] = "OK"
+
             exist = next((i for i in frota_agr[dk][ck] if i['eq'] == eq), None)
             if exist:
-                if cnd == "AVARIA": exist['c'] = "AVARIA"
-                elif cnd == "ATENÇÃO" and exist['c'] != "AVARIA": exist['c'] = "ATENÇÃO"
+                if cnd == "AVARIA":
+                    exist['c'] = "AVARIA"
+                elif cnd == "ATENÇÃO" and exist['c'] != "AVARIA":
+                    exist['c'] = "ATENÇÃO"
             else:
                 frota_agr[dk][ck].append({"eq": eq, "c": cnd})
-        except: pass
+        except Exception:
+            pass
 
 v_hoje = len(frota_agr['h']['e']) + len(frota_agr['h']['t'])
 
+# 2. Processamento Preventiva_Inspecao (Disponibilidade, Horímetro e Manutenção)
+equip_operacao = []
+equip_standby = []
+equip_manutencao = []
+qtd_criticos_prev = 0
+
+def formatar_horimetro_ou_data(val_raw):
+    s = str(val_raw).strip()
+    if not s or s.upper() in ["NAN", "NONE", "--", "-"]:
+        return "--"
+    if "/" in s:
+        return s[:10]
+    num = safe_to_numeric(s)
+    if num > 0:
+        return f"{fmt(num)} h"
+    return s
+
+def peso_severidade(alerta_str):
+    a = str(alerta_str).upper()
+    if "VENCIDA" in a:
+        return 0
+    if "CRÍTICO" in a or "CRITICO" in a:
+        return 1
+    if "ATENÇÃO" in a or "ATENCAO" in a or "PRÓXIMA" in a or "PROXIMA" in a:
+        return 2
+    if "NORMAL" in a or "EM DIA" in a:
+        return 3
+    return 4
+
+if not df_prev_insp.empty and "TAG" in df_prev_insp.columns:
+    for _, rp in df_prev_insp.iterrows():
+        tag = str(rp.get("TAG", "")).strip().upper()
+        if not tag or tag in ["NAN", "NONE", "TAG"]:
+            continue
+
+        tipo_eq = str(rp.get("TIPO_EQUIPAMENTO", "--")).strip()
+        st_op = str(rp.get("STATUS_OPERACAO", "")).strip().upper()
+        disp = str(rp.get("DISPONIBILIDADE", "ONLINE")).strip().upper()
+        horim_str = formatar_horimetro_ou_data(rp.get("HORIMETRO_ATUAL", "--"))
+        meta_prev = formatar_horimetro_ou_data(rp.get("META_PREVENTIVA", "--"))
+        saldo_prev = str(rp.get("SALDO_PREVENTIVA", "--")).strip()
+        alerta_prev = str(rp.get("ALERTA_PREVENTIVA", "--")).strip()
+        om_prev = str(rp.get("OM_PREVENTIVA", "--")).strip()
+
+        alerta_insp = str(rp.get("ALERTA_INSPECAO", "SEM META")).strip()
+        om_insp = str(rp.get("OM_INSPECAO", "--")).strip()
+
+        sev_p = peso_severidade(alerta_prev)
+        sev_i = peso_severidade(alerta_insp)
+        sev_geral = min(sev_p, sev_i)
+        if sev_geral <= 1:
+            qtd_criticos_prev += 1
+
+        cnd_dkro = avarias_hoje_map.get(tag, "OK")
+
+        obj_eq = {
+            "tag": tag,
+            "tipo": tipo_eq,
+            "st_op": st_op,
+            "disp": disp,
+            "horimetro": horim_str,
+            "meta_prev": meta_prev,
+            "saldo_prev": saldo_prev,
+            "alerta_prev": alerta_prev,
+            "om_prev": om_prev,
+            "alerta_insp": alerta_insp,
+            "om_insp": om_insp,
+            "sev": sev_geral,
+            "dkro": cnd_dkro,
+        }
+
+        if "OFFLINE" in disp or "MANUT" in st_op or "INDISP" in disp or cnd_dkro == "AVARIA":
+            equip_manutencao.append(obj_eq)
+        elif "OPER" in st_op:
+            equip_operacao.append(obj_eq)
+        else:
+            equip_standby.append(obj_eq)
+
+    equip_operacao.sort(key=lambda x: x["tag"])
+    equip_standby.sort(key=lambda x: x["tag"])
+    equip_manutencao.sort(key=lambda x: x["tag"])
+
+todos_equip = sorted(equip_operacao + equip_standby + equip_manutencao, key=lambda x: (x["sev"], x["tag"]))
+total_frota_cad = len(todos_equip)
+total_disponiveis = len(equip_operacao) + len(equip_standby)
+
+# 3. Renderização Aba 1: Disponibilidade & Horímetros
+def render_cards_disponibilidade(lista, cor_borda, badge_txt, badge_cor):
+    if not lista:
+        return '<div style="color:#64748b; font-size:0.78rem; padding:10px; text-align:center;">Nenhum equipamento neste status.</div>'
+    h = '<div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">'
+    for item in lista:
+        alerta_mini = ""
+        if item["sev"] <= 1:
+            alerta_mini = '<span style="color:#E74C3C; font-size:0.65rem; font-weight:800;">🚨 PREV. CRÍTICA</span>'
+        elif item["sev"] == 2:
+            alerta_mini = '<span style="color:#FFD600; font-size:0.65rem; font-weight:800;">⚠️ PREV. PRÓXIMA</span>'
+        elif item["dkro"] == "ATENÇÃO":
+            alerta_mini = '<span style="color:#FFD600; font-size:0.65rem; font-weight:800;">⚠️ CHECKLIST ATEN.</span>'
+        else:
+            alerta_mini = f'<span style="color:#64748b; font-size:0.65rem;">{html_lib.escape(item["tipo"])}</span>'
+
+        h += f"""
+        <div style="background:#070d18; border:1px solid #1c2b42; border-left:3.5px solid {cor_borda}; border-radius:10px; padding:9px 10px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                <b style="color:#ffffff; font-size:0.84rem;">{html_lib.escape(item['tag'])}</b>
+                <span style="color:{badge_cor}; font-size:0.62rem; font-weight:800;">{badge_txt}</span>
+            </div>
+            <div style="margin-bottom:4px;">{alerta_mini}</div>
+            <div style="border-top:1px dashed #1c2b42; padding-top:5px; display:flex; justify-content:space-between; align-items:center; font-size:0.72rem;">
+                <span style="color:#94a3b8;">Horímetro:</span>
+                <b style="color:#38bdf8; font-family:monospace; font-size:0.78rem;">{html_lib.escape(item['horimetro'])}</b>
+            </div>
+        </div>
+        """
+    h += "</div>"
+    return h
+
+html_aba_disp = f"""
+<div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px; margin-bottom:12px; text-align:center;">
+    <div style="background:#070d18; border:1px solid #142842; border-radius:10px; padding:8px 4px;">
+        <div style="color:#00D672; font-size:1.25rem; font-weight:800; line-height:1.1;">{len(equip_operacao)}</div>
+        <div style="color:#94a3b8; font-size:0.65rem; font-weight:700; text-transform:uppercase; margin-top:2px;">Em Operação</div>
+    </div>
+    <div style="background:#070d18; border:1px solid #142842; border-radius:10px; padding:8px 4px;">
+        <div style="color:#38bdf8; font-size:1.25rem; font-weight:800; line-height:1.1;">{len(equip_standby)}</div>
+        <div style="color:#94a3b8; font-size:0.65rem; font-weight:700; text-transform:uppercase; margin-top:2px;">Stand-By</div>
+    </div>
+    <div style="background:#070d18; border:1px solid #142842; border-radius:10px; padding:8px 4px;">
+        <div style="color:#E74C3C; font-size:1.25rem; font-weight:800; line-height:1.1;">{len(equip_manutencao)}</div>
+        <div style="color:#94a3b8; font-size:0.65rem; font-weight:700; text-transform:uppercase; margin-top:2px;">Avaria / Off</div>
+    </div>
+</div>
+
+<div style="font-size:0.74rem; font-weight:800; color:#00D672; text-transform:uppercase; margin-bottom:8px;">
+    🟢 EM OPERAÇÃO AGORA ({len(equip_operacao)})
+</div>
+<div style="margin-bottom:14px;">
+    {render_cards_disponibilidade(equip_operacao, "#00D672", "OPERANDO", "#00D672")}
+</div>
+
+<div style="font-size:0.74rem; font-weight:800; color:#38bdf8; text-transform:uppercase; margin-bottom:8px;">
+    🔵 DISPONÍVEIS / STAND-BY ({len(equip_standby)})
+</div>
+<div style="margin-bottom:14px;">
+    {render_cards_disponibilidade(equip_standby, "#38bdf8", "STAND BY", "#38bdf8")}
+</div>
+"""
+
+if equip_manutencao:
+    html_aba_disp += f"""
+    <div style="font-size:0.74rem; font-weight:800; color:#E74C3C; text-transform:uppercase; margin-bottom:8px;">
+        🔴 COM AVARIA / INDISPONÍVEIS ({len(equip_manutencao)})
+    </div>
+    <div>
+        {render_cards_disponibilidade(equip_manutencao, "#E74C3C", "BLOQUEADO", "#E74C3C")}
+    </div>
+    """
+
+# 4. Renderização Aba 2: Preventiva & Inspeção
+def estilo_alerta_manut(txt):
+    t = str(txt).upper()
+    if "VENCIDA" in t or "CRÍTICO" in t or "CRITICO" in t:
+        return "#E74C3C", "rgba(231, 76, 60, 0.16)"
+    if "ATENÇÃO" in t or "ATENCAO" in t or "PRÓXIMA" in t or "PROXIMA" in t:
+        return "#FFD600", "rgba(255, 214, 0, 0.15)"
+    if "SEM META" in t or t in ["--", "NAN", ""]:
+        return "#64748b", "rgba(100, 116, 139, 0.12)"
+    return "#00D672", "rgba(0, 214, 114, 0.15)"
+
+html_aba_prev = ""
+if todos_equip:
+    for item in todos_equip:
+        c_prev, bg_prev = estilo_alerta_manut(item["alerta_prev"])
+        c_insp, bg_insp = estilo_alerta_manut(item["alerta_insp"])
+        borda_esq = c_prev if item["sev"] <= 2 else "#1c2b42"
+
+        om_p_txt = f" • OM: <b>{html_lib.escape(item['om_prev'])}</b>" if item["om_prev"] not in ["--", "", "nan", "None"] else ""
+        om_i_txt = f" • OM: <b>{html_lib.escape(item['om_insp'])}</b>" if item["om_insp"] not in ["--", "", "nan", "None"] else ""
+
+        html_aba_prev += f"""
+        <div style="background:#070d18; border:1px solid #142842; border-left:4px solid {borda_esq}; border-radius:11px; padding:10px 12px; margin-bottom:8px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                <div>
+                    <b style="color:#ffffff; font-size:0.88rem;">{html_lib.escape(item['tag'])}</b>
+                    <span style="color:#64748b; font-size:0.70rem; margin-left:6px;">{html_lib.escape(item['tipo'])}</span>
+                </div>
+                <div style="font-size:0.74rem; color:#94a3b8;">
+                    Horím: <b style="color:#38bdf8; font-family:monospace;">{html_lib.escape(item['horimetro'])}</b>
+                </div>
+            </div>
+
+            <!-- Linha Preventiva -->
+            <div style="display:flex; justify-content:space-between; align-items:center; background:#050911; border-radius:7px; padding:5px 8px; margin-bottom:5px; font-size:0.72rem;">
+                <span style="color:#cbd5e1;">🔧 <b>Preventiva</b> (Meta: {html_lib.escape(item['meta_prev'])}){om_p_txt}</span>
+                <span style="background:{bg_prev}; color:{c_prev}; border:1px solid {c_prev}; font-weight:800; font-size:0.65rem; padding:2px 7px; border-radius:999px; white-space:nowrap;">
+                    {html_lib.escape(item['alerta_prev'])}
+                </span>
+            </div>
+
+            <!-- Linha Inspeção -->
+            <div style="display:flex; justify-content:space-between; align-items:center; background:#050911; border-radius:7px; padding:5px 8px; font-size:0.72rem;">
+                <span style="color:#cbd5e1;">🔍 <b>Inspeção</b>{om_i_txt}</span>
+                <span style="background:{bg_insp}; color:{c_insp}; border:1px solid {c_insp}; font-weight:800; font-size:0.65rem; padding:2px 7px; border-radius:999px; white-space:nowrap;">
+                    {html_lib.escape(item['alerta_insp'])}
+                </span>
+            </div>
+        </div>
+        """
+else:
+    html_aba_prev = '<div style="color:#64748b; font-size:0.8rem; text-align:center; padding:14px;">Aguardando dados da aba Preventiva_Inspecao...</div>'
+
+# 5. Renderização Aba 3: Checklist DKRO (Tags Hoje e Ontem)
 def rnd_tg(lst):
-    if not lst: return "<span style='color:#64748b; font-size:0.8rem;'>Nenhum registro.</span>"
+    if not lst:
+        return "<span style='color:#64748b; font-size:0.8rem;'>Nenhum registro.</span>"
     lst.sort(key=lambda x: x['eq'])
     r = ""
     for i in lst:
@@ -1981,38 +2219,114 @@ def rnd_tg(lst):
         r += f"<span class='tag-box {cl}'>{i['eq']}</span> "
     return r
 
+html_aba_dkro = f"""
+<div style="font-size:0.75rem; font-weight:bold; color:#00D672; text-transform:uppercase; margin-bottom:8px;">📅 LOGADOS HOJE ({hoje_date.strftime('%d/%m')})</div>
+<div style="background-color:#05080f; padding:12px; border-radius:8px; border:1px solid #1c2b42; margin-bottom:14px;">
+    <div class="f-tag-title">🟢 Empilhadeiras ({len(frota_agr['h']['e'])})</div>
+    <div style="margin-bottom:12px;">{rnd_tg(frota_agr['h']['e'])}</div>
+    <div class="f-tag-title">🏗️ Talhas / Pontes ({len(frota_agr['h']['t'])})</div>
+    <div>{rnd_tg(frota_agr['h']['t'])}</div>
+</div>
+<div style="font-size:0.75rem; font-weight:bold; color:#38bdf8; text-transform:uppercase; margin-bottom:8px;">⏮️ LOGADOS ONTEM ({ontem_date.strftime('%d/%m')})</div>
+<div style="background-color:#05080f; padding:12px; border-radius:8px; border:1px solid #1c2b42; margin-bottom:14px;">
+    <div class="f-tag-title">🟢 Empilhadeiras ({len(frota_agr['o']['e'])})</div>
+    <div style="margin-bottom:12px;">{rnd_tg(frota_agr['o']['e'])}</div>
+    <div class="f-tag-title">🏗️ Talhas / Pontes ({len(frota_agr['o']['t'])})</div>
+    <div>{rnd_tg(frota_agr['o']['t'])}</div>
+</div>
+<div class="f-legenda">
+    <div class="f-leg-titulo">🎨 Legenda das cores</div>
+    <div class="f-leg-item"><span class="f-leg-cor f-tag-ok"></span><span><b>Verde</b> — OK: sem avarias apontadas</span></div>
+    <div class="f-leg-item"><span class="f-leg-cor f-tag-aten"></span><span><b>Amarelo</b> — Atenção: item apontado no checklist</span></div>
+    <div class="f-leg-item"><span class="f-leg-cor f-tag-avaria"></span><span><b>Vermelho</b> — Avaria: equipamento bloqueado/quebrado</span></div>
+</div>
+"""
+
+txt_base_prev = f" | 🕒 Base: {hora_att_prev.split(' ')[1][:5]}" if hora_att_prev and " " in hora_att_prev else ""
+
 html_frota = f"""
-<details class="master-box" style="border-left-color:#E67E22;">
-    <summary>
-        <div class="header-layout"><div class="icon-box" style="background-color:rgba(230,126,34,.15); color:#E67E22;">🚜</div><div class="master-metric-title">Frota e Equipamentos</div></div>
-        <div class="value-layout"><div class="master-metric-val">{v_hoje}</div><div class="master-metric-unit">Veículos Logados Hoje</div></div>
-        <div class="master-metric-sub" style="color:#E67E22;">Empilhadeiras e Talhas Elétricas</div>
-    </summary>
-    <div class="master-content" style="padding-top:16px;">
-        <div style="font-size:0.75rem; font-weight:bold; color:#00D672; text-transform:uppercase; margin-bottom:8px;">📅 LOGADOS HOJE ({hoje_date.strftime('%d/%m')})</div>
-        <div style="background-color:#05080f; padding:12px; border-radius:8px; border:1px solid #1c2b42; margin-bottom:16px;">
-            <div class="f-tag-title">🟢 Empilhadeiras ({len(frota_agr['h']['e'])})</div>
-            <div style="margin-bottom:12px;">{rnd_tg(frota_agr['h']['e'])}</div>
-            <div class="f-tag-title">🏗️ Talhas / Pontes ({len(frota_agr['h']['t'])})</div>
-            <div>{rnd_tg(frota_agr['h']['t'])}</div>
+<style>
+    .frota-wrapper input[type="radio"] {{ display: none !important; }}
+    .frota-tab-bar {{
+        display: flex;
+        gap: 6px;
+        margin-bottom: 14px;
+    }}
+    .frota-tab-bar label {{
+        flex: 1;
+        text-align: center;
+        padding: 9px 4px;
+        font-size: 0.72rem;
+        font-weight: 800;
+        color: #94a3b8;
+        background: #070d18;
+        border: 1.5px solid #1c2b42;
+        border-radius: 10px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        white-space: nowrap;
+        -webkit-tap-highlight-color: transparent;
+    }}
+    #fr_tab_disp:checked ~ details .lbl-fr-disp {{
+        background: #00D672 !important;
+        color: #0a101d !important;
+        border-color: #00D672 !important;
+        box-shadow: 0 0 10px rgba(0, 214, 114, 0.35);
+    }}
+    #fr_tab_prev:checked ~ details .lbl-fr-prev {{
+        background: #E67E22 !important;
+        color: #ffffff !important;
+        border-color: #E67E22 !important;
+        box-shadow: 0 0 10px rgba(230, 126, 34, 0.35);
+    }}
+    #fr_tab_dkro:checked ~ details .lbl-fr-dkro {{
+        background: #38bdf8 !important;
+        color: #0a101d !important;
+        border-color: #38bdf8 !important;
+        box-shadow: 0 0 10px rgba(56, 189, 248, 0.35);
+    }}
+    .fr-view-disp, .fr-view-prev, .fr-view-dkro {{ display: none; }}
+    #fr_tab_disp:checked ~ details .fr-view-disp {{ display: block; }}
+    #fr_tab_prev:checked ~ details .fr-view-prev {{ display: block; }}
+    #fr_tab_dkro:checked ~ details .fr-view-dkro {{ display: block; }}
+</style>
+
+<div class="frota-wrapper">
+    <input type="radio" name="frota_view" id="fr_tab_disp" checked>
+    <input type="radio" name="frota_view" id="fr_tab_prev">
+    <input type="radio" name="frota_view" id="fr_tab_dkro">
+
+    <details class="master-box" style="border-left-color:#E67E22;">
+        <summary>
+            <div class="header-layout">
+                <div class="icon-box" style="background-color:rgba(230,126,34,.15); color:#E67E22;">🚜</div>
+                <div class="master-metric-title">Frota, Horímetros & Manutenção{txt_base_prev}</div>
+            </div>
+            <div class="value-layout">
+                <div class="master-metric-val">{total_disponiveis if total_frota_cad > 0 else v_hoje}</div>
+                <div class="master-metric-unit">Equipamentos Disponíveis</div>
+            </div>
+            <div class="master-metric-sub" style="color:#E67E22; font-weight:700;">
+                🟢 {len(equip_operacao)} Operando &bull; 🔵 {len(equip_standby)} Stand-By &bull; 🚨 {qtd_criticos_prev} Prev. Críticas
+            </div>
+        </summary>
+
+        <div class="master-content" style="padding-top:14px;">
+            <div class="frota-tab-bar">
+                <label for="fr_tab_disp" class="lbl-fr-disp">🚜 Disponível ({total_disponiveis})</label>
+                <label for="fr_tab_prev" class="lbl-fr-prev">🔧 Prev./Insp. ({qtd_criticos_prev})</label>
+                <label for="fr_tab_dkro" class="lbl-fr-dkro">📋 DKRO ({v_hoje})</label>
+            </div>
+
+            <div class="fr-view-disp">{html_aba_disp}</div>
+            <div class="fr-view-prev">{html_aba_prev}</div>
+            <div class="fr-view-dkro">{html_aba_dkro}</div>
         </div>
-        <div style="font-size:0.75rem; font-weight:bold; color:#38bdf8; text-transform:uppercase; margin-bottom:8px;">⏮️ LOGADOS ONTEM ({ontem_date.strftime('%d/%m')})</div>
-        <div style="background-color:#05080f; padding:12px; border-radius:8px; border:1px solid #1c2b42; margin-bottom:16px;">
-            <div class="f-tag-title">🟢 Empilhadeiras ({len(frota_agr['o']['e'])})</div>
-            <div style="margin-bottom:12px;">{rnd_tg(frota_agr['o']['e'])}</div>
-            <div class="f-tag-title">🏗️ Talhas / Pontes ({len(frota_agr['o']['t'])})</div>
-            <div>{rnd_tg(frota_agr['o']['t'])}</div>
-        </div>
-        <div class="f-legenda">
-            <div class="f-leg-titulo">🎨 Legenda das cores</div>
-            <div class="f-leg-item"><span class="f-leg-cor f-tag-ok"></span><span><b>Verde</b> — OK: sem avarias apontadas</span></div>
-            <div class="f-leg-item"><span class="f-leg-cor f-tag-aten"></span><span><b>Amarelo</b> — Atenção: item apontado no checklist</span></div>
-            <div class="f-leg-item"><span class="f-leg-cor f-tag-avaria"></span><span><b>Vermelho</b> — Avaria: equipamento bloqueado/quebrado</span></div>
-        </div>
-    </div>
-</details>
+    </details>
+</div>
 """
 render_html(html_frota)
+
 
 
 
