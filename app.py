@@ -636,22 +636,31 @@ if not df_status_virada.empty:
             "status_email": str(row_st.get("STATUS_EMAIL_TROCA", "N/D"))
         }
 
+qualidade_json = parse_robusto(cache_dict.get("qualidade", "{}"))
+
 dados_maquinas = {"MS1": {}, "MS2": {}}
-if not df_qual.empty:
-    for _, r_q in df_qual.iterrows():
-        m_nome = str(r_q.get("MAQUINA", "")).strip().upper()
-        if m_nome in dados_maquinas:
-            dados_maquinas[m_nome] = {
-                "material": str(r_q.get("MATERIAL", "--")),
-                "alvura": safe_to_numeric(r_q.get("ALVURA", 0)),
-                "sujidade": safe_to_numeric(r_q.get("SUJIDADE", 0)),
-                "viscosidade": safe_to_numeric(r_q.get("VISCOSIDADE", 0)),
-                "ph": safe_to_numeric(r_q.get("PH", 0)),
-                "producao": forcar_par(safe_to_numeric(r_q.get("PROD_TOTAL", 0))),
-                "l1": forcar_par(safe_to_numeric(r_q.get("PROD_LINHA_1", 0))),
-                "l2": forcar_par(safe_to_numeric(r_q.get("PROD_LINHA_2", 0))),
-                "desclassificando": str(r_q.get("DESCLASSIFICANDO", "NAO")).upper() == "SIM"
-            }
+for m_nome in ["MS1", "MS2"]:
+    q_m = qualidade_json.get(m_nome, qualidade_json.get(m_nome.lower(), {}))
+    if isinstance(q_m, dict) and q_m:
+        q_tipo = str(q_m.get("qualidade_tipo", "EQ")).strip().upper() or "EQ"
+        dados_maquinas[m_nome] = {
+            "material": str(q_m.get("material", "--")).strip(),
+            "qualidade_tipo": q_tipo,
+            "teor": safe_to_numeric(q_m.get("teor", 0)),
+            "alvura": safe_to_numeric(q_m.get("alvura", 0)),
+            "sujidade": safe_to_numeric(q_m.get("sujidade", 0)),
+            "viscosidade": safe_to_numeric(q_m.get("viscosidade", 0)),
+            "ph": safe_to_numeric(q_m.get("ph", 0)),
+            "producao": forcar_par(safe_to_numeric(q_m.get("producao", 0))),
+            "l1": forcar_par(safe_to_numeric(q_m.get("l1", 0))),
+            "l2": forcar_par(safe_to_numeric(q_m.get("l2", 0))),
+            "desclassificando": q_tipo in ["SQ", "OS", "BQ"]
+        }
+
+soma_prod_json = dados_maquinas["MS1"].get("producao", 0) + dados_maquinas["MS2"].get("producao", 0)
+if soma_prod_json > 0:
+    prod_hoje_calc = forcar_par(soma_prod_json)
+
 
 # ==============================================================================
 # ⚙️ PROCESSAMENTO: EXPEDIÇÃO (BALANÇO DESTINOS)
@@ -1023,13 +1032,14 @@ render_html(html_patio)
 
 
 # ==============================================================================
-# 🖨️ RENDERIZAÇÃO 5: PRODUÇÃO DE CELULOSE (LAYOUT MODERNO COM LEDS E BARRAS)
+# 🖨️ RENDERIZAÇÃO 5: PRODUÇÃO DE CELULOSE (CLASSE EQ/SQ/OS REFLETIDA NO CARD)
 # ==============================================================================
 html_prod_content = ""
 for maq in ["MS1", "MS2"]:
     q_dados = dados_maquinas.get(maq, {})
     if q_dados:
         mat_maq = q_dados.get("material", "--")
+        q_tipo = q_dados.get("qualidade_tipo", "EQ")
         p_maq = q_dados.get("producao", 0)
         q_suj = q_dados.get('sujidade', 0.0)
         q_visc = q_dados.get('viscosidade', 0.0)
@@ -1037,16 +1047,25 @@ for maq in ["MS1", "MS2"]:
         q_ph = q_dados.get('ph', 0.0)
         l1 = q_dados.get('l1', 0)
         l2 = q_dados.get('l2', 0)
-        desclass = q_dados.get("desclassificando", False)
 
         c_alv = classificar_kpi_mobile(q_alvura, "alvura")
         c_suj = classificar_kpi_mobile(q_suj, "sujidade")
         c_vis = classificar_kpi_mobile(q_visc, "viscosidade")
         c_ph = classificar_kpi_mobile(q_ph, "ph")
 
-        # Cor de destaque e LED da máquina (Verde se OK / Vermelho se Desclassificando)
-        cor_status_maq = "#E74C3C" if desclass else "#00D672"
-        led_status = "🔴" if desclass else "🟢"
+        # Cor da máquina e da pílula guiada pela classificação real da linha 6 (EQ / SQ / OS)
+        if q_tipo in ["OS", "BQ"]:
+            cor_status_maq = "#E74C3C"
+            bg_pill_tipo = "rgba(231, 76, 60, 0.18)"
+            led_status = "🔴"
+        elif q_tipo == "SQ":
+            cor_status_maq = "#FFD600"
+            bg_pill_tipo = "rgba(255, 214, 0, 0.18)"
+            led_status = "🟡"
+        else:
+            cor_status_maq = "#00D672"
+            bg_pill_tipo = "rgba(0, 214, 114, 0.18)"
+            led_status = "🟢"
 
         lbl_l1 = "Linha A" if maq == "MS1" else "Linha C"
         lbl_l2 = "Linha B" if maq == "MS1" else "Linha D"
@@ -1057,16 +1076,17 @@ for maq in ["MS1", "MS2"]:
 
         html_prod_content += f"""
         <div style="background-color: #0c1524; border: 1.5px solid #1c2b42; border-left: 5px solid {cor_status_maq}; border-radius: 14px; padding: 14px 16px; margin-bottom: 14px; box-shadow: 0 4px 12px rgba(0,0,0,0.25);">
-            <!-- TOPO: IDENTIFICAÇÃO E LINHAS -->
+            <!-- TOPO: IDENTIFICAÇÃO, MATERIAL + CLASSE E LINHAS -->
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-                <!-- LADO ESQUERDO: MÁQUINA + MAT -->
-                <div style="display:flex; flex-direction:column; gap:4px;">
+                <!-- LADO ESQUERDO: MÁQUINA + MAT + CLASSE (EQ/SQ/OS) -->
+                <div style="display:flex; flex-direction:column; gap:5px;">
                     <div style="display:flex; align-items:center; gap:8px;">
                         <span style="color:#ffffff; font-weight:800; font-size:1.15rem; letter-spacing:0.3px;">⚙️ {maq}</span>
                         <span style="font-size:0.95rem;">{led_status}</span>
                     </div>
-                    <div style="color:#FF9F1C; font-weight:800; font-size:1.02rem;">
-                        📦 MAT: {mat_maq}
+                    <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                        <span style="color:#FF9F1C; font-weight:800; font-size:1.02rem;">📦 MAT: {mat_maq}</span>
+                        <span style="background:{bg_pill_tipo}; color:{cor_status_maq}; border:1px solid {cor_status_maq}; font-size:0.72rem; font-weight:900; padding:1px 7px; border-radius:6px; letter-spacing:0.5px;">{q_tipo}</span>
                     </div>
                 </div>
 
@@ -1116,7 +1136,7 @@ for maq in ["MS1", "MS2"]:
 
 html_prod_completo = f"""
 <div id="sec-prod"></div>
-<details class="master-box" style="border-left-color: #E5B800;" open>
+<details class="master-box" style="border-left-color: #E5B800;">
     <summary>
         <div class="header-layout">
             <div class="icon-box" style="background-color: rgba(229, 184, 0, 0.15); color: #E5B800;">🏭</div>
@@ -1135,6 +1155,7 @@ html_prod_completo = f"""
 </details>
 """
 render_html(html_prod_completo)
+
 
 
 # ==============================================================================
