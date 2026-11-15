@@ -1,4 +1,6 @@
 import streamlit as st
+import base64
+from pathlib import Path
 import pandas as pd
 from datetime import datetime, timedelta, date
 import urllib.parse
@@ -16,7 +18,8 @@ import gspread
 # ⚙️ CONFIGURAÇÃO DA PÁGINA
 # ==============================================================================
 LOGO_ALOVE_URL = "https://raw.githubusercontent.com/expedicao-mi/A.L.O.V.E-/main/app_icon.png"
-BANNER_TOPO_URL = "https://raw.githubusercontent.com/expedicao-mi/A.L.O.V.E-/main/logo_alove.jpg?v=99"
+BANNER_TOPO_PATH = Path(__file__).parent / "assets" / "alove_header.png"
+BANNER_TOPO_DATA = base64.b64encode(BANNER_TOPO_PATH.read_bytes()).decode("utf-8")
 SENHA_BAFOMETRO = "1000"
 
 st.set_page_config(
@@ -236,7 +239,7 @@ st.markdown("""
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
         @keyframes pulso { 0% { box-shadow: 0 0 0 0 rgba(0,214,114,.55); } 70% { box-shadow: 0 0 0 9px rgba(0,214,114,0); } 100% { box-shadow: 0 0 0 0 rgba(0,214,114,0); } }
     </style>
-""" + '\n\n/* =============================================================================\n   A.L.O.V.E. — CAMADA RESPONSIVA DESKTOP\n   Mantém os componentes e fluxos originais; amplia a experiência em telas grandes.\n   ============================================================================= */\n@media (min-width: 1100px) {\n    .block-container {\n        width: min(96vw, 1780px) !important;\n        max-width: 1780px !important;\n        padding: 1.25rem 2rem 4rem !important;\n        margin: 0 auto !important;\n    }\n\n    [data-testid="stAppViewContainer"], .stApp {\n        background:\n            radial-gradient(ellipse at 50% -15%, rgba(0,180,255,.13), transparent 42%),\n            linear-gradient(145deg, #081426 0%, #050911 58%, #07101d 100%) !important;\n    }\n\n    [data-testid="column"], [data-testid="stVerticalBlock"] {\n        overflow: visible !important;\n        clear: none !important;\n    }\n\n    .topo-banner {\n        margin: 0 0 18px 0 !important;\n        border: 1px solid #163b59 !important;\n        border-radius: 18px !important;\n        overflow: hidden !important;\n        box-shadow: 0 12px 36px rgba(0,0,0,.28);\n    }\n\n    .topo-banner img {\n        width: 100% !important;\n        max-height: 190px !important;\n        object-fit: cover !important;\n        object-position: center 48% !important;\n    }\n\n    .card-main, details.master-box,\n    [data-testid="stVerticalBlockBorderWrapper"] {\n        border-radius: 18px !important;\n        box-shadow: 0 10px 28px rgba(0,0,0,.22), 0 0 18px rgba(0,180,255,.06) !important;\n    }\n\n    .card-main { padding: 22px 24px !important; margin-bottom: 20px !important; }\n    details.master-box { margin-bottom: 20px !important; }\n    details.master-box > summary { padding: 20px 24px !important; }\n    .master-content { padding: 4px 24px 24px !important; }\n    .card-title { font-size: 1.12rem !important; }\n    .master-metric-val { font-size: 2.65rem !important; }\n    .kpi-duo { padding: 20px !important; }\n    .kpi-big { font-size: 2.8rem !important; }\n\n    .stButton > button {\n        min-height: 2.8rem !important;\n        transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease !important;\n    }\n    .stButton > button:hover {\n        transform: translateY(-2px);\n        border-color: #00D672 !important;\n        box-shadow: 0 8px 22px rgba(0,214,114,.16) !important;\n    }\n\n    details.st-card { transition: transform .18s ease, box-shadow .18s ease; }\n    details.st-card:hover {\n        transform: translateY(-2px);\n        box-shadow: 0 10px 24px rgba(0,0,0,.24);\n    }\n\n    .alove-desktop-nav {\n        position: sticky;\n        top: 8px;\n        z-index: 999;\n        display: flex;\n        align-items: center;\n        gap: 8px;\n        flex-wrap: wrap;\n        margin: 0 0 22px 0;\n        padding: 10px 12px;\n        border: 1px solid #163b59;\n        border-radius: 14px;\n        background: rgba(5, 13, 26, .92);\n        backdrop-filter: blur(14px);\n        box-shadow: 0 8px 24px rgba(0,0,0,.25);\n    }\n    .alove-desktop-nav .nav-brand {\n        color: #00D672;\n        font-weight: 900;\n        letter-spacing: 1.2px;\n        padding: 0 14px 0 8px;\n        border-right: 1px solid #1c3550;\n        margin-right: 4px;\n    }\n    .alove-desktop-nav a {\n        color: #cbd5e1 !important;\n        text-decoration: none !important;\n        font-size: .82rem;\n        font-weight: 750;\n        padding: 9px 13px;\n        border: 1px solid transparent;\n        border-radius: 9px;\n        transition: .18s ease;\n        white-space: nowrap;\n    }\n    .alove-desktop-nav a:hover {\n        color: #fff !important;\n        background: #10243b;\n        border-color: #12506e;\n    }\n    .alove-desktop-nav .nav-refresh {\n        margin-left: auto;\n        color: #00D672 !important;\n        border-color: rgba(0,214,114,.35);\n        background: rgba(0,214,114,.08);\n    }\n\n    [data-testid="stExpander"] {\n        border: 1px solid #163b59 !important;\n        border-radius: 14px !important;\n        background: rgba(8,17,31,.72) !important;\n    }\n\n    [data-testid="stDataFrame"], [data-testid="stTable"] {\n        border: 1px solid #163b59;\n        border-radius: 12px;\n        overflow: hidden;\n    }\n\n    /* Mais respiro entre blocos e melhor leitura em monitores largos. */\n    [data-testid="stVerticalBlock"] > [data-testid="element-container"] {\n        margin-bottom: .25rem;\n    }\n}\n\n@media (min-width: 700px) and (max-width: 1099px) {\n    .block-container {\n        max-width: 100% !important;\n        padding-left: 1.2rem !important;\n        padding-right: 1.2rem !important;\n    }\n    [data-testid="column"], [data-testid="stVerticalBlock"] {\n        overflow: visible !important;\n    }\n    .alove-desktop-nav {\n        display: flex;\n        gap: 6px;\n        overflow-x: auto;\n        white-space: nowrap;\n        padding: 8px;\n        margin-bottom: 14px;\n        background: #071426;\n        border: 1px solid #163b59;\n        border-radius: 12px;\n    }\n    .alove-desktop-nav a {\n        color: #cbd5e1 !important;\n        text-decoration: none !important;\n        padding: 8px 10px;\n        font-size: .76rem;\n        white-space: nowrap;\n    }\n}\n\n@media (max-width: 699px) {\n    .alove-desktop-nav { display: none !important; }\n}\n' , unsafe_allow_html=True)
+""" + '\n\n/* =============================================================================\n   A.L.O.V.E. — CAMADA RESPONSIVA DESKTOP\n   Mantém os componentes e fluxos originais; amplia a experiência em telas grandes.\n   ============================================================================= */\n@media (min-width: 1100px) {\n    .block-container {\n        width: min(96vw, 1780px) !important;\n        max-width: 1780px !important;\n        padding: 1.25rem 2rem 4rem !important;\n        margin: 0 auto !important;\n    }\n\n    [data-testid="stAppViewContainer"], .stApp {\n        background:\n            radial-gradient(ellipse at 50% -15%, rgba(0,180,255,.13), transparent 42%),\n            linear-gradient(145deg, #081426 0%, #050911 58%, #07101d 100%) !important;\n    }\n\n    [data-testid="column"], [data-testid="stVerticalBlock"] {\n        overflow: visible !important;\n        clear: none !important;\n    }\n\n    .topo-banner {\n        margin: 0 0 18px 0 !important;\n        border: 1px solid #163b59 !important;\n        border-radius: 18px !important;\n        overflow: hidden !important;\n        box-shadow: 0 12px 36px rgba(0,0,0,.28);\n    }\n\n    .topo-banner {\n        min-height: 250px !important;\n        display: flex !important;\n        align-items: center !important;\n        justify-content: center !important;\n        background: #03151a !important;\n    }\n\n    .topo-banner img {\n        display: block !important;\n        width: 100% !important;\n        height: 300px !important;\n        max-height: 300px !important;\n        object-fit: contain !important;\n        object-position: center !important;\n        margin: 0 auto !important;\n    }\n\n    .card-main, details.master-box,\n    [data-testid="stVerticalBlockBorderWrapper"] {\n        border-radius: 18px !important;\n        box-shadow: 0 10px 28px rgba(0,0,0,.22), 0 0 18px rgba(0,180,255,.06) !important;\n    }\n\n    .card-main { padding: 22px 24px !important; margin-bottom: 20px !important; }\n    details.master-box { margin-bottom: 20px !important; }\n    details.master-box > summary { padding: 20px 24px !important; }\n    .master-content { padding: 4px 24px 24px !important; }\n    .card-title { font-size: 1.12rem !important; }\n    .master-metric-val { font-size: 2.65rem !important; }\n    .kpi-duo { padding: 20px !important; }\n    .kpi-big { font-size: 2.8rem !important; }\n\n    .stButton > button {\n        min-height: 2.8rem !important;\n        transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease !important;\n    }\n    .stButton > button:hover {\n        transform: translateY(-2px);\n        border-color: #00D672 !important;\n        box-shadow: 0 8px 22px rgba(0,214,114,.16) !important;\n    }\n\n    details.st-card { transition: transform .18s ease, box-shadow .18s ease; }\n    details.st-card:hover {\n        transform: translateY(-2px);\n        box-shadow: 0 10px 24px rgba(0,0,0,.24);\n    }\n\n    .alove-desktop-nav {\n        position: sticky;\n        top: 8px;\n        z-index: 999;\n        display: flex;\n        align-items: center;\n        gap: 8px;\n        flex-wrap: wrap;\n        margin: 0 0 22px 0;\n        padding: 10px 12px;\n        border: 1px solid #163b59;\n        border-radius: 14px;\n        background: rgba(5, 13, 26, .92);\n        backdrop-filter: blur(14px);\n        box-shadow: 0 8px 24px rgba(0,0,0,.25);\n    }\n    .alove-desktop-nav .nav-brand {\n        color: #00D672;\n        font-weight: 900;\n        letter-spacing: 1.2px;\n        padding: 0 14px 0 8px;\n        border-right: 1px solid #1c3550;\n        margin-right: 4px;\n    }\n    .alove-desktop-nav a {\n        color: #cbd5e1 !important;\n        text-decoration: none !important;\n        font-size: .82rem;\n        font-weight: 750;\n        padding: 9px 13px;\n        border: 1px solid transparent;\n        border-radius: 9px;\n        transition: .18s ease;\n        white-space: nowrap;\n    }\n    .alove-desktop-nav a:hover {\n        color: #fff !important;\n        background: #10243b;\n        border-color: #12506e;\n    }\n    .alove-desktop-nav .nav-refresh {\n        margin-left: auto;\n        color: #00D672 !important;\n        border-color: rgba(0,214,114,.35);\n        background: rgba(0,214,114,.08);\n    }\n\n    [data-testid="stExpander"] {\n        border: 1px solid #163b59 !important;\n        border-radius: 14px !important;\n        background: rgba(8,17,31,.72) !important;\n    }\n\n    [data-testid="stDataFrame"], [data-testid="stTable"] {\n        border: 1px solid #163b59;\n        border-radius: 12px;\n        overflow: hidden;\n    }\n\n    /* Mais respiro entre blocos e melhor leitura em monitores largos. */\n    [data-testid="stVerticalBlock"] > [data-testid="element-container"] {\n        margin-bottom: .25rem;\n    }\n}\n\n@media (min-width: 700px) and (max-width: 1099px) {\n    .block-container {\n        max-width: 100% !important;\n        padding-left: 1.2rem !important;\n        padding-right: 1.2rem !important;\n    }\n    [data-testid="column"], [data-testid="stVerticalBlock"] {\n        overflow: visible !important;\n    }\n    .alove-desktop-nav {\n        display: flex;\n        gap: 6px;\n        overflow-x: auto;\n        white-space: nowrap;\n        padding: 8px;\n        margin-bottom: 14px;\n        background: #071426;\n        border: 1px solid #163b59;\n        border-radius: 12px;\n    }\n    .alove-desktop-nav a {\n        color: #cbd5e1 !important;\n        text-decoration: none !important;\n        padding: 8px 10px;\n        font-size: .76rem;\n        white-space: nowrap;\n    }\n}\n\n@media (max-width: 699px) {\n    .alove-desktop-nav { display: none !important; }\n}\n' , unsafe_allow_html=True)
 
 
 SHEET_ID = "10FluiIwlynIlPDA74QI8mpHSIrAc-62H1hZNRBsvfCA"
@@ -723,7 +726,7 @@ if "splash_exibida" not in st.session_state:
         <div class="alove-loader-bg"><div class="alove-loader-text">A.L.O.V.E</div></div>
     """, unsafe_allow_html=True)
 
-st.markdown(f'<div id="sec-topo"></div><div class="topo-banner"><img src="{BANNER_TOPO_URL}"></div>', unsafe_allow_html=True)
+st.markdown(f'<div id="sec-topo"></div><div class="topo-banner"><img src="data:image/png;base64,{BANNER_TOPO_DATA}" alt="A.L.O.V.E. | Eldorado Brasil"></div>', unsafe_allow_html=True)
 render_html('\n<nav class="alove-desktop-nav">\n  <span class="nav-brand">A.L.O.V.E.</span>\n  <a href="#sec-topo">Visão geral</a>\n  <a href="#sec-patio">Pátio</a>\n  <a href="#sec-prod">Produção</a>\n  <a href="#sec-exp">Expedição</a>\n  <a href="#sec-est">Estoque</a>\n  <a href="#sec-baf">Bafômetro</a>\n  <a class="nav-refresh" href="?refresh=1" target="_self">↻ Atualizar painel</a>\n</nav>\n')
 
 # ==============================================================================
@@ -2353,12 +2356,8 @@ render_html(html_frota)
 
 
 # ==============================================================================
-# 🖨️ RENDERIZAÇÃO 9: AUDITORIA BAFÔMETRO (H&S - BASE COLUNA A + PENDENTES 1º)
+# 🖨️ RENDERIZAÇÃO 9: AUDITORIA BAFÔMETRO (H&S - SIMPLES E SEM SENHA)
 # ==============================================================================
-# Leitura direta da aba Bafometro_Status (garantindo sincronia com a Coluna A DATA_HORA)
-df_baf_atual = carregar_dados_nuvem("Bafometro_Status", cabecalho=0)
-if df_baf_atual.empty and not df_bafometro.empty:
-    df_baf_atual = df_bafometro.copy()
 
 # 1. Identificação do Nome do Turno Real Vigente
 letras_turnos_atuais = descobrir_letras_turnos(hoje_date)
@@ -2372,55 +2371,39 @@ else:
     letra_vigente = letras_turnos_atuais.get("16_00", "B")
     periodo_rotulo = "Tarde"
 
-# 2. Extração do Horário da Coluna A (DATA_HORA) e Separação dos Colaboradores
+# 2. Separação dos Colaboradores
 lista_aprovados = []
 lista_trocas = []
 lista_pendentes = []
-hora_base_baf = ""
 
-if not df_baf_atual.empty:
-    df_baf_atual.columns = [str(c).strip().upper() for c in df_baf_atual.columns]
-
-    # Captura a data/hora mais recente da Coluna A (DATA_HORA ou primeira coluna)
-    col_dh_baf = "DATA_HORA" if "DATA_HORA" in df_baf_atual.columns else df_baf_atual.columns[0]
-    valores_dh = [str(x).strip() for x in df_baf_atual[col_dh_baf].dropna().tolist() if str(x).strip() not in ["", "nan", "None", "DATA_HORA"]]
-    if valores_dh:
-        ultimo_dh_baf = valores_dh[-1]
-        if " " in ultimo_dh_baf:
-            hora_base_baf = ultimo_dh_baf.split(" ")[1][:5]
-        else:
-            hora_base_baf = ultimo_dh_baf[:5]
-
-    c_turno = next((c for c in df_baf_atual.columns if "TURNO" in c), None)
+if not df_bafometro.empty:
+    df_bafometro.columns = [str(c).strip().upper() for c in df_bafometro.columns]
+    
+    c_turno = next((c for c in df_bafometro.columns if "TURNO" in c), None)
     if c_turno:
-        v_turnos = [str(x).strip() for x in df_baf_atual[c_turno].dropna().tolist() if str(x).strip() not in ["", "nan", "None", "TURNO"]]
+        v_turnos = [str(x).strip() for x in df_bafometro[c_turno].dropna().tolist() if str(x).strip() not in ["", "nan", "None"]]
         if v_turnos:
-            periodo_rotulo = v_turnos[-1].capitalize()
+            periodo_rotulo = v_turnos[0].capitalize()
 
-    for _, r_baf in df_baf_atual.iterrows():
+    for _, r_baf in df_bafometro.iterrows():
         colab = str(r_baf.get("COLABORADOR", "")).strip()
-        if not colab or colab.upper() in ["NAN", "NONE", "", "COLABORADOR"]:
-            continue
-
+        if not colab or colab.upper() in ["NAN", "NONE", ""]: continue
+        
         funcao = str(r_baf.get("FUNCAO", r_baf.get("FUNÇÃO", "--"))).strip()
         status = str(r_baf.get("STATUS", "")).strip().upper()
         resultado = str(r_baf.get("RESULTADO", "")).strip().upper()
-
+        
         dado_colab = {"nome": colab, "funcao": funcao, "status": status, "res": resultado}
-
-        if any(x in status for x in ["TROCA", "NÃO CADAST", "NAO CADAST"]) or "TROCA" in resultado:
+        
+        if "TROCA" in status or "TROCA" in resultado or "NÃO CADAST" in status or "NAO CADAST" in status:
             lista_trocas.append(dado_colab)
-        elif any(x in status for x in ["PEND", "FALTA", "NÃO REALIZ", "NAO REALIZ"]) or any(x in resultado for x in ["PEND", "FALTA"]):
-            lista_pendentes.append(dado_colab)
-        elif any(x in status for x in ["REALIZ", "APROV", "OK"]) or any(x in resultado for x in ["APROV", "OK", "0.00", "0,00", "NEGATIVO"]):
+        elif any(x in resultado for x in ["APROV", "OK", "0.00", "0,00", "NEGATIVO"]):
             lista_aprovados.append(dado_colab)
         else:
             lista_pendentes.append(dado_colab)
 
 total_registrados_baf = len(lista_aprovados) + len(lista_trocas) + len(lista_pendentes)
 nome_turno_completo = f"Turno {letra_vigente} ({periodo_rotulo})"
-txt_base_baf = f" | 🕒 Base: {hora_base_baf}" if hora_base_baf else ""
-cor_borda_baf = "#E74C3C" if len(lista_pendentes) > 0 else "#00D672"
 
 # 3. Ordem de Hierarquia das Funções
 def obter_ordem_funcao(funcao_str):
@@ -2433,85 +2416,74 @@ def obter_ordem_funcao(funcao_str):
     return 6
 
 def agrupar_e_renderizar_aprovados(colaboradores):
-    if not colaboradores:
-        return "<div style='color:#64748b; font-size:0.75rem; padding:6px 8px;'>Nenhum colaborador nesta seção.</div>"
+    if not colaboradores: return "<div style='color:#64748b; font-size:0.75rem; padding:6px 8px;'>Nenhum colaborador nesta seção.</div>"
     colaboradores_ordenados = sorted(colaboradores, key=lambda x: (obter_ordem_funcao(x["funcao"]), x["nome"]))
-    grupos = {
-        1: ("LÍDER", []),
-        2: ("ASSISTENTE", []),
-        3: ("OPERADOR DE EMPILHADEIRA", []),
-        4: ("AUXILIAR DE EXPEDIÇÃO", []),
-        5: ("MECÂNICO", []),
-        6: ("OUTRAS FUNÇÕES", [])
-    }
-    for c in colaboradores_ordenados:
-        grupos[obter_ordem_funcao(c["funcao"])][1].append(c)
+    grupos = {1: ("LÍDER", []), 2: ("ASSISTENTE", []), 3: ("OPERADOR DE EMPILHADEIRA", []), 4: ("AUXILIAR DE EXPEDIÇÃO", []), 5: ("MECÂNICO", []), 6: ("OUTRAS FUNÇÕES", [])}
+    for c in colaboradores_ordenados: grupos[obter_ordem_funcao(c["funcao"])][1].append(c)
     html_out = ""
     for _, (rotulo, membros) in grupos.items():
-        if not membros:
-            continue
+        if not membros: continue
         html_out += f'<div style="font-size:0.70rem; font-weight:800; color:#94a3b8; letter-spacing:0.4px; margin-top:8px; margin-bottom:4px; padding-left:4px; border-left:2px solid #00D672;">{rotulo} ({len(membros)})</div>'
         for item in membros:
-            html_out += f'<div style="display:flex; justify-content:space-between; align-items:center; padding:5px 8px; border-bottom:1px dashed #1c2b42; font-size:0.78rem;"><div><b style="color:#ffffff;">{html_lib.escape(item["nome"])}</b><div style="color:#64748b; font-size:0.67rem;">{html_lib.escape(item["funcao"])}</div></div><span style="color:#00D672; font-weight:800; font-size:0.72rem;">{html_lib.escape(item["res"] or item["status"])}</span></div>'
+            html_out += f'<div style="display:flex; justify-content:space-between; align-items:center; padding:5px 8px; border-bottom:1px dashed #1c2b42; font-size:0.78rem;"><div><b style="color:#ffffff;">{html_lib.escape(item["nome"])}</b><div style="color:#64748b; font-size:0.67rem;">{html_lib.escape(item["funcao"])}</div></div><span style="color:#00D672; font-weight:800; font-size:0.72rem;">{item["res"] or item["status"]}</span></div>'
     return html_out
 
-def renderizar_itens_simples(lista_dados, cor_texto, texto_padrao):
-    if not lista_dados:
-        return "<div style='color:#64748b; font-size:0.75rem; padding:6px 8px;'>Nenhum colaborador nesta seção.</div>"
+def renderizar_itens_simples(lista_dados, cor_texto):
+    if not lista_dados: return "<div style='color:#64748b; font-size:0.75rem; padding:6px 8px;'>Nenhum colaborador nesta seção.</div>"
     h = ""
     for item in sorted(lista_dados, key=lambda x: x["nome"]):
-        badge_txt = item["res"] if item["res"] and item["res"] not in ["--", "NAN", "NONE"] else (item["status"] or texto_padrao)
-        h += f'<div style="display:flex; justify-content:space-between; align-items:center; padding:6px 8px; border-bottom:1px dashed #1c2b42; font-size:0.78rem;"><div><b style="color:#ffffff;">{html_lib.escape(item["nome"])}</b><div style="color:#64748b; font-size:0.67rem;">{html_lib.escape(item["funcao"])}</div></div><span style="color:{cor_texto}; font-weight:800; font-size:0.72rem;">{html_lib.escape(badge_txt)}</span></div>'
+        h += f'<div style="display:flex; justify-content:space-between; align-items:center; padding:6px 8px; border-bottom:1px dashed #1c2b42; font-size:0.78rem;"><div><b style="color:#ffffff;">{html_lib.escape(item["nome"])}</b><div style="color:#64748b; font-size:0.67rem;">{html_lib.escape(item["funcao"])}</div></div><span style="color:{cor_texto}; font-weight:800; font-size:0.72rem;">{item["res"] or item["status"]}</span></div>'
     return h
 
-# 4. Renderização do Card Bafômetro (Sempre fechado ao carregar + Horário da Coluna A + Pendentes no Topo)
+# 4. Renderização do Card Bafômetro (Sem atributo 'open' para nascer fechado)
 html_baf_final = f"""
 <div id="sec-baf"></div>
-<details class="master-box" style="border-left-color: {cor_borda_baf}; margin-bottom: 14px;">
+<details class="master-box" style="border-left-color: #FFFFFF; margin-bottom: 14px;">
     <summary>
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; padding-right: 18px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
             <div class="header-layout" style="margin-bottom: 0;">
-                <div class="icon-box" style="background-color: rgba(255, 255, 255, 0.12); color: {cor_borda_baf}; flex-shrink:0;">🩺</div>
-                <div class="master-metric-title">Auditoria Bafômetro (H&S{txt_base_baf})</div>
+                <div class="icon-box" style="background-color: rgba(255, 255, 255, 0.15); color: #FFFFFF;">🩺</div>
+                <div class="master-metric-title">Auditoria Bafômetro (H&S)</div>
             </div>
         </div>
         <div class="value-layout" style="margin-bottom: 2px;">
             <div class="master-metric-val">{total_registrados_baf}</div>
-            <div class="master-metric-unit">Colaboradores Auditados</div>
+            <div class="master-metric-unit">Testes Registrados</div>
         </div>
         <div class="master-metric-sub" style="color: #cbd5e1; font-weight: bold;">
-            {nome_turno_completo} &nbsp;|&nbsp; <span style="color:#E74C3C;">🔴 {len(lista_pendentes)} Pendentes</span> &bull; <span style="color:#38bdf8;">🔄 {len(lista_trocas)} Trocas</span> &bull; <span style="color:#00D672;">🟢 {len(lista_aprovados)} OK</span>
+            {nome_turno_completo} &nbsp;|&nbsp; 🟢 {len(lista_aprovados)} Aprovados &bull; <span style="color:#38bdf8;">🔄 {len(lista_trocas)} Trocas</span> &bull; 🔴 {len(lista_pendentes)} Pendentes
         </div>
     </summary>
 
     <div class="master-content" style="padding-top: 14px;">
-        <!-- SEÇÃO 1 (TOPO): NÃO REALIZADOS / PENDENTES -->
-        <div style="background:#070d18; border:1px solid #142842; border-left:3.5px solid #E74C3C; border-radius:10px; padding:10px; margin-bottom:10px;">
-            <div style="font-size:0.75rem; font-weight:800; color:#E74C3C; text-transform:uppercase; margin-bottom:6px;">
-                🚨 NÃO REALIZADOS / PENDENTES ({len(lista_pendentes)})
+        <!-- SEÇÃO 1: APROVADOS -->
+        <div style="background:#070d18; border:1px solid #142842; border-left:3px solid #00D672; border-radius:10px; padding:10px; margin-bottom:10px;">
+            <div style="font-size:0.75rem; font-weight:800; color:#00D672; text-transform:uppercase; margin-bottom:4px;">
+                APROVADOS ({len(lista_aprovados)})
             </div>
-            {renderizar_itens_simples(lista_pendentes, '#E74C3C', 'PENDENTE')}
+            {agrupar_e_renderizar_aprovados(lista_aprovados)}
         </div>
 
         <!-- SEÇÃO 2: TROCAS -->
-        <div style="background:#070d18; border:1px solid #142842; border-left:3.5px solid #38bdf8; border-radius:10px; padding:10px; margin-bottom:10px;">
+        <div style="background:#070d18; border:1px solid #142842; border-left:3px solid #38bdf8; border-radius:10px; padding:10px; margin-bottom:10px;">
             <div style="font-size:0.75rem; font-weight:800; color:#38bdf8; text-transform:uppercase; margin-bottom:6px;">
-                🔄 TROCAS / NÃO CADASTRADOS ({len(lista_trocas)})
+                TROCAS / NÃO CADASTRADOS ({len(lista_trocas)})
             </div>
-            {renderizar_itens_simples(lista_trocas, '#38bdf8', 'TROCA')}
+            {renderizar_itens_simples(lista_trocas, '#38bdf8')}
         </div>
 
-        <!-- SEÇÃO 3: APROVADOS -->
-        <div style="background:#070d18; border:1px solid #142842; border-left:3.5px solid #00D672; border-radius:10px; padding:10px; margin-bottom: 6px;">
-            <div style="font-size:0.75rem; font-weight:800; color:#00D672; text-transform:uppercase; margin-bottom:4px;">
-                ✅ APROVADOS ({len(lista_aprovados)})
+        <!-- SEÇÃO 3: PENDENTES -->
+        <div style="background:#070d18; border:1px solid #142842; border-left:3px solid #E74C3C; border-radius:10px; padding:10px; margin-bottom: 12px;">
+            <div style="font-size:0.75rem; font-weight:800; color:#E74C3C; text-transform:uppercase; margin-bottom:6px;">
+                NÃO REALIZADOS / PENDENTES ({len(lista_pendentes)})
             </div>
-            {agrupar_e_renderizar_aprovados(lista_aprovados)}
+            {renderizar_itens_simples(lista_pendentes, '#E74C3C')}
         </div>
     </div>
 </details>
 """
 render_html(html_baf_final)
+
 
 
 # ==============================================================================
