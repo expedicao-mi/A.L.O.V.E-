@@ -12,6 +12,9 @@
   <meta name="theme-color" content="#050911">
   <meta name="color-scheme" content="dark">
 
+  <!-- Manifesto PWA obrigatório para instalação nativa no Android -->
+  <link rel="manifest" href="./manifest.json">
+
   <link rel="apple-touch-icon" sizes="180x180" href="./app_icon.png">
   <link rel="icon" type="image/png" sizes="192x192" href="./app_icon.png">
 
@@ -32,7 +35,6 @@
       overscroll-behavior: none;
     }
 
-    /* Moldura com a altura MÁXIMA da tela (inclui área da barra inferior) */
     .frame {
       position: fixed;
       top: 0;
@@ -44,8 +46,6 @@
       background-color: #050911;
     }
 
-    /* Iframe mais alto que a moldura: a barra do Streamlit
-       fica no fundo, fora da área visível. */
     iframe {
       position: absolute;
       top: 0;
@@ -68,5 +68,15 @@
       allowfullscreen>
     </iframe>
   </div>
+
+  <!-- Registro do Service Worker obrigatório para o Chrome Android liberar "Instalar app" -->
+  <script>
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", () => {
+        navigator.serviceWorker.register("./sw.js", { scope: "./" })
+          .catch((err) => console.warn("SW falhou:", err));
+      });
+    }
+  </script>
 </body>
 </html>
