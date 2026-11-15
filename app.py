@@ -2031,19 +2031,21 @@ render_html(html_est)
 
 
 # ==============================================================================
-# 🖨️ RENDERIZAÇÃO 8: FROTA ONLINE/OFFLINE, HORÍMETRO & PREVENTIVA (EMPILHADEIRAS 1º)
+# 🖨️ RENDERIZAÇÃO 8: FROTA & EQUIPAMENTOS (8A) + PREVENTIVA & INSPEÇÃO (8B)
 # ==============================================================================
-equip_online_por_tipo = {}
-equip_offline_por_tipo = {}
+equip_por_tipo = {}
 todos_equip_lista = []
+qtd_total_disp = 0
+qtd_total_indisp = 0
 qtd_criticos_prev = 0
+qtd_criticos_insp = 0
 
 def formatar_horimetro_ou_data(val_raw):
     s = str(val_raw).strip()
     if not s or s.upper() in ["NAN", "NONE", "--", "-"]:
         return "--"
     if "/" in s:
-        return s[:10]
+        return s[:5]  # Ex: 14/11
     num = safe_to_numeric(s)
     if num > 0:
         return f"{fmt(num)} h"
@@ -2064,29 +2066,29 @@ def peso_severidade(alerta_str):
 def ordem_tipo_equipamento(tipo_str):
     t = str(tipo_str).upper()
     if "EMPILHADEIRA" in t:
-        return 0  # Sempre primeiro
-    if "TRANSPALETEIRA" in t:
-        return 1
-    if "VARREDEIRA" in t:
-        return 2
-    if "LAVADORA" in t:
-        return 3
+        return 0  # 1º Empilhadeiras
     if "TALHA" in t or "PONTE" in t:
-        return 4
+        return 1  # 2º Talhas Elétricas
+    if "TRANSPALETEIRA" in t:
+        return 2  # 3º Transpaleteira
+    if "VARREDEIRA" in t:
+        return 3  # 4º Varredeira
+    if "LAVADORA" in t:
+        return 4  # 5º Lavadora
     if "BICICLETA" in t or "BIKE" in t:
-        return 5
+        return 5  # 6º Bicicletas
     return 6
 
 def icone_tipo_equipamento(tipo_str):
     t = str(tipo_str).upper()
     if "EMPILHADEIRA" in t:
         return "🚜"
+    if "TALHA" in t or "PONTE" in t:
+        return "🏗️"
     if "TRANSPALETEIRA" in t:
         return "📦"
     if "VARREDEIRA" in t or "LAVADORA" in t:
         return "🧹"
-    if "TALHA" in t or "PONTE" in t:
-        return "🏗️"
     if "BICICLETA" in t or "BIKE" in t:
         return "🚲"
     return "⚙️"
@@ -2107,245 +2109,229 @@ if not df_prev_insp.empty and "TAG" in df_prev_insp.columns:
         alerta_insp = str(rp.get("ALERTA_INSPECAO", "SEM META")).strip()
         om_insp = str(rp.get("OM_INSPECAO", "--")).strip()
 
-        sev_geral = min(peso_severidade(alerta_prev), peso_severidade(alerta_insp))
-        if sev_geral <= 1:
+        sev_p = peso_severidade(alerta_prev)
+        sev_i = peso_severidade(alerta_insp)
+        if sev_p <= 1:
             qtd_criticos_prev += 1
+        if sev_i <= 1:
+            qtd_criticos_insp += 1
 
-        is_offline = ("OFFLINE" in disp) or ("INDISP" in disp) or ("MANUT" in st_op)
+        is_indisponivel = ("OFFLINE" in disp) or ("INDISP" in disp) or ("MANUT" in st_op)
+        if is_indisponivel:
+            qtd_total_indisp += 1
+        else:
+            qtd_total_disp += 1
 
         obj_eq = {
             "tag": tag,
             "tipo": tipo_eq,
             "ordem_tipo": ordem_tipo_equipamento(tipo_eq),
-            "st_op": st_op if st_op else ("OFFLINE" if is_offline else "ONLINE"),
-            "is_offline": is_offline,
+            "is_indisponivel": is_indisponivel,
             "horimetro": horim_str,
             "meta_prev": meta_prev,
             "alerta_prev": alerta_prev,
             "om_prev": om_prev,
             "alerta_insp": alerta_insp,
             "om_insp": om_insp,
-            "sev": sev_geral,
+            "sev_p": sev_p,
+            "sev_i": sev_i,
+            "sev_geral": min(sev_p, sev_i),
         }
 
         todos_equip_lista.append(obj_eq)
-        alvo_dict = equip_offline_por_tipo if is_offline else equip_online_por_tipo
-        alvo_dict.setdefault(tipo_eq, []).append(obj_eq)
+        equip_por_tipo.setdefault(tipo_eq, []).append(obj_eq)
 
-total_online = sum(len(v) for v in equip_online_por_tipo.values())
-total_offline = sum(len(v) for v in equip_offline_por_tipo.values())
-total_frota = total_online + total_offline
+tipos_ordenados_frota = sorted(equip_por_tipo.keys(), key=lambda k: (ordem_tipo_equipamento(k), k))
+txt_base_prev = f" | 🕒 Base: {hora_att_prev.split(' ')[1][:5]}" if hora_att_prev and " " in hora_att_prev else ""
 
-# Ordena grupos sempre colocando Empilhadeiras primeiro
-tipos_online_ord = sorted(equip_online_por_tipo.keys(), key=lambda k: (ordem_tipo_equipamento(k), k))
-tipos_offline_ord = sorted(equip_offline_por_tipo.keys(), key=lambda k: (ordem_tipo_equipamento(k), k))
-
-def render_grupos_por_tipo(grupos_dict, tipos_ordenados, modo_offline=False):
-    if not tipos_ordenados:
-        msg_vazio = "Nenhum equipamento offline no momento." if modo_offline else "Nenhum equipamento online reportado."
-        return f'<div style="color:#64748b; font-size:0.78rem; padding:12px; text-align:center;">{msg_vazio}</div>'
-
-    cor_borda = "#E74C3C" if modo_offline else "#00D672"
-    html_out = ""
-
-    for tp in tipos_ordenados:
-        itens = sorted(grupos_dict[tp], key=lambda x: x["tag"])
-        ico_tp = icone_tipo_equipamento(tp)
-        cor_titulo_tp = "#E74C3C" if modo_offline else ("#00D672" if "EMPILHADEIRA" in tp.upper() else "#38bdf8")
-
-        html_out += f"""
-        <div style="margin-bottom:12px;">
-            <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.73rem; font-weight:800; color:{cor_titulo_tp}; text-transform:uppercase; letter-spacing:0.4px; margin-bottom:6px; padding-left:6px; border-left:2.5px solid {cor_titulo_tp};">
-                <span>{ico_tp} {html_lib.escape(tp)}</span>
-                <span>{len(itens)} un.</span>
-            </div>
-            <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
-        """
-
-        for item in itens:
-            if modo_offline:
-                badge_txt, badge_cor, badge_bg = "OFFLINE", "#E74C3C", "rgba(231, 76, 60, 0.16)"
-            elif "OPER" in item["st_op"]:
-                badge_txt, badge_cor, badge_bg = "OPERAÇÃO", "#00D672", "rgba(0, 214, 114, 0.16)"
+# ------------------------------------------------------------------------------
+# BLOCO 8A: FROTA & EQUIPAMENTOS (SOMENTE NOMENCLATURA | HORÍMETRO | STATUS)
+# ------------------------------------------------------------------------------
+html_tabelas_disponibilidade = ""
+if tipos_ordenados_frota:
+    for tp in tipos_ordenados_frota:
+        itens_tp = sorted(equip_por_tipo[tp], key=lambda x: (not x["is_indisponivel"], x["tag"]))
+        linhas_eq_html = ""
+        for item in itens_tp:
+            if item["is_indisponivel"]:
+                pill_html = '<span style="display:inline-block; min-width:86px; text-align:center; background:#E74C3C; color:#ffffff; font-size:0.68rem; font-weight:800; padding:3px 10px; border-radius:999px;">Indisponível</span>'
             else:
-                badge_txt, badge_cor, badge_bg = "STAND-BY", "#38bdf8", "rgba(56, 189, 248, 0.16)"
+                pill_html = '<span style="display:inline-block; min-width:86px; text-align:center; background:#2EE65B; color:#051409; font-size:0.68rem; font-weight:900; padding:3px 10px; border-radius:999px;">Disponível</span>'
 
-            alerta_prev_mini = ""
-            if item["sev"] <= 1:
-                alerta_prev_mini = '<div style="color:#E74C3C; font-size:0.63rem; font-weight:800; margin-bottom:4px;">🚨 PREV. CRÍTICA</div>'
-            elif item["sev"] == 2:
-                alerta_prev_mini = '<div style="color:#FFD600; font-size:0.63rem; font-weight:800; margin-bottom:4px;">⚠️ PREV. PRÓXIMA</div>'
-
-            html_out += f"""
-            <div style="background:#070d18; border:1px solid #1c2b42; border-left:3.5px solid {cor_borda}; border-radius:10px; padding:9px 10px;">
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px; gap:4px;">
-                    <b style="color:#ffffff; font-size:0.84rem;">{html_lib.escape(item['tag'])}</b>
-                    <span style="background:{badge_bg}; color:{badge_cor}; font-size:0.58rem; font-weight:800; padding:2px 5px; border-radius:4px; white-space:nowrap;">{badge_txt}</span>
-                </div>
-                {alerta_prev_mini}
-                <div style="border-top:1px dashed #1c2b42; padding-top:5px; display:flex; justify-content:space-between; align-items:center; font-size:0.70rem;">
-                    <span style="color:#94a3b8;">Horímetro:</span>
-                    <b style="color:#38bdf8; font-family:monospace; font-size:0.76rem;">{html_lib.escape(item['horimetro'])}</b>
-                </div>
-            </div>
+            linhas_eq_html += f"""
+            <tr style="border-top:1px solid #162840;">
+                <td style="padding:8px 10px; text-align:left; font-weight:800; color:#ffffff; font-size:0.82rem;">
+                    {html_lib.escape(item['tag'])}
+                </td>
+                <td style="padding:8px 6px; text-align:center; color:#e2e8f0; font-size:0.80rem; font-family:monospace;">
+                    🕒 {html_lib.escape(item['horimetro'])}
+                </td>
+                <td style="padding:8px 10px; text-align:right;">
+                    {pill_html}
+                </td>
+            </tr>
             """
 
-        html_out += "</div></div>"
-    return html_out
+        html_tabelas_disponibilidade += f"""
+        <div style="background:#070d18; border:1.5px solid #162d47; border-radius:14px; margin-bottom:12px; overflow:hidden; box-shadow:0 4px 12px rgba(0,0,0,0.28);">
+            <!-- CABEÇALHO DA CLASSE COM BARRA VERDE LATERAL -->
+            <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 12px; background:#0a1424;">
+                <div style="display:flex; align-items:center; gap:9px;">
+                    <span style="width:4px; height:20px; background:#2EE65B; border-radius:3px; display:inline-block;"></span>
+                    <span style="color:#ffffff; font-size:0.92rem; font-weight:900; text-transform:uppercase; letter-spacing:0.3px;">{html_lib.escape(tp)}</span>
+                </div>
+                <span style="background:#14253d; color:#cbd5e1; font-size:0.74rem; font-weight:800; padding:3px 10px; border-radius:999px;">{len(itens_tp)} un.</span>
+            </div>
 
-html_aba_online = render_grupos_por_tipo(equip_online_por_tipo, tipos_online_ord, modo_offline=False)
-html_aba_offline = render_grupos_por_tipo(equip_offline_por_tipo, tipos_offline_ord, modo_offline=True)
+            <!-- TABELA 3 COLUNAS: NOMENCLATURA | HORÍMETRO | STATUS -->
+            <table style="width:100%; border-collapse:collapse;">
+                <thead>
+                    <tr style="background:#092418; border-top:1px solid #144d32; border-bottom:1px solid #144d32; color:#e2e8f0; font-size:0.72rem; font-weight:800;">
+                        <th style="padding:6px 10px; text-align:left; border-right:1px solid #144d32;">Nomenclatura</th>
+                        <th style="padding:6px 6px; text-align:center; border-right:1px solid #144d32;">Horímetro</th>
+                        <th style="padding:6px 10px; text-align:center;">Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {linhas_eq_html}
+                </tbody>
+            </table>
+        </div>
+        """
+else:
+    html_tabelas_disponibilidade = '<div style="color:#64748b; font-size:0.8rem; text-align:center; padding:14px;">Aguardando dados de equipamentos...</div>'
 
-# Aba 3: Preventiva & Inspeção (Empilhadeiras SEMPRE primeiro, ordenadas por criticidade)
-def estilo_alerta_manut(txt):
+html_frota_disp = f"""
+<div id="sec-frota"></div>
+<details class="master-box" style="border-left-color:#2EE65B; margin-bottom:14px;">
+    <summary>
+        <div class="header-layout">
+            <div class="icon-box" style="background-color:rgba(46,230,91,.15); color:#2EE65B;">🚜</div>
+            <div class="master-metric-title">Frota & Equipamentos{txt_base_prev}</div>
+        </div>
+        <div class="value-layout">
+            <div class="master-metric-val" style="color:#2EE65B;">{qtd_total_disp}</div>
+            <div class="master-metric-unit">Equipamentos Disponíveis</div>
+        </div>
+        <div class="master-metric-sub" style="color:#cbd5e1; font-weight:700;">
+            🟢 {qtd_total_disp} Disponíveis &nbsp;|&nbsp; 🔴 {qtd_total_indisp} Indisponíveis
+        </div>
+    </summary>
+
+    <div class="master-content" style="padding-top:14px;">
+        {html_tabelas_disponibilidade}
+    </div>
+</details>
+"""
+render_html(html_frota_disp)
+
+# ------------------------------------------------------------------------------
+# BLOCO 8B: GESTÃO DE PREVENTIVA & INSPEÇÃO (SEMPRE FECHADO + VISÃO LADO A LADO)
+# ------------------------------------------------------------------------------
+def estilo_alerta_manut_curto(txt, is_inspecao=False):
     t = str(txt).upper()
     if "VENCIDA" in t or "CRITICO" in t or "CRÍTICO" in t:
-        return "#E74C3C", "rgba(231, 76, 60, 0.16)"
+        return "Crítica", "#FF2E2E", "rgba(255, 46, 46, 0.16)"
     if "ATENCAO" in t or "ATENÇÃO" in t or "PROXIMA" in t or "PRÓXIMA" in t:
-        return "#FFD600", "rgba(255, 214, 0, 0.15)"
+        return "Alerta", "#FFD600", "rgba(255, 214, 0, 0.16)"
     if "SEM META" in t or t in ["--", "NAN", ""]:
-        return "#64748b", "rgba(100, 116, 139, 0.12)"
-    return "#00D672", "rgba(0, 214, 114, 0.15)"
+        return ("Sem meta" if is_inspecao else "--"), "#64748b", "rgba(100, 116, 139, 0.14)"
+    return "OK", "#00FF7F", "rgba(0, 255, 127, 0.14)"
 
-todos_equip_ord_prev = sorted(todos_equip_lista, key=lambda x: (x["ordem_tipo"], x["sev"], x["tag"]))
-html_aba_prev = ""
+html_prev_insp_grupos = ""
+if tipos_ordenados_frota:
+    for tp in tipos_ordenados_frota:
+        itens_manut = sorted(equip_por_tipo[tp], key=lambda x: (x["sev_geral"], x["tag"]))
+        ico_tp = icone_tipo_equipamento(tp)
+        linhas_prev_html = ""
+        linhas_insp_html = ""
 
-if todos_equip_ord_prev:
-    tipo_atual_header = None
-    for item in todos_equip_ord_prev:
-        if item["tipo"] != tipo_atual_header:
-            tipo_atual_header = item["tipo"]
-            ico_h = icone_tipo_equipamento(tipo_atual_header)
-            cor_h = "#00D672" if "EMPILHADEIRA" in tipo_atual_header.upper() else "#38bdf8"
-            html_aba_prev += f"""
-            <div style="font-size:0.73rem; font-weight:800; color:{cor_h}; text-transform:uppercase; letter-spacing:0.4px; margin:10px 0 6px 0; padding-left:6px; border-left:2.5px solid {cor_h};">
-                {ico_h} {html_lib.escape(tipo_atual_header)}
+        for item in itens_manut:
+            lbl_p, cor_p, bg_p = estilo_alerta_manut_curto(item["alerta_prev"], is_inspecao=False)
+            lbl_i, cor_i, bg_i = estilo_alerta_manut_curto(item["alerta_insp"], is_inspecao=True)
+            om_p = f" • OM {html_lib.escape(item['om_prev'])}" if item["om_prev"] not in ["--", "", "nan", "None"] else ""
+            om_i = f" • OM {html_lib.escape(item['om_insp'])}" if item["om_insp"] not in ["--", "", "nan", "None"] else ""
+
+            linhas_prev_html += f"""
+            <div style="padding:6px 0; border-bottom:1px dashed #1c2b42; font-size:0.71rem;">
+                <div style="display:flex; justify-content:space-between; align-items:center; gap:4px;">
+                    <b style="color:#ffffff;">{html_lib.escape(item['tag'])}</b>
+                    <span style="background:{bg_p}; color:{cor_p}; border:1px solid {cor_p}; font-size:0.60rem; font-weight:800; padding:1px 5px; border-radius:4px;">{lbl_p}</span>
+                </div>
+                <div style="color:#94a3b8; font-size:0.65rem; margin-top:2px;">
+                    Meta: <b style="color:#cbd5e1;">{html_lib.escape(item['meta_prev'])}</b>{om_p}
+                </div>
             </div>
             """
 
-        c_prev, bg_prev = estilo_alerta_manut(item["alerta_prev"])
-        c_insp, bg_insp = estilo_alerta_manut(item["alerta_insp"])
-        borda_esq = c_prev if item["sev"] <= 2 else "#1c2b42"
-
-        om_p_txt = f" • OM: <b>{html_lib.escape(item['om_prev'])}</b>" if item["om_prev"] not in ["--", "", "nan", "None"] else ""
-        om_i_txt = f" • OM: <b>{html_lib.escape(item['om_insp'])}</b>" if item["om_insp"] not in ["--", "", "nan", "None"] else ""
-        st_dot = "🔴" if item["is_offline"] else "🟢"
-
-        html_aba_prev += f"""
-        <div style="background:#070d18; border:1px solid #142842; border-left:4px solid {borda_esq}; border-radius:11px; padding:10px 12px; margin-bottom:8px;">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-                <div>
-                    <span style="font-size:0.75rem;">{st_dot}</span>
-                    <b style="color:#ffffff; font-size:0.88rem; margin-left:4px;">{html_lib.escape(item['tag'])}</b>
+            linhas_insp_html += f"""
+            <div style="padding:6px 0; border-bottom:1px dashed #1c2b42; font-size:0.71rem;">
+                <div style="display:flex; justify-content:space-between; align-items:center; gap:4px;">
+                    <b style="color:#ffffff;">{html_lib.escape(item['tag'])}</b>
+                    <span style="background:{bg_i}; color:{cor_i}; border:1px solid {cor_i}; font-size:0.60rem; font-weight:800; padding:1px 5px; border-radius:4px;">{lbl_i}</span>
                 </div>
-                <div style="font-size:0.74rem; color:#94a3b8;">
-                    Horím: <b style="color:#38bdf8; font-family:monospace;">{html_lib.escape(item['horimetro'])}</b>
+                <div style="color:#94a3b8; font-size:0.65rem; margin-top:2px;">
+                    Horím: <b style="color:#38bdf8;">{html_lib.escape(item['horimetro'])}</b>{om_i}
                 </div>
             </div>
+            """
 
-            <div style="display:flex; justify-content:space-between; align-items:center; background:#050911; border-radius:7px; padding:5px 8px; margin-bottom:5px; font-size:0.71rem;">
-                <span style="color:#cbd5e1;">🔧 <b>Preventiva</b> (Meta: {html_lib.escape(item['meta_prev'])}){om_p_txt}</span>
-                <span style="background:{bg_prev}; color:{c_prev}; border:1px solid {c_prev}; font-weight:800; font-size:0.64rem; padding:2px 7px; border-radius:999px; white-space:nowrap;">
-                    {html_lib.escape(item['alerta_prev'])}
-                </span>
+        html_prev_insp_grupos += f"""
+        <div style="background:#070d18; border:1.5px solid #162d47; border-radius:12px; padding:10px; margin-bottom:12px;">
+            <div style="font-size:0.76rem; font-weight:900; color:#FF8C00; text-transform:uppercase; letter-spacing:0.4px; margin-bottom:8px; padding-left:7px; border-left:3px solid #FF8C00; display:flex; justify-content:space-between;">
+                <span>{ico_tp} {html_lib.escape(tp)}</span>
+                <span style="color:#64748b; font-size:0.70rem;">{len(itens_manut)} un.</span>
             </div>
 
-            <div style="display:flex; justify-content:space-between; align-items:center; background:#050911; border-radius:7px; padding:5px 8px; font-size:0.71rem;">
-                <span style="color:#cbd5e1;">🔍 <b>Inspeção</b>{om_i_txt}</span>
-                <span style="background:{bg_insp}; color:{c_insp}; border:1px solid {c_insp}; font-weight:800; font-size:0.64rem; padding:2px 7px; border-radius:999px; white-space:nowrap;">
-                    {html_lib.escape(item['alerta_insp'])}
-                </span>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                <!-- COLUNA ESQUERDA: PREVENTIVA -->
+                <div style="background:#050911; border:1px solid #132338; border-radius:8px; padding:7px 8px;">
+                    <div style="font-size:0.65rem; font-weight:800; color:#FF8C00; text-transform:uppercase; border-bottom:1px solid #1c2b42; padding-bottom:4px; margin-bottom:2px;">
+                        🛠️ Preventiva
+                    </div>
+                    {linhas_prev_html}
+                </div>
+
+                <!-- COLUNA DIREITA: INSPEÇÃO -->
+                <div style="background:#050911; border:1px solid #132338; border-radius:8px; padding:7px 8px;">
+                    <div style="font-size:0.65rem; font-weight:800; color:#38bdf8; text-transform:uppercase; border-bottom:1px solid #1c2b42; padding-bottom:4px; margin-bottom:2px;">
+                        📋 Inspeção
+                    </div>
+                    {linhas_insp_html}
+                </div>
             </div>
         </div>
         """
 else:
-    html_aba_prev = '<div style="color:#64748b; font-size:0.8rem; text-align:center; padding:14px;">Aguardando dados da aba Preventiva_Inspecao...</div>'
+    html_prev_insp_grupos = '<div style="color:#64748b; font-size:0.8rem; text-align:center; padding:14px;">Aguardando dados de preventiva e inspeção...</div>'
 
-qtd_emp_online = len(equip_online_por_tipo.get("Empilhadeira", []))
-txt_base_prev = f" | 🕒 Base: {hora_att_prev.split(' ')[1][:5]}" if hora_att_prev and " " in hora_att_prev else ""
+tot_alertas_manut = qtd_criticos_prev + qtd_criticos_insp
+cor_borda_manut = "#FF2E2E" if tot_alertas_manut > 0 else "#E67E22"
 
-html_frota = f"""
-<style>
-    .frota-wrapper input[type="radio"] {{ display: none !important; }}
-    .frota-tab-bar {{
-        display: flex;
-        gap: 6px;
-        margin-bottom: 14px;
-    }}
-    .frota-tab-bar label {{
-        flex: 1;
-        text-align: center;
-        padding: 9px 4px;
-        font-size: 0.72rem;
-        font-weight: 800;
-        color: #94a3b8;
-        background: #070d18;
-        border: 1.5px solid #1c2b42;
-        border-radius: 10px;
-        cursor: pointer;
-        transition: all 0.2s ease;
-        white-space: nowrap;
-        -webkit-tap-highlight-color: transparent;
-    }}
-    #fr_tab_on:checked ~ details .lbl-fr-on {{
-        background: #00D672 !important;
-        color: #0a101d !important;
-        border-color: #00D672 !important;
-        box-shadow: 0 0 10px rgba(0, 214, 114, 0.35);
-    }}
-    #fr_tab_off:checked ~ details .lbl-fr-off {{
-        background: #E74C3C !important;
-        color: #ffffff !important;
-        border-color: #E74C3C !important;
-        box-shadow: 0 0 10px rgba(231, 76, 60, 0.35);
-    }}
-    #fr_tab_prev:checked ~ details .lbl-fr-prev {{
-        background: #E67E22 !important;
-        color: #ffffff !important;
-        border-color: #E67E22 !important;
-        box-shadow: 0 0 10px rgba(230, 126, 34, 0.35);
-    }}
-    .fr-view-on, .fr-view-off, .fr-view-prev {{ display: none; }}
-    #fr_tab_on:checked ~ details .fr-view-on {{ display: block; }}
-    #fr_tab_off:checked ~ details .fr-view-off {{ display: block; }}
-    #fr_tab_prev:checked ~ details .fr-view-prev {{ display: block; }}
-</style>
-
-<div class="frota-wrapper">
-    <input type="radio" name="frota_view" id="fr_tab_on" checked>
-    <input type="radio" name="frota_view" id="fr_tab_off">
-    <input type="radio" name="frota_view" id="fr_tab_prev">
-
-    <details class="master-box" style="border-left-color:#E67E22;">
-        <summary>
-            <div class="header-layout">
-                <div class="icon-box" style="background-color:rgba(230,126,34,.15); color:#E67E22;">🚜</div>
-                <div class="master-metric-title">Frota & Manutenção{txt_base_prev}</div>
-            </div>
-            <div class="value-layout">
-                <div class="master-metric-val">{total_online}</div>
-                <div class="master-metric-unit">Equipamentos Online</div>
-            </div>
-            <div class="master-metric-sub" style="color:#E67E22; font-weight:700;">
-                🚜 {qtd_emp_online} Empilhadeiras Online &bull; 🔴 {total_offline} Offline &bull; 🚨 {qtd_criticos_prev} Prev. Críticas
-            </div>
-        </summary>
-
-        <div class="master-content" style="padding-top:14px;">
-            <div class="frota-tab-bar">
-                <label for="fr_tab_on" class="lbl-fr-on">🟢 Online ({total_online})</label>
-                <label for="fr_tab_off" class="lbl-fr-off">🔴 Offline ({total_offline})</label>
-                <label for="fr_tab_prev" class="lbl-fr-prev">🔧 Prev./Insp. ({qtd_criticos_prev})</label>
-            </div>
-
-            <div class="fr-view-on">{html_aba_online}</div>
-            <div class="fr-view-off">{html_aba_offline}</div>
-            <div class="fr-view-prev">{html_aba_prev}</div>
+html_prev_insp_bloco = f"""
+<div id="sec-manut"></div>
+<details class="master-box" style="border-left-color:{cor_borda_manut}; margin-bottom:14px;">
+    <summary>
+        <div class="header-layout">
+            <div class="icon-box" style="background-color:rgba(230,126,34,.15); color:{cor_borda_manut};">🔧</div>
+            <div class="master-metric-title">Gestão de Preventiva & Inspeção{txt_base_prev}</div>
         </div>
-    </details>
-</div>
+        <div class="value-layout">
+            <div class="master-metric-val" style="color:{cor_borda_manut};">{tot_alertas_manut}</div>
+            <div class="master-metric-unit">Pendências Críticas</div>
+        </div>
+        <div class="master-metric-sub" style="color:#cbd5e1; font-weight:700;">
+            🚨 {qtd_criticos_prev} Preventivas Críticas &nbsp;|&nbsp; 📋 {qtd_criticos_insp} Inspeções Críticas
+        </div>
+    </summary>
+
+    <div class="master-content" style="padding-top:14px;">
+        {html_prev_insp_grupos}
+    </div>
+</details>
 """
-render_html(html_frota)
+render_html(html_prev_insp_bloco)
+
 
 
 
