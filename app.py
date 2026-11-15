@@ -1992,13 +1992,13 @@ html_est = f"""
             </div>
             <div style="display: flex; justify-content: space-between; gap: 8px; text-align: center;">
                 <div style="flex: 1; background: #050911; border: 1px solid #142842; border-left: 3px solid #00FF7F; border-radius: 8px; padding: 8px 6px;">
-                    <div style="font-size: 0.66rem; color: #00FF7F; font-weight: 800; text-transform: uppercase;">Material On-Grade (EQ)</div>
+                    <div style="font-size: 0.66rem; color: #00FF7F; font-weight: 800; text-transform: uppercase;">Material On-Grade </div>
                     <div style="font-size: 1.05rem; color: #ffffff; font-weight: 800; margin-top: 3px;">
                         {fmt(tot_on_grade)} <span style="font-size: 0.72rem; color: #64748b; font-weight: normal;">t ({pct_on_grade:.0f}%)</span>
                     </div>
                 </div>
                 <div style="flex: 1; background: #050911; border: 1px solid #142842; border-left: 3px solid #FF8C00; border-radius: 8px; padding: 8px 6px;">
-                    <div style="font-size: 0.66rem; color: #FF8C00; font-weight: 800; text-transform: uppercase;">Material Off-Grade (SQ, BQ, OS)</div>
+                    <div style="font-size: 0.66rem; color: #FF8C00; font-weight: 800; text-transform: uppercase;">Material Off-Grade </div>
                     <div style="font-size: 1.05rem; color: #ffffff; font-weight: 800; margin-top: 3px;">
                         {fmt(tot_off_grade)} <span style="font-size: 0.72rem; color: #64748b; font-weight: normal;">t ({pct_off_grade:.0f}%)</span>
                     </div>
