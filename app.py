@@ -1835,14 +1835,16 @@ render_html(html_bloco_pedidos)
 
 
 # ==============================================================================
-# 🖨️ RENDERIZAÇÃO 7: ESTOQUE FÍSICO (COM BARRA DE OCUPAÇÃO 25K + BARRAS + ROSCA)
+# 🖨️ RENDERIZAÇÃO 7: ESTOQUE FÍSICO (LINHA 5 CACHE_PAINEL - SOMA EXATA E CONCENTRADA)
 # ==============================================================================
 CAPACIDADE_MAX_ARMAZEM = 25000.0
-pct_ocupacao_est = min(100.0, max(0.0, (estoque_total / CAPACIDADE_MAX_ARMAZEM * 100.0)))
-espaco_livre_est = max(0.0, CAPACIDADE_MAX_ARMAZEM - estoque_total)
 
-# LINHA EXATA DA TROCA (Identifica OS, SQ e EQ separadamente):
-itens_barras = []
+# Blindagem extra contra aspas duplicadas ("") vindas da exportação CSV da Cache_Painel
+raw_seg_str = str(cache_dict.get("dados_segregados", "{}")).strip()
+if '""' in raw_seg_str and not dados_segregados:
+    dados_segregados = parse_robusto(raw_seg_str.replace('""', '"'))
+
+itens_estoque = []
 tot_eq = 0.0
 tot_sq = 0.0
 tot_os = 0.0
@@ -1853,100 +1855,99 @@ if dados_segregados:
         if t_val <= 0:
             continue
         m_str = str(m_raw).strip().upper()
-        is_os = "OS" in m_str or "BQ" in m_str
-        is_sq = "SQ" in m_str and not is_os
-        
-        cod_mat = re.sub(r'[^0-9]', '', m_str) or m_str.split()[0]
-        tipo_mat = "OS" if is_os else ("SQ" if is_sq else "EQ")
-        
-        if is_os:
+
+        # Extrai código do material e classificação real entre parênteses (ex: "322 (BQ)" -> mat="322", classe="BQ")
+        match_cls = re.search(r'\(([^)]+)\)', m_str)
+        classe_real = match_cls.group(1).strip().upper() if match_cls else ("OS" if "OS" in m_str else ("SQ" if "SQ" in m_str else "EQ"))
+        cod_mat = re.sub(r'\([^)]*\)', '', m_str).strip() or m_str.split()[0]
+
+        if classe_real in ["OS", "BQ"]:
             tot_os += t_val
-        elif is_sq:
+            cat_cor = "OS"
+        elif classe_real == "SQ":
             tot_sq += t_val
+            cat_cor = "SQ"
         else:
             tot_eq += t_val
-            
-        itens_barras.append({
-            "cod": cod_mat,
-            "tipo": tipo_mat,
+            cat_cor = "EQ"
+
+        itens_estoque.append({
+            "material": cod_mat,
+            "classe": classe_real,
             "ton": t_val,
-            "tipo_cat": tipo_mat
+            "cat_cor": cat_cor
         })
 
-itens_barras.sort(key=lambda x: x["ton"], reverse=True)
-max_ton_est = max([x["ton"] for x in itens_barras], default=1.0)
-tot_geral_calc = (tot_eq + tot_sq + tot_os) if (tot_eq + tot_sq + tot_os) > 0 else (estoque_total if estoque_total > 0 else 1.0)
+# A soma real da Linha 5 (dados_segregados) sempre prevalece para nunca divergir do detalhamento
+soma_segregada_real = forcar_par(tot_eq + tot_sq + tot_os)
+if soma_segregada_real > 0:
+    estoque_total = soma_segregada_real
+else:
+    est_linha4 = forcar_par(safe_to_numeric(cache_dict.get("estoque_total", 0)))
+    if est_linha4 > 0:
+        estoque_total = est_linha4
+
+pct_ocupacao_est = min(100.0, max(0.0, (estoque_total / CAPACIDADE_MAX_ARMAZEM * 100.0)))
+espaco_livre_est = max(0.0, CAPACIDADE_MAX_ARMAZEM - estoque_total)
+
+# Ordena do maior volume para o menor, exibindo 100% dos itens da Linha 5
+itens_estoque.sort(key=lambda x: (-x["ton"], x["material"], x["classe"]))
+max_ton_item = max([x["ton"] for x in itens_estoque], default=1.0)
+
+tot_geral_calc = soma_segregada_real if soma_segregada_real > 0 else (estoque_total if estoque_total > 0 else 1.0)
 pct_eq = max(0.0, (tot_eq / tot_geral_calc) * 100.0)
 pct_sq = max(0.0, (tot_sq / tot_geral_calc) * 100.0)
 pct_os = max(0.0, (tot_os / tot_geral_calc) * 100.0)
 
+linhas_tabela_est = ""
+if itens_estoque:
+    for item in itens_estoque:
+        if item["cat_cor"] == "OS":
+            cor_c, bg_c = "#FF5722", "rgba(255, 87, 34, 0.16)"
+        elif item["cat_cor"] == "SQ":
+            cor_c, bg_c = "#FFD600", "rgba(255, 214, 0, 0.16)"
+        else:
+            cor_c, bg_c = "#00E676", "rgba(0, 230, 118, 0.16)"
 
-# 2. Montagem das Barras Verticais com escala rebaixada (folga no teto)
-barras_html = ""
-# LINHA EXATA DA TROCA:
-for item in itens_barras[:8]:
-    if item["tipo_cat"] == "OS":
-        cor_b = "#FF5722"  # Laranja quase vermelho vibrante
-    elif item["tipo_cat"] == "SQ":
-        cor_b = "#FFD600"  # Amarelo SQ
-    else:
-        cor_b = "#00E676"  # Verde EQ
-    h_px = max(6, int((item["ton"] / max_ton_est) * 68))
+        pct_barra_item = min(100.0, max(4.0, (item["ton"] / max_ton_item) * 100.0))
 
-    
-    barras_html += f"""
-    <div style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; min-width: 38px;">
-        <div style="color: {cor_b}; font-size: 0.68rem; font-weight: 800; margin-bottom: 6px; white-space: nowrap;">
-            {fmt(item['ton'])} t
-        </div>
-        <div style="width: 24px; height: {h_px}px; background: {cor_b}; border-radius: 4px 4px 0 0; box-shadow: 0 0 10px {cor_b}44;"></div>
-        <div style="width: 100%; border-top: 1.5px solid #1c2b42; padding-top: 5px; text-align: center;">
-            <div style="color: #cbd5e1; font-size: 0.75rem; font-weight: 800;">{item['cod']}</div>
-            <div style="color: #64748b; font-size: 0.65rem; font-weight: 700;">({item['tipo']})</div>
-        </div>
-    </div>
-    """
-
-# 3. Montagem do Gráfico Donut (SVG Vetorial)
-# LINHA EXATA DA TROCA (Calcula os 3 arcos sem sobreposição):
-c_circ = 100.0
-offset_sq = 100.0 - pct_eq
-offset_os = 100.0 - (pct_eq + pct_sq)
-
-svg_donut = f"""
-<svg width="115" height="115" viewBox="0 0 42 42" style="transform: rotate(-90deg); display: block;">
-    <!-- Fundo vazio -->
-    <circle cx="21" cy="21" r="15.91549430918954" fill="transparent" stroke="#162438" stroke-width="5.5"></circle>
-    <!-- Fatia EQ (Verde) -->
-    <circle cx="21" cy="21" r="15.91549430918954" fill="transparent" stroke="#00E676" stroke-width="5.5"
-            stroke-dasharray="{pct_eq:.1f} {100.0 - pct_eq:.1f}" stroke-dashoffset="0"></circle>
-    <!-- Fatia SQ (Amarelo) -->
-    <circle cx="21" cy="21" r="15.91549430918954" fill="transparent" stroke="#FFD600" stroke-width="5.5"
-            stroke-dasharray="{pct_sq:.1f} {100.0 - pct_sq:.1f}" stroke-dashoffset="-{pct_eq:.1f}"></circle>
-    <!-- Fatia OS (Laranja quase vermelho) -->
-    <circle cx="21" cy="21" r="15.91549430918954" fill="transparent" stroke="#FF5722" stroke-width="5.5"
-            stroke-dasharray="{pct_os:.1f} {100.0 - pct_os:.1f}" stroke-dashoffset="-{pct_eq + pct_sq:.1f}"></circle>
-</svg>
-"""
-
+        linhas_tabela_est += f"""
+        <tr style="border-bottom: 1px dashed #1c2b42;">
+            <td style="padding: 9px 6px; text-align: left; font-weight: 800; color: #ffffff; font-size: 0.84rem;">
+                📦 {html_lib.escape(item['material'])}
+            </td>
+            <td style="padding: 9px 6px; text-align: center;">
+                <span style="background: {bg_c}; color: {cor_c}; border: 1px solid {cor_c}; font-size: 0.68rem; font-weight: 800; padding: 2px 8px; border-radius: 6px; letter-spacing: 0.4px;">
+                    {html_lib.escape(item['classe'])}
+                </span>
+            </td>
+            <td style="padding: 9px 6px; text-align: right;">
+                <div style="color: {cor_c}; font-weight: 800; font-size: 0.84rem; font-family: monospace;">
+                    {fmt(item['ton'])} <span style="font-size: 0.70rem; color: #94a3b8; font-weight: normal;">t</span>
+                </div>
+                <div style="width: 100%; height: 3px; background: #14243b; border-radius: 999px; overflow: hidden; margin-top: 3px;">
+                    <div style="width: {pct_barra_item:.1f}%; height: 100%; background: {cor_c}; border-radius: 999px;"></div>
+                </div>
+            </td>
+        </tr>
+        """
+else:
+    linhas_tabela_est = '<tr><td colspan="3" style="color:#64748b; font-size:0.8rem; text-align:center; padding:14px;">Aguardando dados segregados...</td></tr>'
 
 html_est = f"""
 <div id="sec-est"></div>
-<details class="master-box" style="border-left-color: #00E676;" open>
+<details class="master-box" style="border-left-color: #00E676;">
     <summary>
-        <!-- TOPO DO CARD -->
         <div class="header-layout">
             <div class="icon-box" style="background-color: rgba(0, 230, 118, 0.15); color: #00E676;">📦</div>
             <div class="master-metric-title">Estoque Físico no Armazém</div>
         </div>
 
-        <!-- VALOR PRINCIPAL -->
         <div class="value-layout" style="margin-bottom: 2px;">
             <div class="master-metric-val">{fmt(estoque_total)}</div>
             <div class="master-metric-unit">TON</div>
         </div>
 
-        <!-- BARRA DE OCUPAÇÃO (MÉTRICA 25.000 t) -->
         <div style="margin-top: 6px; margin-bottom: 2px;">
             <div style="font-size: 0.75rem; color: #cbd5e1; margin-bottom: 5px;">
                 Ocupação: <b style="color: #ffffff;">{fmt(estoque_total)} t</b> de <b style="color: #ffffff;">{fmt(CAPACIDADE_MAX_ARMAZEM)} t</b> ({pct_ocupacao_est:.0f}%) 📦
@@ -1961,59 +1962,50 @@ html_est = f"""
         </div>
     </summary>
 
-    <div class="master-content" style="padding-top: 14px;">
-        <!-- 1. CARD SUPERIOR: BARRAS POR MATERIAL COM BORDA DISCRETA -->
-        <div style="background: #070d18; border: 1.5px solid #142842; border-radius: 14px; padding: 18px 8px 10px 8px; margin-bottom: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.25);">
-            <div style="display: flex; justify-content: space-around; align-items: flex-end; height: 135px; gap: 4px; padding: 0 4px;">
-                {barras_html if itens_barras else '<div style="color:#64748b; font-size:0.8rem; margin:auto;">Aguardando dados segregados...</div>'}
+    <div class="master-content" style="padding-top: 12px;">
+        <!-- 1. RESUMO CONCENTRADO POR CLASSE (BARRA EMPILHADA + 3 PÍLULAS) -->
+        <div style="background: #070d18; border: 1.5px solid #142842; border-radius: 12px; padding: 10px 12px; margin-bottom: 10px;">
+            <div style="display: flex; width: 100%; height: 8px; background: #14243b; border-radius: 999px; overflow: hidden; margin-bottom: 10px;">
+                <div style="width: {pct_eq:.1f}%; background: #00E676;"></div>
+                <div style="width: {pct_sq:.1f}%; background: #FFD600;"></div>
+                <div style="width: {pct_os:.1f}%; background: #FF5722;"></div>
+            </div>
+            <div style="display: flex; justify-content: space-between; gap: 6px; text-align: center;">
+                <div style="flex: 1; background: #050911; border: 1px solid #142842; border-radius: 8px; padding: 6px 4px;">
+                    <div style="font-size: 0.65rem; color: #00E676; font-weight: 800;">● EQ ({pct_eq:.0f}%)</div>
+                    <div style="font-size: 0.92rem; color: #ffffff; font-weight: 800; margin-top: 2px;">{fmt(tot_eq)} <span style="font-size: 0.68rem; color: #64748b; font-weight: normal;">t</span></div>
+                </div>
+                <div style="flex: 1; background: #050911; border: 1px solid #142842; border-radius: 8px; padding: 6px 4px;">
+                    <div style="font-size: 0.65rem; color: #FFD600; font-weight: 800;">● SQ ({pct_sq:.0f}%)</div>
+                    <div style="font-size: 0.92rem; color: #ffffff; font-weight: 800; margin-top: 2px;">{fmt(tot_sq)} <span style="font-size: 0.68rem; color: #64748b; font-weight: normal;">t</span></div>
+                </div>
+                <div style="flex: 1; background: #050911; border: 1px solid #142842; border-radius: 8px; padding: 6px 4px;">
+                    <div style="font-size: 0.65rem; color: #FF5722; font-weight: 800;">● BQ / OS ({pct_os:.0f}%)</div>
+                    <div style="font-size: 0.92rem; color: #ffffff; font-weight: 800; margin-top: 2px;">{fmt(tot_os)} <span style="font-size: 0.68rem; color: #64748b; font-weight: normal;">t</span></div>
+                </div>
             </div>
         </div>
 
-                <!-- 2. CARD INFERIOR: DONUT ROSCA (MATERIAL EQ vs SQ vs OS) -->
-        <div style="background: #070d18; border: 1.5px solid #142842; border-radius: 14px; padding: 14px 18px; display: flex; align-items: center; justify-content: space-around; gap: 14px; box-shadow: 0 4px 12px rgba(0,0,0,0.25);">
-            <!-- GRÁFICO DE PIZZA / ROSCA -->
-            <div style="position: relative; width: 115px; height: 115px; flex-shrink: 0;">
-                {svg_donut}
-            </div>
-
-            <!-- COLUNA DAS LEGENDAS -->
-            <div style="display: flex; flex-direction: column; gap: 8px; min-width: 130px;">
-                <div>
-                    <div style="display: flex; align-items: center; gap: 8px; font-size: 0.80rem; color: #cbd5e1; font-weight: 700;">
-                        <span style="width: 10px; height: 10px; border-radius: 50%; background: #00E676; display: inline-block;"></span>
-                        Material EQ
-                    </div>
-                    <div style="color: #ffffff; font-size: 1.15rem; font-weight: 800; margin-left: 18px; line-height: 1.15;">
-                        {fmt(tot_eq)} <span style="font-size: 0.75rem; font-weight: normal; color: #94a3b8;">t</span>
-                    </div>
-                </div>
-
-                <div>
-                    <div style="display: flex; align-items: center; gap: 8px; font-size: 0.80rem; color: #cbd5e1; font-weight: 700;">
-                        <span style="width: 10px; height: 10px; border-radius: 50%; background: #FFD600; display: inline-block;"></span>
-                        Material SQ
-                    </div>
-                    <div style="color: #ffffff; font-size: 1.15rem; font-weight: 800; margin-left: 18px; line-height: 1.15;">
-                        {fmt(tot_sq)} <span style="font-size: 0.75rem; font-weight: normal; color: #94a3b8;">t</span>
-                    </div>
-                </div>
-
-                <div>
-                    <div style="display: flex; align-items: center; gap: 8px; font-size: 0.80rem; color: #cbd5e1; font-weight: 700;">
-                        <span style="width: 10px; height: 10px; border-radius: 50%; background: #FF5722; display: inline-block;"></span>
-                        Material OS
-                    </div>
-                    <div style="color: #ffffff; font-size: 1.15rem; font-weight: 800; margin-left: 18px; line-height: 1.15;">
-                        {fmt(tot_os)} <span style="font-size: 0.75rem; font-weight: normal; color: #94a3b8;">t</span>
-                    </div>
-                </div>
-            </div>
+        <!-- 2. TABELA CONCENTRADA: MATERIAL | CLASSE | QTD. TON -->
+        <div style="background: #070d18; border: 1.5px solid #142842; border-radius: 12px; padding: 6px 10px;">
+            <table style="width: 100%; border-collapse: collapse;">
+                <thead>
+                    <tr style="border-bottom: 1.5px solid #1c2b42; color: #64748b; font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.5px;">
+                        <th style="padding: 8px 6px; text-align: left;">Material</th>
+                        <th style="padding: 8px 6px; text-align: center;">Classe</th>
+                        <th style="padding: 8px 6px; text-align: right;">Qtd. Ton</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {linhas_tabela_est}
+                </tbody>
+            </table>
         </div>
     </div>
 </details>
-
 """
 render_html(html_est)
+
 
 
 
