@@ -2410,6 +2410,323 @@ render_html(html_prev_insp_bloco)
 
 
 
+# ==============================================================================
+# 🖨️ RENDERIZAÇÃO 8C: CONSUMO DE GLP (MENSAL, TURNOS & POR MÁQUINA - FECHADO)
+# ==============================================================================
+@st.cache_data(ttl=30)
+def carregar_consolidado_glp():
+    import os
+    import unicodedata
+
+    def norm_g(s):
+        s_str = str(s).strip().upper()
+        return "".join(c for c in unicodedata.normalize("NFD", s_str) if unicodedata.category(c) != "Mn")
+
+    linhas_raw = []
+    try:
+        if hasattr(st, "secrets") and "gcp_service_account" in st.secrets:
+            cliente = gspread.service_account_from_dict(dict(st.secrets["gcp_service_account"]))
+        elif os.path.exists("credentials.json"):
+            cliente = gspread.service_account(filename="credentials.json")
+        else:
+            cliente = None
+
+        if cliente is not None:
+            planilha = cliente.open_by_key(SHEET_ID)
+            for ws in planilha.worksheets():
+                if "CONSOLIDADO" in norm_g(ws.title) and "GLP" in norm_g(ws.title):
+                    linhas_raw = ws.get_all_values()
+                    break
+    except Exception:
+        linhas_raw = []
+
+    if not linhas_raw:
+        url_csv = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet=Consolidado_GLP"
+        try:
+            r = requests.get(url_csv, timeout=10)
+            r.encoding = "utf-8"
+            linhas_raw = list(csv.reader(StringIO(r.text)))
+        except Exception:
+            linhas_raw = []
+
+    return linhas_raw
+
+linhas_glp_raw = carregar_consolidado_glp()
+
+glp_meses = []
+glp_maquinas = []
+hora_att_glp = ""
+
+if linhas_glp_raw:
+    # 1. Procura qualquer carimbo de data/hora explícito na aba Consolidado_GLP
+    for r_chk in linhas_glp_raw[:15]:
+        for cel in r_chk:
+            cel_s = str(cel).strip()
+            m_dh = re.search(r'(\d{2}/\d{2}/\d{2,4}\s+\d{2}:\d{2})', cel_s)
+            if m_dh:
+                hora_att_glp = m_dh.group(1).split(" ")[1][:5]
+                break
+        if hora_att_glp:
+            break
+
+    # 2. Localiza índices das colunas da Tabela Esquerda (Mensal) e Tabela Direita (Máquinas)
+    idx_mes = idx_lit_m = idx_kg_m = idx_t1 = idx_t2 = idx_t3 = idx_st_m = -1
+    idx_eq = idx_abast = idx_lit_eq = idx_kg_eq = idx_med_eq = -1
+    header_row_glp = 0
+
+    for r_i, row in enumerate(linhas_glp_raw[:5]):
+        row_u = [str(c).strip().upper() for c in row]
+        if any("EQUIPAMENTO" in c for c in row_u) or any("LITROS" in c for c in row_u):
+            header_row_glp = r_i
+            for c_i, col_txt in enumerate(row_u):
+                if c_i <= 7:
+                    if any(k in col_txt for k in ["MES", "MÊS", "ANO", "PERIODO", "PERÍODO"]) and idx_mes == -1:
+                        idx_mes = c_i
+                    elif "LITRO" in col_txt and idx_lit_m == -1:
+                        idx_lit_m = c_i
+                    elif ("CONSUMO" in col_txt or "TOTAL" in col_txt or "KG" in col_txt) and "00" not in col_txt and "08" not in col_txt and "16" not in col_txt and idx_kg_m == -1:
+                        idx_kg_m = c_i
+                    elif "00" in col_txt and "08" in col_txt:
+                        idx_t1 = c_i
+                    elif "08" in col_txt and "16" in col_txt:
+                        idx_t2 = c_i
+                    elif "16" in col_txt and "00" in col_txt:
+                        idx_t3 = c_i
+                    elif "STATUS" in col_txt:
+                        idx_st_m = c_i
+                else:
+                    if "EQUIP" in col_txt or "TAG" in col_txt:
+                        idx_eq = c_i
+                    elif "ABAST" in col_txt:
+                        idx_abast = c_i
+                    elif "LITRO" in col_txt:
+                        idx_lit_eq = c_i
+                    elif "TOTAL" in col_txt or ("KG" in col_txt and "MEDIA" not in col_txt and "MÉDIA" not in col_txt and "CICLO" not in col_txt):
+                        idx_kg_eq = c_i
+                    elif "MEDIA" in col_txt or "MÉDIA" in col_txt or "CICLO" in col_txt:
+                        idx_med_eq = c_i
+            break
+
+    # Fallbacks padrão caso algum cabeçalho venha cortado
+    if idx_mes == -1: idx_mes = 0
+    if idx_lit_m == -1: idx_lit_m = 1
+    if idx_kg_m == -1: idx_kg_m = 2
+    if idx_t1 == -1: idx_t1 = 3
+    if idx_t2 == -1: idx_t2 = 4
+    if idx_t3 == -1: idx_t3 = 5
+    if idx_st_m == -1: idx_st_m = 6
+
+    if idx_eq == -1: idx_eq = 8
+    if idx_abast == -1: idx_abast = 9
+    if idx_lit_eq == -1: idx_lit_eq = 10
+    if idx_kg_eq == -1: idx_kg_eq = 11
+    if idx_med_eq == -1: idx_med_eq = 12
+
+    for row in linhas_glp_raw[header_row_glp + 1:]:
+        # Tabela Esquerda: Consolidado Mensal
+        if len(row) > idx_kg_m:
+            mes_val = str(row[idx_mes]).strip()
+            lit_m_val = safe_to_numeric(row[idx_lit_m]) if len(row) > idx_lit_m else 0.0
+            kg_m_val = safe_to_numeric(row[idx_kg_m])
+            if mes_val and mes_val.upper() not in ["NAN", "NONE", ""] and (lit_m_val > 0 or kg_m_val > 0):
+                t1_v = safe_to_numeric(row[idx_t1]) if len(row) > idx_t1 else 0.0
+                t2_v = safe_to_numeric(row[idx_t2]) if len(row) > idx_t2 else 0.0
+                t3_v = safe_to_numeric(row[idx_t3]) if len(row) > idx_t3 else 0.0
+                st_m_v = str(row[idx_st_m]).strip() if len(row) > idx_st_m else ""
+                glp_meses.append({
+                    "mes": mes_val,
+                    "litros": lit_m_val,
+                    "kg": kg_m_val,
+                    "t1": t1_v,
+                    "t2": t2_v,
+                    "t3": t3_v,
+                    "status": st_m_v,
+                    "is_atual": "ATUAL" in st_m_v.upper()
+                })
+
+        # Tabela Direita: Consumo por Máquina (Mês Atual)
+        if len(row) > idx_eq:
+            eq_nome = str(row[idx_eq]).strip().upper()
+            if eq_nome and eq_nome not in ["NAN", "NONE", "", "EQUIPAMENTO", "TOTAL"]:
+                ab_v = int(safe_to_numeric(row[idx_abast])) if len(row) > idx_abast else 0
+                lit_e_v = safe_to_numeric(row[idx_lit_eq]) if len(row) > idx_lit_eq else 0.0
+                kg_e_v = safe_to_numeric(row[idx_kg_eq]) if len(row) > idx_kg_eq else 0.0
+                med_e_v = safe_to_numeric(row[idx_med_eq]) if len(row) > idx_med_eq else 0.0
+                glp_maquinas.append({
+                    "equip": eq_nome,
+                    "abast": ab_v,
+                    "litros": lit_e_v,
+                    "kg": kg_e_v,
+                    "media": med_e_v
+                })
+
+# Seleciona o mês atual (marcado com "ATUAL" ou o último da lista)
+mes_atual_obj = next((m for m in glp_meses if m["is_atual"]), glp_meses[-1] if glp_meses else None)
+kg_mes_atual = mes_atual_obj["kg"] if mes_atual_obj else 0.0
+litros_mes_atual = mes_atual_obj["litros"] if mes_atual_obj else 0.0
+rotulo_mes_atual = mes_atual_obj["mes"] if mes_atual_obj else "Mês Atual"
+
+# Se a aba não tiver carimbo próprio na célula, usa o pulso sincronizado da base do Core
+hora_exibir_glp = hora_att_glp if hora_att_glp else conn_hora[:5]
+txt_base_glp = f" | 🕒 Atualizado em: {hora_exibir_glp}" if hora_exibir_glp else ""
+
+# --- ABA 1: CONSUMO POR MÁQUINA (ORDENADO DO MAIOR CONSUMO PARA O MENOR) ---
+glp_maquinas.sort(key=lambda x: (-x["kg"], x["equip"]))
+max_kg_maq = max([x["kg"] for x in glp_maquinas], default=1.0) or 1.0
+
+html_glp_maquinas = ""
+if glp_maquinas:
+    for m_item in glp_maquinas:
+        pct_bar_m = min(100.0, max(3.0, (m_item["kg"] / max_kg_maq) * 100.0)) if m_item["kg"] > 0 else 0.0
+        cor_m_glp = "#FF9F1C" if m_item["kg"] > 0 else "#475569"
+        html_glp_maquinas += f"""
+        <div style="background:#070d18; border:1px solid #162840; border-left:4px solid {cor_m_glp}; border-radius:11px; padding:10px 12px; margin-bottom:8px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <b style="color:#ffffff; font-size:0.92rem; letter-spacing:0.2px;">🚜 {html_lib.escape(m_item['equip'])}</b>
+                    <span style="background:#0d1a2d; border:1px solid #1e3554; color:#94a3b8; font-size:0.66rem; font-weight:700; padding:2px 7px; border-radius:5px;">
+                        {m_item['abast']} abast.
+                    </span>
+                </div>
+                <div style="text-align:right;">
+                    <b style="color:{cor_m_glp}; font-size:0.95rem; font-family:monospace;">{fmt(m_item['kg'], 1)} kg</b>
+                    <span style="color:#64748b; font-size:0.70rem; margin-left:4px;">({fmt(m_item['litros'], 1)} L)</span>
+                </div>
+            </div>
+
+            <div style="width:100%; height:4px; background:#14243b; border-radius:999px; overflow:hidden; margin-bottom:6px;">
+                <div style="width:{pct_bar_m:.1f}%; height:100%; background:linear-gradient(90deg, #FF9F1C, #FFD600); border-radius:999px;"></div>
+            </div>
+
+            <div style="display:flex; justify-content:space-between; font-size:0.70rem; color:#94a3b8;">
+                <span>Média p/ ciclo: <b style="color:#38bdf8; font-family:monospace;">{fmt(m_item['media'], 1)} kg</b></span>
+                <span>Participação: <b style="color:#cbd5e1;">{(m_item['kg'] / kg_mes_atual * 100.0) if kg_mes_atual > 0 else 0:.0f}%</b></span>
+            </div>
+        </div>
+        """
+else:
+    html_glp_maquinas = '<div style="color:#64748b; font-size:0.8rem; text-align:center; padding:14px;">Nenhum consumo por máquina registrado no mês.</div>'
+
+# --- ABA 2: CONSOLIDADO MENSAL & DISTRIBUIÇÃO POR TURNO ---
+html_glp_mensal = ""
+if glp_meses:
+    for m_obj in reversed(glp_meses):
+        borda_mes = "#00FF7F" if m_obj["is_atual"] else "#1c2b42"
+        badge_st = '<span style="background:rgba(0,255,127,0.16); border:1px solid #00FF7F; color:#00FF7F; font-size:0.62rem; font-weight:900; padding:2px 7px; border-radius:999px;">🟢 MÊS ATUAL</span>' if m_obj["is_atual"] else '<span style="background:#132338; color:#94a3b8; font-size:0.62rem; font-weight:700; padding:2px 7px; border-radius:999px;">🔒 FECHADO</span>'
+
+        html_glp_mensal += f"""
+        <div style="background:#070d18; border:1.5px solid #162840; border-left:4px solid {borda_mes}; border-radius:12px; padding:11px 12px; margin-bottom:10px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                <div>
+                    <span style="color:#ffffff; font-weight:900; font-size:0.92rem;">📅 Período: {html_lib.escape(m_obj['mes'])}</span>
+                    <div style="color:#FF9F1C; font-weight:800; font-size:1.05rem; margin-top:2px;">
+                        {fmt(m_obj['kg'], 1)} kg <span style="color:#64748b; font-size:0.75rem; font-weight:normal;">({fmt(m_obj['litros'], 1)} L)</span>
+                    </div>
+                </div>
+                {badge_st}
+            </div>
+
+            <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px; background:#050911; border:1px solid #132338; border-radius:8px; padding:7px 6px; text-align:center;">
+                <div>
+                    <div style="font-size:0.60rem; color:#64748b; font-weight:700;">00h às 08h</div>
+                    <div style="font-size:0.78rem; color:#e2e8f0; font-weight:800; font-family:monospace; margin-top:2px;">{fmt(m_obj['t1'], 1)} kg</div>
+                </div>
+                <div style="border-left:1px solid #1c2b42; border-right:1px solid #1c2b42;">
+                    <div style="font-size:0.60rem; color:#64748b; font-weight:700;">08h às 16h</div>
+                    <div style="font-size:0.78rem; color:#e2e8f0; font-weight:800; font-family:monospace; margin-top:2px;">{fmt(m_obj['t2'], 1)} kg</div>
+                </div>
+                <div>
+                    <div style="font-size:0.60rem; color:#64748b; font-weight:700;">16h às 00h</div>
+                    <div style="font-size:0.78rem; color:#e2e8f0; font-weight:800; font-family:monospace; margin-top:2px;">{fmt(m_obj['t3'], 1)} kg</div>
+                </div>
+            </div>
+        </div>
+        """
+else:
+    html_glp_mensal = '<div style="color:#64748b; font-size:0.8rem; text-align:center; padding:14px;">Aguardando dados consolidados de GLP...</div>'
+
+html_glp_completo = f"""
+<div id="sec-glp"></div>
+<style>
+    .glp-wrapper input[type="radio"] {{ display: none !important; }}
+
+    .glp-tab-bar {{
+        display: flex;
+        justify-content: center;
+        gap: 10px;
+        margin-bottom: 14px;
+        padding: 0 2px;
+    }}
+    .glp-tab-bar label {{
+        flex: 1;
+        text-align: center;
+        padding: 10px 8px;
+        font-size: 0.80rem;
+        font-weight: 800;
+        color: #94a3b8;
+        background: #070d18;
+        border: 1.5px solid #1c2b42;
+        border-radius: 10px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        white-space: nowrap;
+        -webkit-tap-highlight-color: transparent;
+    }}
+    #tab_glp_maq:checked ~ details .lbl-glp-maq {{
+        background: #FF9F1C !important;
+        color: #0a101d !important;
+        border-color: #FF9F1C !important;
+        box-shadow: 0 0 10px rgba(255, 159, 28, 0.4);
+    }}
+    #tab_glp_mes:checked ~ details .lbl-glp-mes {{
+        background: #38bdf8 !important;
+        color: #0a101d !important;
+        border-color: #38bdf8 !important;
+        box-shadow: 0 0 10px rgba(56, 189, 248, 0.4);
+    }}
+
+    .glp-view-maq, .glp-view-mes {{ display: none; }}
+    #tab_glp_maq:checked ~ details .glp-view-maq {{ display: block; }}
+    #tab_glp_mes:checked ~ details .glp-view-mes {{ display: block; }}
+</style>
+
+<div class="glp-wrapper">
+    <input type="radio" name="glp_view" id="tab_glp_maq" checked>
+    <input type="radio" name="glp_view" id="tab_glp_mes">
+
+    <details class="master-box" style="border-left-color: #FF9F1C; margin-bottom: 14px;">
+        <summary>
+            <div class="header-layout" style="padding-right: 18px;">
+                <div class="icon-box" style="background-color: rgba(255, 159, 28, 0.15); color: #FF9F1C; flex-shrink:0;">⛽</div>
+                <div class="master-metric-title">Consumo de GLP — Frota{txt_base_glp}</div>
+            </div>
+            <div class="value-layout">
+                <div class="master-metric-val" style="color: #FF9F1C;">{fmt(kg_mes_atual, 1)}</div>
+                <div class="master-metric-unit">KG ({fmt(litros_mes_atual, 1)} L)</div>
+            </div>
+            <div class="master-metric-sub" style="color: #cbd5e1; font-weight: 700;">
+                Mês Atual ({html_lib.escape(rotulo_mes_atual)}) &bull; {len(glp_maquinas)} Empilhadeiras Monitoradas
+            </div>
+        </summary>
+
+        <div class="master-content" style="padding-top: 14px;">
+            <div class="glp-tab-bar">
+                <label for="tab_glp_maq" class="lbl-glp-maq">🚜 Por Máquina ({len(glp_maquinas)})</label>
+                <label for="tab_glp_mes" class="lbl-glp-mes">📊 Mensal & Turnos ({len(glp_meses)})</label>
+            </div>
+
+            <div class="glp-view-maq">
+                {html_glp_maquinas}
+            </div>
+
+            <div class="glp-view-mes">
+                {html_glp_mensal}
+            </div>
+        </div>
+    </details>
+</div>
+"""
+render_html(html_glp_completo)
 
 
 
