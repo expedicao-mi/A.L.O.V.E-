@@ -1,22 +1,27 @@
 {
+  "id": "/A.L.O.V.E-/",
   "name": "A.L.O.V.E. Mobile",
   "short_name": "A.L.O.V.E.",
   "description": "Assistente Logístico Virtual da Expedição",
-  "start_url": "/",
+  "start_url": "/A.L.O.V.E-/",
+  "scope": "/A.L.O.V.E-/",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#0a101d",
-  "theme_color": "#0a101d",
+  "background_color": "#050911",
+  "theme_color": "#050911",
+  "lang": "pt-BR",
   "icons": [
     {
-      "src": "https://raw.githubusercontent.com/cris2026/A.L.O.V.E-/main/logo_alove.png",
-      "sizes": "192x192",
-      "type": "image/png"
+      "src": "./app_icon.png",
+      "sizes": "192x192 512x512",
+      "type": "image/png",
+      "purpose": "any"
     },
     {
-      "src": "https://raw.githubusercontent.com/cris2026/A.L.O.V.E-/main/logo_alove.png",
+      "src": "./app_icon.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ]
 }
