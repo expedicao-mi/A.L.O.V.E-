@@ -2411,7 +2411,7 @@ render_html(html_prev_insp_bloco)
 
 
 # ==============================================================================
-# 🖨️ RENDERIZAÇÃO 8C: CONSUMO DE GLP (MENSAL PIZZA/BARRAS 1º + POR MÁQUINA COL J)
+# 🖨️ RENDERIZAÇÃO 8C: CONSUMO DE GLP (SELETOR DE MÊS COM PIZZA + HISTÓRICO)
 # ==============================================================================
 @st.cache_data(ttl=30)
 def carregar_consolidado_glp():
@@ -2458,7 +2458,6 @@ glp_maquinas = []
 hora_att_glp = ""
 
 if linhas_glp_raw:
-    # 1. Procura qualquer carimbo de data/hora explícito na aba Consolidado_GLP
     for r_chk in linhas_glp_raw[:15]:
         for cel in r_chk:
             cel_s = str(cel).strip()
@@ -2469,9 +2468,6 @@ if linhas_glp_raw:
         if hora_att_glp:
             break
 
-    # 2. Índices exatos conforme estrutura da aba Consolidado_GLP:
-    # Esquerda (A:G): 0=Mês | 1=Litros | 2=Consumo Total(kg) | 3=00h-08h | 4=08h-16h | 5=16h-00h | 6=Status
-    # Direita  (I:M): 8=Equipamento | 9(Col J)=Abastecimentos(Mês) | 10(Col K)=Litros(Mês) | 11(Col L)=Total(kg) | 12(Col M)=Média/Ciclo(kg)
     header_row_glp = 0
     for r_i, row in enumerate(linhas_glp_raw[:5]):
         row_u = [str(c).strip().upper() for c in row]
@@ -2501,14 +2497,14 @@ if linhas_glp_raw:
                     "is_atual": "ATUAL" in st_m_v.upper()
                 })
 
-        # Tabela Direita: Consumo por Máquina (Coluna I=8 até Coluna M=12, com Coluna J=9 sendo Abastecimentos)
+        # Tabela Direita: Consumo por Máquina (Coluna I=8 até Coluna M=12, Coluna J=9 Abastecimentos)
         if len(row) > 8:
             eq_nome = str(row[8]).strip().upper()
             if eq_nome and eq_nome not in ["NAN", "NONE", "", "EQUIPAMENTO", "TOTAL"]:
-                ab_v = int(round(safe_to_numeric(row[9]))) if len(row) > 9 else 0   # Coluna J
-                lit_e_v = safe_to_numeric(row[10]) if len(row) > 10 else 0.0         # Coluna K
-                kg_e_v = safe_to_numeric(row[11]) if len(row) > 11 else 0.0          # Coluna L
-                med_e_v = safe_to_numeric(row[12]) if len(row) > 12 else 0.0         # Coluna M
+                ab_v = int(round(safe_to_numeric(row[9]))) if len(row) > 9 else 0
+                lit_e_v = safe_to_numeric(row[10]) if len(row) > 10 else 0.0
+                kg_e_v = safe_to_numeric(row[11]) if len(row) > 11 else 0.0
+                med_e_v = safe_to_numeric(row[12]) if len(row) > 12 else 0.0
                 glp_maquinas.append({
                     "equip": eq_nome,
                     "abast": ab_v,
@@ -2517,8 +2513,13 @@ if linhas_glp_raw:
                     "media": med_e_v
                 })
 
-# Seleciona o mês em aberto (marcado com "ATUAL" ou o último da lista)
-mes_atual_obj = next((m for m in glp_meses if m["is_atual"]), glp_meses[-1] if glp_meses else None)
+# Ordena meses cronologicamente (do mais antigo à esquerda para o mais recente/aberto à direita)
+meses_cronologicos = list(reversed(glp_meses)) if (len(glp_meses) > 1 and glp_meses[0]["is_atual"]) else list(glp_meses)
+
+# Identifica o índice do mês em aberto (padrão inicial selecionado)
+idx_mes_padrao = next((i for i, m in enumerate(meses_cronologicos) if m["is_atual"]), max(0, len(meses_cronologicos) - 1))
+mes_atual_obj = meses_cronologicos[idx_mes_padrao] if meses_cronologicos else None
+
 kg_mes_atual = mes_atual_obj["kg"] if mes_atual_obj else 0.0
 litros_mes_atual = mes_atual_obj["litros"] if mes_atual_obj else 0.0
 rotulo_mes_atual = mes_atual_obj["mes"] if mes_atual_obj else "Mês Atual"
@@ -2527,108 +2528,158 @@ hora_exibir_glp = hora_att_glp if hora_att_glp else conn_hora[:5]
 txt_base_glp = f" | 🕒 Atualizado em: {hora_exibir_glp}" if hora_exibir_glp else ""
 
 # ==============================================================================
-# ABA 1 (PRIMEIRA): MÊS EM ABERTO (PIZZA POR PERÍODO) + HISTÓRICO MENSAL (BARRAS)
+# MONTAGEM DINÂMICA DOS SELETORES DE MÊS + GRÁFICO DE PIZZA POR MÊS SELECIONADO
 # ==============================================================================
-t1_ab = mes_atual_obj["t1"] if mes_atual_obj else 0.0
-t2_ab = mes_atual_obj["t2"] if mes_atual_obj else 0.0
-t3_ab = mes_atual_obj["t3"] if mes_atual_obj else 0.0
-soma_t_ab = (t1_ab + t2_ab + t3_ab) if (t1_ab + t2_ab + t3_ab) > 0 else 1.0
+radios_meses_glp = ""
+css_meses_glp = ""
+labels_meses_glp = ""
+cards_pizza_meses_glp = ""
 
-pct_t1 = max(0.0, (t1_ab / soma_t_ab) * 100.0)
-pct_t2 = max(0.0, (t2_ab / soma_t_ab) * 100.0)
-pct_t3 = max(0.0, (t3_ab / soma_t_ab) * 100.0)
+if meses_cronologicos:
+    for idx_m, m_obj in enumerate(meses_cronologicos):
+        checked_attr = "checked" if idx_m == idx_mes_padrao else ""
+        radios_meses_glp += f'<input type="radio" name="glp_mes_sel" id="glp_m_{idx_m}" {checked_attr}>\n'
 
-svg_pizza_glp = f"""
-<svg width="112" height="112" viewBox="0 0 42 42" style="transform: rotate(-90deg); display: block;">
-    <circle cx="21" cy="21" r="15.91549430918954" fill="transparent" stroke="#162438" stroke-width="6"></circle>
-    <!-- 00h às 08h (Azul Ciano) -->
-    <circle cx="21" cy="21" r="15.91549430918954" fill="transparent" stroke="#38bdf8" stroke-width="6"
-            stroke-dasharray="{pct_t1:.1f} {100.0 - pct_t1:.1f}" stroke-dashoffset="0"></circle>
-    <!-- 08h às 16h (Verde Neon) -->
-    <circle cx="21" cy="21" r="15.91549430918954" fill="transparent" stroke="#00FF7F" stroke-width="6"
-            stroke-dasharray="{pct_t2:.1f} {100.0 - pct_t2:.1f}" stroke-dashoffset="-{pct_t1:.1f}"></circle>
-    <!-- 16h às 00h (Laranja GLP) -->
-    <circle cx="21" cy="21" r="15.91549430918954" fill="transparent" stroke="#FF9F1C" stroke-width="6"
-            stroke-dasharray="{pct_t3:.1f} {100.0 - pct_t3:.1f}" stroke-dashoffset="-{pct_t1 + pct_t2:.1f}"></circle>
-</svg>
-"""
+        cor_ativa_mes = "#00FF7F" if m_obj["is_atual"] else "#FF9F1C"
+        css_meses_glp += f"""
+        #glp_m_{idx_m}:checked ~ details .lbl-gm-{idx_m} {{
+            background: {cor_ativa_mes} !important;
+            color: #0a101d !important;
+            border-color: {cor_ativa_mes} !important;
+            box-shadow: 0 0 10px {cor_ativa_mes}55;
+        }}
+        .gm-pizza-{idx_m} {{ display: none; animation: fadeIn 0.25s ease; }}
+        #glp_m_{idx_m}:checked ~ details .gm-pizza-{idx_m} {{ display: block; }}
+        #glp_m_{idx_m}:checked ~ details .bar-m-highlight-{idx_m} {{
+            outline: 2px solid #ffffff;
+            outline-offset: 2px;
+        }}
+        """
 
-# Função auxiliar para gerar o gráfico de barras dos meses (Total ou filtrado por Período)
+        ico_m_lbl = "🟢 " if m_obj["is_atual"] else ""
+        labels_meses_glp += f'<label for="glp_m_{idx_m}" class="lbl-gm-{idx_m}">{ico_m_lbl}{html_lib.escape(m_obj["mes"])}</label>'
+
+        # Cálculos do gráfico de pizza para ESTE mês específico
+        t1_v = m_obj["t1"]
+        t2_v = m_obj["t2"]
+        t3_v = m_obj["t3"]
+        soma_t = (t1_v + t2_v + t3_v) if (t1_v + t2_v + t3_v) > 0 else 1.0
+        p_t1 = max(0.0, (t1_v / soma_t) * 100.0)
+        p_t2 = max(0.0, (t2_v / soma_t) * 100.0)
+        p_t3 = max(0.0, (t3_v / soma_t) * 100.0)
+
+        svg_pizza_m = f"""
+        <svg width="112" height="112" viewBox="0 0 42 42" style="transform: rotate(-90deg); display: block;">
+            <circle cx="21" cy="21" r="15.91549430918954" fill="transparent" stroke="#162438" stroke-width="6"></circle>
+            <circle cx="21" cy="21" r="15.91549430918954" fill="transparent" stroke="#38bdf8" stroke-width="6"
+                    stroke-dasharray="{p_t1:.1f} {100.0 - p_t1:.1f}" stroke-dashoffset="0"></circle>
+            <circle cx="21" cy="21" r="15.91549430918954" fill="transparent" stroke="#00FF7F" stroke-width="6"
+                    stroke-dasharray="{p_t2:.1f} {100.0 - p_t2:.1f}" stroke-dashoffset="-{p_t1:.1f}"></circle>
+            <circle cx="21" cy="21" r="15.91549430918954" fill="transparent" stroke="#FF9F1C" stroke-width="6"
+                    stroke-dasharray="{p_t3:.1f} {100.0 - p_t3:.1f}" stroke-dashoffset="-{p_t1 + p_t2:.1f}"></circle>
+        </svg>
+        """
+
+        if m_obj["is_atual"]:
+            borda_card_p = "#00FF7F"
+            tit_status_p = f"🟢 MÊS EM ABERTO &bull; {html_lib.escape(m_obj['mes'])}"
+            cor_tit_p = "#00FF7F"
+            badge_dir_p = '<span style="background:rgba(0,255,127,0.14); border:1px solid #00FF7F; color:#00FF7F; font-size:0.60rem; font-weight:800; padding:3px 8px; border-radius:999px;">EM ANDAMENTO</span>'
+        else:
+            borda_card_p = "#FF9F1C"
+            tit_status_p = f"🔒 MÊS FECHADO &bull; {html_lib.escape(m_obj['mes'])}"
+            cor_tit_p = "#FF9F1C"
+            badge_dir_p = '<span style="background:rgba(255,159,28,0.14); border:1px solid #FF9F1C; color:#FF9F1C; font-size:0.60rem; font-weight:800; padding:3px 8px; border-radius:999px;">CONSOLIDADO</span>'
+
+        cards_pizza_meses_glp += f"""
+        <div class="gm-pizza-{idx_m}" style="background:#070d18; border:1.5px solid #142842; border-left:4px solid {borda_card_p}; border-radius:14px; padding:12px 14px; margin-bottom:12px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; gap:6px;">
+                <div>
+                    <div style="font-size:0.68rem; color:{cor_tit_p}; font-weight:900; text-transform:uppercase; letter-spacing:0.4px;">{tit_status_p}</div>
+                    <div style="font-size:1.15rem; color:#ffffff; font-weight:900; margin-top:2px;">
+                        {fmt(m_obj['kg'], 1)} kg <span style="font-size:0.74rem; color:#64748b; font-weight:normal;">({fmt(m_obj['litros'], 1)} L)</span>
+                    </div>
+                </div>
+                {badge_dir_p}
+            </div>
+
+            <div style="display:flex; align-items:center; justify-content:space-around; gap:12px; padding-top:4px;">
+                <div style="position:relative; width:112px; height:112px; flex-shrink:0;">
+                    {svg_pizza_m}
+                </div>
+
+                <div style="display:flex; flex-direction:column; gap:7px; flex:1; min-width:135px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.74rem;">
+                        <span style="color:#cbd5e1; font-weight:700;"><span style="color:#38bdf8;">●</span> 00h às 08h</span>
+                        <b style="color:#38bdf8; font-family:monospace;">{fmt(t1_v, 1)} kg <small style="color:#64748b;">({p_t1:.0f}%)</small></b>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.74rem;">
+                        <span style="color:#cbd5e1; font-weight:700;"><span style="color:#00FF7F;">●</span> 08h às 16h</span>
+                        <b style="color:#00FF7F; font-family:monospace;">{fmt(t2_v, 1)} kg <small style="color:#64748b;">({p_t2:.0f}%)</small></b>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.74rem;">
+                        <span style="color:#cbd5e1; font-weight:700;"><span style="color:#FF9F1C;">●</span> 16h às 00h</span>
+                        <b style="color:#FF9F1C; font-family:monospace;">{fmt(t3_v, 1)} kg <small style="color:#64748b;">({p_t3:.0f}%)</small></b>
+                    </div>
+                </div>
+            </div>
+        </div>
+        """
+else:
+    cards_pizza_meses_glp = '<div style="color:#64748b; font-size:0.8rem; text-align:center; padding:14px;">Aguardando dados consolidados de GLP...</div>'
+
+# Gráfico de Barras Comparativo Mês a Mês (com destaque no mês selecionado)
 def montar_barras_meses_glp(lista_meses, chave_campo, cor_barra):
     if not lista_meses:
         return '<div style="color:#64748b; font-size:0.8rem; margin:auto;">Sem histórico mensal.</div>'
-    # Ordena cronologicamente (do mais antigo à esquerda para o mês aberto à direita)
-    meses_ord = list(reversed(lista_meses)) if (len(lista_meses) > 1 and lista_meses[0]["is_atual"]) else list(lista_meses)
-    max_val = max([m.get(chave_campo, 0.0) for m in meses_ord], default=1.0) or 1.0
+    max_val = max([m.get(chave_campo, 0.0) for m in lista_meses], default=1.0) or 1.0
 
     html_b = ""
-    for m_obj in meses_ord:
+    for idx_b, m_obj in enumerate(lista_meses):
         v_num = m_obj.get(chave_campo, 0.0)
         h_px = max(8, int((v_num / max_val) * 76))
         c_atual = "#00FF7F" if m_obj["is_atual"] else cor_barra
         tag_ab = '<div style="color:#00FF7F; font-size:0.56rem; font-weight:900; margin-top:2px;">ABERTO</div>' if m_obj["is_atual"] else '<div style="color:#64748b; font-size:0.56rem; margin-top:2px;">FECHADO</div>'
 
         html_b += f"""
-        <div style="flex:1; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; min-width:56px;">
+        <label for="glp_m_{idx_b}" style="flex:1; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; min-width:56px; cursor:pointer; -webkit-tap-highlight-color:transparent;">
             <div style="color:{c_atual}; font-size:0.70rem; font-weight:800; margin-bottom:5px; white-space:nowrap;">
                 {fmt(v_num, 0)} kg
             </div>
-            <div style="width:32px; height:{h_px}px; background:{c_atual}; border-radius:6px 6px 0 0; box-shadow:0 0 10px {c_atual}44;"></div>
+            <div class="bar-m-highlight-{idx_b}" style="width:32px; height:{h_px}px; background:{c_atual}; border-radius:6px 6px 0 0; box-shadow:0 0 10px {c_atual}44; transition:all 0.2s ease;"></div>
             <div style="width:100%; border-top:1.5px solid #1c2b42; padding-top:5px; text-align:center;">
                 <div style="color:#ffffff; font-size:0.74rem; font-weight:800;">{html_lib.escape(m_obj['mes'])}</div>
                 {tag_ab}
             </div>
-        </div>
+        </label>
         """
     return html_b
 
-barras_glp_total = montar_barras_meses_glp(glp_meses, "kg", "#FF9F1C")
-barras_glp_t1 = montar_barras_meses_glp(glp_meses, "t1", "#38bdf8")
-barras_glp_t2 = montar_barras_meses_glp(glp_meses, "t2", "#00D672")
-barras_glp_t3 = montar_barras_meses_glp(glp_meses, "t3", "#FFD600")
+barras_glp_total = montar_barras_meses_glp(meses_cronologicos, "kg", "#FF9F1C")
+barras_glp_t1 = montar_barras_meses_glp(meses_cronologicos, "t1", "#38bdf8")
+barras_glp_t2 = montar_barras_meses_glp(meses_cronologicos, "t2", "#00D672")
+barras_glp_t3 = montar_barras_meses_glp(meses_cronologicos, "t3", "#FFD600")
 
 html_glp_mensal = f"""
-<!-- 1. CARD SUPERIOR: MÊS EM ABERTO COM GRÁFICO DE PIZZA POR PERÍODO -->
-<div style="background:#070d18; border:1.5px solid #142842; border-left:4px solid #00FF7F; border-radius:14px; padding:12px 14px; margin-bottom:12px;">
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-        <div>
-            <div style="font-size:0.68rem; color:#00FF7F; font-weight:900; text-transform:uppercase; letter-spacing:0.4px;">🟢 MÊS EM ABERTO • {html_lib.escape(rotulo_mes_atual)}</div>
-            <div style="font-size:1.15rem; color:#ffffff; font-weight:900; margin-top:2px;">
-                {fmt(kg_mes_atual, 1)} kg <span style="font-size:0.74rem; color:#64748b; font-weight:normal;">({fmt(litros_mes_atual, 1)} L)</span>
-            </div>
-        </div>
-        <span style="background:rgba(0,255,127,0.14); border:1px solid #00FF7F; color:#00FF7F; font-size:0.62rem; font-weight:800; padding:3px 8px; border-radius:999px;">POR PERÍODO</span>
+<!-- BARRA DE SELEÇÃO DO MÊS (TROCA O GRÁFICO DE PIZZA ACIMA) -->
+<div style="margin-bottom:10px;">
+    <div style="font-size:0.65rem; font-weight:800; color:#94a3b8; text-transform:uppercase; letter-spacing:0.4px; margin-bottom:5px; padding-left:2px;">
+        📅 Selecione o Mês para Detalhar Períodos:
     </div>
-
-    <div style="display:flex; align-items:center; justify-content:space-around; gap:12px; padding-top:4px;">
-        <div style="position:relative; width:112px; height:112px; flex-shrink:0;">
-            {svg_pizza_glp}
-        </div>
-
-        <div style="display:flex; flex-direction:column; gap:7px; flex:1; min-width:135px;">
-            <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.74rem;">
-                <span style="color:#cbd5e1; font-weight:700;"><span style="color:#38bdf8;">●</span> 00h às 08h</span>
-                <b style="color:#38bdf8; font-family:monospace;">{fmt(t1_ab, 1)} kg <small style="color:#64748b;">({pct_t1:.0f}%)</small></b>
-            </div>
-            <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.74rem;">
-                <span style="color:#cbd5e1; font-weight:700;"><span style="color:#00FF7F;">●</span> 08h às 16h</span>
-                <b style="color:#00FF7F; font-family:monospace;">{fmt(t2_ab, 1)} kg <small style="color:#64748b;">({pct_t2:.0f}%)</small></b>
-            </div>
-            <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.74rem;">
-                <span style="color:#cbd5e1; font-weight:700;"><span style="color:#FF9F1C;">●</span> 16h às 00h</span>
-                <b style="color:#FF9F1C; font-family:monospace;">{fmt(t3_ab, 1)} kg <small style="color:#64748b;">({pct_t3:.0f}%)</small></b>
-            </div>
-        </div>
+    <div class="glp-mes-bar">
+        {labels_meses_glp}
     </div>
 </div>
 
-<!-- 2. CARD INFERIOR: GRÁFICO DE MESES (TODOS + ABERTO) COM SELETOR DE PERÍODO -->
+<!-- CARD DINÂMICO DO GRÁFICO DE PIZZA (MÊS SELECIONADO) -->
+{cards_pizza_meses_glp}
+
+<!-- GRÁFICO COMPARATIVO MÊS A MÊS (CLIQUE NA BARRA OU NO BOTÃO DO MÊS) -->
 <div style="background:#070d18; border:1.5px solid #142842; border-radius:14px; padding:12px 10px;">
     <div style="font-size:0.72rem; font-weight:800; color:#e2e8f0; text-transform:uppercase; letter-spacing:0.4px; margin-bottom:8px; padding-left:4px;">
-        📊 Histórico Mensal (Fechados + Aberto)
+        📊 Comparativo Mês a Mês (Toque na barra p/ abrir)
     </div>
 
-    <!-- MINI-SELETORES: TOTAL GERAL OU FILTRADO POR TURNO -->
     <div class="glp-per-bar">
         <label for="glp_p_tot" class="lbl-gp-tot">Total Mês</label>
         <label for="glp_p_t1" class="lbl-gp-t1">00h-08h</label>
@@ -2652,7 +2703,7 @@ html_glp_mensal = f"""
 """
 
 # ==============================================================================
-# ABA 2 (SEGUNDA): POR MÁQUINA (COM QTD. ABASTECIMENTOS DA COLUNA J EM DESTAQUE)
+# ABA 2 (SEGUNDA): POR MÁQUINA (COLUNA J = ABASTECIMENTOS NO MÊS)
 # ==============================================================================
 glp_maquinas.sort(key=lambda x: (-x["kg"], x["equip"]))
 max_kg_maq = max([x["kg"] for x in glp_maquinas], default=1.0) or 1.0
@@ -2736,6 +2787,30 @@ html_glp_completo = f"""
     #tab_glp_mes:checked ~ details .glp-view-mes {{ display: block; }}
     #tab_glp_maq:checked ~ details .glp-view-maq {{ display: block; }}
 
+    /* Barra de Seleção dos Meses (p/ abrir o Gráfico de Pizza de qualquer mês) */
+    .glp-mes-bar {{
+        display: flex;
+        gap: 6px;
+        overflow-x: auto;
+        padding-bottom: 2px;
+    }}
+    .glp-mes-bar label {{
+        flex: 1;
+        text-align: center;
+        padding: 7px 8px;
+        font-size: 0.74rem;
+        font-weight: 800;
+        color: #94a3b8;
+        background: #070d18;
+        border: 1.5px solid #1c2b42;
+        border-radius: 9px;
+        cursor: pointer;
+        white-space: nowrap;
+        transition: all 0.2s ease;
+        -webkit-tap-highlight-color: transparent;
+    }}
+    {css_meses_glp}
+
     /* Mini-seletores de Período dentro do Histórico Mensal */
     .glp-per-bar {{
         display: flex;
@@ -2772,6 +2847,8 @@ html_glp_completo = f"""
     <input type="radio" name="glp_view" id="tab_glp_mes" checked>
     <input type="radio" name="glp_view" id="tab_glp_maq">
 
+    {radios_meses_glp}
+
     <input type="radio" name="glp_periodo" id="glp_p_tot" checked>
     <input type="radio" name="glp_periodo" id="glp_p_t1">
     <input type="radio" name="glp_periodo" id="glp_p_t2">
@@ -2793,7 +2870,6 @@ html_glp_completo = f"""
         </summary>
 
         <div class="master-content" style="padding-top: 14px;">
-            <!-- ORDEM INVERTIDA: MENSAL PRIMEIRO, POR MÁQUINA EM SEGUNDO -->
             <div class="glp-tab-bar">
                 <label for="tab_glp_mes" class="lbl-glp-mes">📊 Consumo Mensal ({len(glp_meses)})</label>
                 <label for="tab_glp_maq" class="lbl-glp-maq">🚜 Por Máquina ({len(glp_maquinas)})</label>
@@ -2811,6 +2887,7 @@ html_glp_completo = f"""
 </div>
 """
 render_html(html_glp_completo)
+
 
 
 
