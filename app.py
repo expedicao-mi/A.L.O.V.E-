@@ -953,13 +953,27 @@ html_previsoes = f"""
 render_html(html_previsoes)
 
 # ==============================================================================
-# 🖨️ RENDERIZAÇÃO 4: PÁTIO DA FÁBRICA (COM DESTINOS DETALHADOS FUNCIONANDO)
+# 🖨️ RENDERIZAÇÃO 4: PÁTIO DA FÁBRICA (FECHADO AO INICIAR + ÍCONE CAMINHÃO AZUL/RELÓGIO)
 # ==============================================================================
 txt_att_patio = f" | 🕒 Base: {hora_att_patio.split(' ')[1][:5]}" if hora_att_patio and " " in hora_att_patio else ""
 
+icone_caminhao_prog_svg = """
+<svg width="28" height="28" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <!-- Baú e Cabine do Caminhão em Azul Ciano -->
+    <rect x="2" y="9" width="15" height="11" rx="2" fill="#38a9ff" fill-opacity="0.25" stroke="#38a9ff" stroke-width="2"/>
+    <path d="M17 12H22.5L26 16V20H17V12Z" fill="#38a9ff" fill-opacity="0.25" stroke="#38a9ff" stroke-width="2" stroke-linejoin="round"/>
+    <!-- Rodas -->
+    <circle cx="8" cy="22" r="2.3" fill="#0a1424" stroke="#38a9ff" stroke-width="2"/>
+    <circle cx="22" cy="22" r="2.3" fill="#0a1424" stroke="#38a9ff" stroke-width="2"/>
+    <!-- Relógio de Programação no canto superior direito -->
+    <circle cx="25" cy="7" r="5.5" fill="#070d18" stroke="#38bdf8" stroke-width="1.8"/>
+    <path d="M25 4.5V7L26.8 8" stroke="#ffffff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
+"""
+
 html_patio = f"""
 <div id="sec-patio"></div>
-<details class="master-box" style="border-left-color: #38a9ff;" open>
+<details class="master-box" style="border-left-color: #38a9ff;">
     <summary>
         <div class="header-layout">
             <div class="icon-box" style="background-color: rgba(56, 169, 255, 0.15); color: #38a9ff;">🏭</div>
@@ -980,6 +994,8 @@ for tit, chv, col_v, col_t, cor, ico in mapa_status_colunas:
     v_qtd = dados_patio[chv]["veiculos"]
     v_ton = dados_patio[chv]["peso"]
 
+    ico_render = icone_caminhao_prog_svg if chv == "PR" else ico
+
     linhas_dest_html = ""
     if lista_destinos:
         for item in lista_destinos:
@@ -991,7 +1007,7 @@ for tit, chv, col_v, col_t, cor, ico in mapa_status_colunas:
     html_patio += f"""
     <details class="st-card" style="--c:{cor};">
         <summary>
-            <div class="st-ico">{ico}</div>
+            <div class="st-ico">{ico_render}</div>
             <div class="st-txt">
                 <div class="st-title">{tit}</div>
                 <div class="st-num">{v_qtd} <span>veíc. / {fmt(v_ton)} t</span></div>
@@ -1004,6 +1020,7 @@ for tit, chv, col_v, col_t, cor, ico in mapa_status_colunas:
 
 html_patio += "</div></details>"
 render_html(html_patio)
+
 
 # ==============================================================================
 # 🖨️ RENDERIZAÇÃO 5: PRODUÇÃO DE CELULOSE (LAYOUT MODERNO COM LEDS E BARRAS)
