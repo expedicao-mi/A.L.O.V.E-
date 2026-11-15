@@ -1564,22 +1564,19 @@ render_html(html_exp_completo)
 
 
 # ==============================================================================
-# 🖨️ RENDERIZAÇÃO 6.5: ANÁLISE DE PEDIDOS (ZLE087 - CORRIGIDO E BLINDADO)
+# 🖨️ RENDERIZAÇÃO 6.5: ANÁLISE DE PEDIDOS (ZLE087 - DESTINO & MATERIAL EM DESTAQUE)
 # ==============================================================================
 @st.cache_data(ttl=30)
 def carregar_pedidos_zle087():
     try:
-        # Tenta carregar via gspread primeiro (blindado)
         df, carimbo = carregar_tabela_cega("Status_Pedidos_ZLE087", coluna_chave="FLUXO")
         
         if df.empty:
-            # Fallback via URL CSV direta
             url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet=Status_Pedidos_ZLE087"
             df_raw = pd.read_csv(url, header=None, dtype=str)
             if df_raw.empty:
                 return pd.DataFrame(), "--:--"
             
-            # Localiza a linha do cabeçalho
             idx_header = None
             for i in range(min(6, len(df_raw))):
                 row_vals = [str(x).strip().upper() for x in df_raw.iloc[i].tolist()]
@@ -1597,7 +1594,7 @@ def carregar_pedidos_zle087():
         hora_att_ped = carimbo if carimbo else "--:--"
         df.columns = [str(c).strip().upper() for c in df.columns]
         return df, hora_att_ped
-    except Exception as e:
+    except Exception:
         return pd.DataFrame(), "--:--"
 
 df_pedidos, hora_att_ped = carregar_pedidos_zle087()
@@ -1608,7 +1605,6 @@ tot_saldo_transf = 0.0
 tot_saldo_mi = 0.0
 
 if not df_pedidos.empty:
-    # Função flexível para encontrar colunas mesmo com cortes ou variações de nomes
     def obter_val(registro, termos_obrigatorios, termos_proibidos=[]):
         for k in registro.index:
             k_upper = str(k).strip().upper()
@@ -1626,12 +1622,10 @@ if not df_pedidos.empty:
         mat_atual = str(obter_val(r, ["MAT"], ["PROX"]) or "").strip()
         
         qtd_ini = safe_to_numeric(obter_val(r, ["QTD"]) or 0)
-        # Busca qualquer coluna com "SALDO" que NÃO tenha "PROX" (pega SALDO_RESTA, SALDO_RESTANTE, etc.)
         saldo = safe_to_numeric(obter_val(r, ["SALDO"], ["PROX"]) or 0)
         
         prox_ped = str(obter_val(r, ["PROX", "PED"]) or "--").strip()
         prox_mat = str(obter_val(r, ["PROX", "MAT"]) or "--").strip()
-        # Busca a coluna com "SALDO" e "PROX" (pega SALDO_PROXII, SALDO_PROXIMO, etc.)
         saldo_prox = str(obter_val(r, ["SALDO", "PROX"]) or "--").strip()
 
         if not destino or destino.lower() in ["nan", "none", ""]:
@@ -1656,7 +1650,20 @@ if not df_pedidos.empty:
             pedidos_mi.append(item)
             tot_saldo_mi += saldo
 
+# Prioriza pedidos em fim de saldo no topo da lista, seguidos por destino
+pedidos_transf.sort(key=lambda x: (not x["is_fim"], x["destino"]))
+pedidos_mi.sort(key=lambda x: (not x["is_fim"], x["destino"]))
 tot_saldo_geral = tot_saldo_transf + tot_saldo_mi
+
+def cor_badge_material_pedido(mat_str):
+    m = str(mat_str).upper()
+    if "OS" in m:
+        return "#FF2E2E", "rgba(255, 46, 46, 0.16)"
+    if "BQ" in m:
+        return "#FF8C00", "rgba(255, 140, 0, 0.16)"
+    if "SQ" in m:
+        return "#FFD600", "rgba(255, 214, 0, 0.16)"
+    return "#00FF7F", "rgba(0, 255, 127, 0.16)"
 
 def gerar_cards_pedidos(lista_itens, cor_primaria):
     if not lista_itens:
@@ -1664,50 +1671,74 @@ def gerar_cards_pedidos(lista_itens, cor_primaria):
     
     html = ""
     for item in lista_itens:
-        # Tag de alerta se estiver em fim de pedido (< 100t)
-        if item["is_fim"]:
-            tag_status = f'<span style="background:rgba(231,76,60,0.18); border:1px solid #e74c3c; color:#ff7675; font-size:0.68rem; font-weight:800; padding:2px 8px; border-radius:6px; white-space:nowrap;">⚠️ FIM: {fmt(item["saldo"])} t</span>'
-        else:
-            tag_status = f'<span style="background:rgba(56,189,248,0.15); border:1px solid #38bdf8; color:#38bdf8; font-size:0.68rem; font-weight:800; padding:2px 8px; border-radius:6px; white-space:nowrap;">SALDO: {fmt(item["saldo"])} t</span>'
+        cor_mat, bg_mat = cor_badge_material_pedido(item["material"])
 
-        # Barra de atendimento do pedido atual
+        # Segregação visual clara: card em fim de pedido ganha destaque crítico em vermelho
+        if item["is_fim"]:
+            borda_card = "#FF2E2E"
+            bg_card = "linear-gradient(180deg, rgba(255, 46, 46, 0.09) 0%, #070d18 100%)"
+            cor_saldo = "#FF2E2E"
+            tag_alerta = '<span style="background:rgba(255,46,46,0.2); border:1px solid #FF2E2E; color:#ff8080; font-size:0.62rem; font-weight:900; padding:2px 6px; border-radius:5px; letter-spacing:0.3px;">⚠️ FIM DE PEDIDO</span>'
+        else:
+            borda_card = cor_primaria
+            bg_card = "#070d18"
+            cor_saldo = "#38bdf8"
+            tag_alerta = ""
+
         pct_atend = 0.0
         if item["qtd_ini"] > 0:
             carr = max(0.0, item["qtd_ini"] - item["saldo"])
             pct_atend = min(100.0, max(0.0, (carr / item["qtd_ini"]) * 100.0))
 
-        # Informação do próximo pedido
         info_prox = ""
-        if item["prox_ped"] not in ("--", "", "nan") and not "SEM PR" in item["prox_mat"].upper():
+        if item["prox_ped"] not in ("--", "", "nan") and "SEM PR" not in item["prox_mat"].upper():
             info_prox = f"""
-            <div style="background:#050911; border:1px dashed #1c2b42; border-radius:8px; padding:6px 10px; margin-top:8px; font-size:0.72rem; color:#94a3b8;">
-                🔜 <b>Próximo:</b> <span style="color:#ffffff; font-weight:bold;">{item['prox_ped']}</span> ({item['prox_mat']}) &bull; Saldo: <span style="color:#38bdf8; font-weight:bold;">{item['saldo_prox']}</span>
+            <div style="background:#050911; border-top:1px solid #162840; margin:10px -13px -11px -13px; padding:7px 13px; border-radius:0 0 11px 11px; display:flex; justify-content:space-between; align-items:center; font-size:0.70rem; color:#94a3b8; gap:6px;">
+                <span>🔜 Próx: <b style="color:#e2e8f0;">{html_lib.escape(item['prox_ped'])}</b> &bull; <b style="color:#cbd5e1;">{html_lib.escape(item['prox_mat'])}</b></span>
+                <span style="color:#38bdf8; font-weight:800; white-space:nowrap;">{html_lib.escape(item['saldo_prox'])}</span>
             </div>
             """
 
-        cor_mat = "#00D672" if "EQ" in item["material"].upper() else ("#00D6FF" if "SQ" in item["material"].upper() else "#FF9F1C")
-
         html += f"""
-        <div style="background:#070d18; border:1.5px solid #142842; border-left:4px solid {cor_primaria}; border-radius:12px; padding:12px 14px; margin-bottom:10px; box-shadow:0 3px 10px rgba(0,0,0,0.25);">
-            <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px;">
-                <div style="color:#ffffff; font-weight:800; font-size:0.88rem; line-height:1.2;">{item['destino']}</div>
-                {tag_status}
+        <div style="background:{bg_card}; border:1.5px solid #1a314d; border-left:5px solid {borda_card}; border-radius:13px; padding:11px 13px; margin-bottom:12px; box-shadow:0 4px 12px rgba(0,0,0,0.32);">
+            <!-- LINHA 1: DESTINO (ESQUERDA) + PÍLULA GRANDE DO MATERIAL (DIREITA) -->
+            <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:8px;">
+                <div style="min-width:0;">
+                    <div style="color:#ffffff; font-weight:900; font-size:0.95rem; letter-spacing:0.2px; line-height:1.2;">
+                        {html_lib.escape(item['destino'])}
+                    </div>
+                    <div style="display:flex; align-items:center; gap:6px; margin-top:3px;">
+                        <span style="font-size:0.70rem; color:#64748b; font-family:monospace;">Ordem: <b style="color:#cbd5e1;">{html_lib.escape(item['pedido'])}</b></span>
+                        {tag_alerta}
+                    </div>
+                </div>
+
+                <!-- BADGE DE DESTAQUE DO MATERIAL -->
+                <div style="background:{bg_mat}; border:1.5px solid {cor_mat}; border-radius:9px; padding:5px 10px; text-align:center; flex-shrink:0; box-shadow:0 0 10px {cor_mat}26;">
+                    <div style="font-size:0.56rem; color:{cor_mat}; font-weight:800; text-transform:uppercase; letter-spacing:0.5px; line-height:1;">MATERIAL</div>
+                    <div style="font-size:0.86rem; color:#ffffff; font-weight:900; margin-top:2px; white-space:nowrap;">{html_lib.escape(item['material'])}</div>
+                </div>
             </div>
 
-            <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.75rem; color:#94a3b8; margin-top:6px;">
-                <div>📦 Pedido: <b style="color:#ffffff;">{item['pedido']}</b></div>
-                <div>Mat: <b style="color:{cor_mat};">{item['material']}</b></div>
+            <!-- LINHA 2: MÉTRICAS DO PEDIDO VIGENTE (SALDO | META | ATENDIDO) -->
+            <div style="display:flex; justify-content:space-between; align-items:center; background:#050911; border:1px solid #132338; border-radius:8px; padding:6px 10px; margin-bottom:7px;">
+                <div>
+                    <div style="font-size:0.60rem; color:#64748b; font-weight:700; text-transform:uppercase;">Saldo Atual</div>
+                    <div style="font-size:0.95rem; font-weight:900; color:{cor_saldo}; font-family:monospace;">{fmt(item['saldo'])} <span style="font-size:0.68rem; font-weight:normal;">t</span></div>
+                </div>
+                <div style="text-align:center;">
+                    <div style="font-size:0.60rem; color:#64748b; font-weight:700; text-transform:uppercase;">Meta Ordem</div>
+                    <div style="font-size:0.82rem; font-weight:700; color:#cbd5e1; font-family:monospace;">{fmt(item['qtd_ini'])} t</div>
+                </div>
+                <div style="text-align:right;">
+                    <div style="font-size:0.60rem; color:#64748b; font-weight:700; text-transform:uppercase;">Atendido</div>
+                    <div style="font-size:0.85rem; font-weight:800; color:#00FF7F;">{pct_atend:.0f}%</div>
+                </div>
             </div>
 
-            <!-- Progresso do pedido atual -->
-            <div style="margin-top:8px;">
-                <div style="display:flex; justify-content:space-between; font-size:0.68rem; color:#64748b; margin-bottom:3px;">
-                    <span>Atendido: {pct_atend:.0f}%</span>
-                    <span>Meta: {fmt(item['qtd_ini'])} t</span>
-                </div>
-                <div style="width:100%; height:5px; background:#14243b; border-radius:999px; overflow:hidden;">
-                    <div style="width:{pct_atend:.1f}%; height:100%; background:linear-gradient(90deg, #38bdf8, {cor_primaria}); border-radius:999px;"></div>
-                </div>
+            <!-- BARRA DE PROGRESSO COMPACTA -->
+            <div style="width:100%; height:4px; background:#14243b; border-radius:999px; overflow:hidden;">
+                <div style="width:{pct_atend:.1f}%; height:100%; background:linear-gradient(90deg, #38bdf8, {borda_card}); border-radius:999px;"></div>
             </div>
 
             {info_prox}
@@ -1727,13 +1758,12 @@ html_bloco_pedidos = f"""
         justify-content: center;
         gap: 10px;
         margin-bottom: 14px;
-        padding: 0 4px;
+        padding: 0 2px;
     }}
     .ped-tab-bar label {{
         flex: 1;
-        max-width: 190px;
         text-align: center;
-        padding: 9px 8px;
+        padding: 10px 8px;
         font-size: 0.80rem;
         font-weight: 800;
         color: #94a3b8;
@@ -1743,6 +1773,7 @@ html_bloco_pedidos = f"""
         cursor: pointer;
         transition: all 0.2s ease;
         white-space: nowrap;
+        -webkit-tap-highlight-color: transparent;
     }}
     #tab_transf:checked ~ details .lbl-transf {{
         background: #0084FF !important;
@@ -1766,64 +1797,59 @@ html_bloco_pedidos = f"""
     <input type="radio" name="ped_view" id="tab_transf" checked>
     <input type="radio" name="ped_view" id="tab_mi">
 
-    <details class="master-box" style="border-left-color: #0084FF; margin-bottom: 14px;" open>
+    <details class="master-box" style="border-left-color: #0084FF; margin-bottom: 14px;">
        <summary>
-            <!-- CABEÇALHO COM TÍTULO E ÍCONE -->
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+            <!-- CABEÇALHO COM TÍTULO E TOTAL -->
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px; padding-right:18px;">
                 <div class="header-layout" style="margin-bottom:0;">
                     <div class="icon-box" style="background-color: rgba(0, 132, 255, 0.15); color: #0084FF;">📑</div>
                     <div class="master-metric-title">Análise de Pedidos (ZLE087)</div>
                 </div>
-                <div style="font-size:0.75rem; color:#64748b; font-weight:700;">
-                    Total: <b style="color:#ffffff;">{len(pedidos_transf) + len(pedidos_mi)} ordens ativas</b>
+                <div style="font-size:0.72rem; color:#94a3b8; font-weight:700; white-space:nowrap;">
+                    <b style="color:#ffffff;">{len(pedidos_transf) + len(pedidos_mi)}</b> ordens
                 </div>
             </div>
 
-            <!-- VALOR PRINCIPAL: SALDO TOTAL PENDENTE -->
-            <div class="value-layout" style="margin-bottom:6px;">
+            <!-- VALOR PRINCIPAL -->
+            <div class="value-layout" style="margin-bottom:8px;">
                 <div class="master-metric-val">{fmt(tot_saldo_geral)}</div>
                 <div class="master-metric-unit">TON PENDENTES</div>
             </div>
 
-            <!-- SUB-RESUMO: QUANTIDADE DE PEDIDOS EM ABERTO POR DESTINO/FLUXO -->
-            <div style="display: flex; gap: 8px; margin-top: 6px;">
-                <!-- Pílula Transferência -->
-                <div style="flex: 1; background: #070d18; border: 1.5px solid #142842; border-left: 3px solid #0084FF; border-radius: 10px; padding: 8px 10px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <span style="font-size: 0.72rem; color: #94a3b8; font-weight: 700; text-transform: uppercase;">🚛 Transferência</span>
-                        <span style="background: rgba(0, 132, 255, 0.15); color: #38bdf8; font-size: 0.68rem; font-weight: 800; padding: 2px 6px; border-radius: 4px;">{len(pedidos_transf)} pedidos</span>
+            <!-- SUB-RESUMO SEM QUEBRA DE TEXTO -->
+            <div style="display: flex; gap: 8px; margin-top: 4px;">
+                <div style="flex: 1; background: #070d18; border: 1.5px solid #142842; border-left: 3px solid #0084FF; border-radius: 10px; padding: 8px 9px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; gap: 4px;">
+                        <span style="font-size: 0.68rem; color: #94a3b8; font-weight: 800; text-transform: uppercase; white-space: nowrap;">🚛 Transf.</span>
+                        <span style="background: rgba(0, 132, 255, 0.15); color: #38bdf8; font-size: 0.65rem; font-weight: 800; padding: 2px 6px; border-radius: 4px; white-space: nowrap;">{len(pedidos_transf)} ped.</span>
                     </div>
                     <div style="font-size: 0.95rem; font-weight: 800; color: #ffffff; margin-top: 4px;">
-                        {fmt(tot_saldo_transf)} <span style="font-size: 0.72rem; color: #64748b; font-weight: normal;">t pendentes</span>
+                        {fmt(tot_saldo_transf)} <span style="font-size: 0.70rem; color: #64748b; font-weight: normal;">t</span>
                     </div>
                 </div>
 
-                <!-- Pílula Mercado Interno -->
-                <div style="flex: 1; background: #070d18; border: 1.5px solid #142842; border-left: 3px solid #00D672; border-radius: 10px; padding: 8px 10px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <span style="font-size: 0.72rem; color: #94a3b8; font-weight: 700; text-transform: uppercase;">🏢 MI / LATAM</span>
-                        <span style="background: rgba(0, 214, 114, 0.15); color: #00D672; font-size: 0.68rem; font-weight: 800; padding: 2px 6px; border-radius: 4px;">{len(pedidos_mi)} pedidos</span>
+                <div style="flex: 1; background: #070d18; border: 1.5px solid #142842; border-left: 3px solid #00D672; border-radius: 10px; padding: 8px 9px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; gap: 4px;">
+                        <span style="font-size: 0.68rem; color: #94a3b8; font-weight: 800; text-transform: uppercase; white-space: nowrap;">🏢 MI / LATAM</span>
+                        <span style="background: rgba(0, 214, 114, 0.15); color: #00D672; font-size: 0.65rem; font-weight: 800; padding: 2px 6px; border-radius: 4px; white-space: nowrap;">{len(pedidos_mi)} ped.</span>
                     </div>
                     <div style="font-size: 0.95rem; font-weight: 800; color: #ffffff; margin-top: 4px;">
-                        {fmt(tot_saldo_mi)} <span style="font-size: 0.72rem; color: #64748b; font-weight: normal;">t pendentes</span>
+                        {fmt(tot_saldo_mi)} <span style="font-size: 0.70rem; color: #64748b; font-weight: normal;">t</span>
                     </div>
                 </div>
             </div>
         </summary>
 
         <div class="master-content" style="padding-top: 14px;">
-            <!-- SELETORES EM ABAS LADO A LADO -->
             <div class="ped-tab-bar">
                 <label for="tab_transf" class="lbl-transf">🚛 Transferência ({len(pedidos_transf)})</label>
                 <label for="tab_mi" class="lbl-mi">🏢 MI / LATAM ({len(pedidos_mi)})</label>
             </div>
 
-            <!-- PAINEL 1: TRANSFERÊNCIA -->
             <div class="ped-view-transf">
                 {html_cards_transf}
             </div>
 
-            <!-- PAINEL 2: MERCADO INTERNO / LATAM -->
             <div class="ped-view-mi">
                 {html_cards_mi}
             </div>
@@ -1832,6 +1858,7 @@ html_bloco_pedidos = f"""
 </div>
 """
 render_html(html_bloco_pedidos)
+
 
 
 # ==============================================================================
