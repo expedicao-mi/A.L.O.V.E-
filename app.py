@@ -2226,111 +2226,188 @@ html_frota_disp = f"""
 render_html(html_frota_disp)
 
 # ------------------------------------------------------------------------------
-# BLOCO 8B: GESTÃO DE PREVENTIVA & INSPEÇÃO (SEMPRE FECHADO + VISÃO LADO A LADO)
+# BLOCO 8B: GESTÃO DE PREVENTIVA & INSPEÇÃO (SELETORES EM ABAS - 100% LARGURA)
 # ------------------------------------------------------------------------------
 def estilo_alerta_manut_curto(txt, is_inspecao=False):
     t = str(txt).upper()
     if "VENCIDA" in t or "CRITICO" in t or "CRÍTICO" in t:
-        return "Crítica", "#FF2E2E", "rgba(255, 46, 46, 0.16)"
+        return "CRÍTICA", "#FF2E2E", "rgba(255, 46, 46, 0.16)"
     if "ATENCAO" in t or "ATENÇÃO" in t or "PROXIMA" in t or "PRÓXIMA" in t:
-        return "Alerta", "#FFD600", "rgba(255, 214, 0, 0.16)"
+        return "ALERTA", "#FFD600", "rgba(255, 214, 0, 0.16)"
     if "SEM META" in t or t in ["--", "NAN", ""]:
-        return ("Sem meta" if is_inspecao else "--"), "#64748b", "rgba(100, 116, 139, 0.14)"
-    return "OK", "#00FF7F", "rgba(0, 255, 127, 0.14)"
+        return ("SEM META" if is_inspecao else "--"), "#64748b", "rgba(100, 116, 139, 0.14)"
+    return "EM DIA", "#00FF7F", "rgba(0, 255, 127, 0.14)"
 
-html_prev_insp_grupos = ""
+html_aba_preventiva = ""
+html_aba_inspecao = ""
+
 if tipos_ordenados_frota:
     for tp in tipos_ordenados_frota:
-        itens_manut = sorted(equip_por_tipo[tp], key=lambda x: (x["sev_geral"], x["tag"]))
         ico_tp = icone_tipo_equipamento(tp)
-        linhas_prev_html = ""
-        linhas_insp_html = ""
 
-        for item in itens_manut:
+        # --- LISTA 1: PREVENTIVAS DA CLASSE (ORDENADA POR SEVERIDADE) ---
+        itens_prev = sorted(equip_por_tipo[tp], key=lambda x: (x["sev_p"], x["tag"]))
+        cards_prev_tp = ""
+        for item in itens_prev:
             lbl_p, cor_p, bg_p = estilo_alerta_manut_curto(item["alerta_prev"], is_inspecao=False)
-            lbl_i, cor_i, bg_i = estilo_alerta_manut_curto(item["alerta_insp"], is_inspecao=True)
-            om_p = f" • OM {html_lib.escape(item['om_prev'])}" if item["om_prev"] not in ["--", "", "nan", "None"] else ""
-            om_i = f" • OM {html_lib.escape(item['om_insp'])}" if item["om_insp"] not in ["--", "", "nan", "None"] else ""
+            borda_p = cor_p if item["sev_p"] <= 2 else "#1c2b42"
+            om_p_badge = f'<span style="background:#0d1a2d; border:1px solid #1e3554; color:#cbd5e1; font-family:monospace; font-size:0.68rem; padding:2px 7px; border-radius:5px;">OM {html_lib.escape(item["om_prev"])}</span>' if item["om_prev"] not in ["--", "", "nan", "None"] else '<span style="color:#475569; font-size:0.68rem;">Sem OM</span>'
 
-            linhas_prev_html += f"""
-            <div style="padding:6px 0; border-bottom:1px dashed #1c2b42; font-size:0.71rem;">
-                <div style="display:flex; justify-content:space-between; align-items:center; gap:4px;">
-                    <b style="color:#ffffff;">{html_lib.escape(item['tag'])}</b>
-                    <span style="background:{bg_p}; color:{cor_p}; border:1px solid {cor_p}; font-size:0.60rem; font-weight:800; padding:1px 5px; border-radius:4px;">{lbl_p}</span>
+            cards_prev_tp += f"""
+            <div style="background:#070d18; border:1px solid #162840; border-left:4px solid {borda_p}; border-radius:10px; padding:9px 11px; margin-bottom:7px; display:flex; justify-content:space-between; align-items:center; gap:8px;">
+                <div style="min-width:0;">
+                    <div style="display:flex; align-items:center; gap:7px; margin-bottom:4px;">
+                        <b style="color:#ffffff; font-size:0.88rem; letter-spacing:0.2px;">{html_lib.escape(item['tag'])}</b>
+                        {om_p_badge}
+                    </div>
+                    <div style="font-size:0.73rem; color:#94a3b8;">
+                        Atual: <b style="color:#38bdf8; font-family:monospace;">{html_lib.escape(item['horimetro'])}</b> &nbsp;&bull;&nbsp; Meta: <b style="color:#e2e8f0; font-family:monospace;">{html_lib.escape(item['meta_prev'])}</b>
+                    </div>
                 </div>
-                <div style="color:#94a3b8; font-size:0.65rem; margin-top:2px;">
-                    Meta: <b style="color:#cbd5e1;">{html_lib.escape(item['meta_prev'])}</b>{om_p}
-                </div>
+                <span style="background:{bg_p}; color:{cor_p}; border:1px solid {cor_p}; font-size:0.66rem; font-weight:900; padding:4px 9px; border-radius:7px; white-space:nowrap; flex-shrink:0;">
+                    {lbl_p}
+                </span>
             </div>
             """
 
-            linhas_insp_html += f"""
-            <div style="padding:6px 0; border-bottom:1px dashed #1c2b42; font-size:0.71rem;">
-                <div style="display:flex; justify-content:space-between; align-items:center; gap:4px;">
-                    <b style="color:#ffffff;">{html_lib.escape(item['tag'])}</b>
-                    <span style="background:{bg_i}; color:{cor_i}; border:1px solid {cor_i}; font-size:0.60rem; font-weight:800; padding:1px 5px; border-radius:4px;">{lbl_i}</span>
-                </div>
-                <div style="color:#94a3b8; font-size:0.65rem; margin-top:2px;">
-                    Horím: <b style="color:#38bdf8;">{html_lib.escape(item['horimetro'])}</b>{om_i}
-                </div>
-            </div>
-            """
-
-        html_prev_insp_grupos += f"""
-        <div style="background:#070d18; border:1.5px solid #162d47; border-radius:12px; padding:10px; margin-bottom:12px;">
-            <div style="font-size:0.76rem; font-weight:900; color:#FF8C00; text-transform:uppercase; letter-spacing:0.4px; margin-bottom:8px; padding-left:7px; border-left:3px solid #FF8C00; display:flex; justify-content:space-between;">
+        html_aba_preventiva += f"""
+        <div style="margin-bottom:14px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.75rem; font-weight:900; color:#FF8C00; text-transform:uppercase; letter-spacing:0.4px; margin-bottom:7px; padding-left:7px; border-left:3px solid #FF8C00;">
                 <span>{ico_tp} {html_lib.escape(tp)}</span>
-                <span style="color:#64748b; font-size:0.70rem;">{len(itens_manut)} un.</span>
+                <span style="color:#64748b; font-size:0.70rem;">{len(itens_prev)} un.</span>
             </div>
+            {cards_prev_tp}
+        </div>
+        """
 
-            <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
-                <!-- COLUNA ESQUERDA: PREVENTIVA -->
-                <div style="background:#050911; border:1px solid #132338; border-radius:8px; padding:7px 8px;">
-                    <div style="font-size:0.65rem; font-weight:800; color:#FF8C00; text-transform:uppercase; border-bottom:1px solid #1c2b42; padding-bottom:4px; margin-bottom:2px;">
-                        🛠️ Preventiva
-                    </div>
-                    {linhas_prev_html}
-                </div>
+        # --- LISTA 2: INSPEÇÕES DA CLASSE (ORDENADA POR SEVERIDADE) ---
+        itens_insp = sorted(equip_por_tipo[tp], key=lambda x: (x["sev_i"], x["tag"]))
+        cards_insp_tp = ""
+        for item in itens_insp:
+            lbl_i, cor_i, bg_i = estilo_alerta_manut_curto(item["alerta_insp"], is_inspecao=True)
+            borda_i = cor_i if item["sev_i"] <= 2 else "#1c2b42"
+            om_i_badge = f'<span style="background:#0d1a2d; border:1px solid #1e3554; color:#cbd5e1; font-family:monospace; font-size:0.68rem; padding:2px 7px; border-radius:5px;">OM {html_lib.escape(item["om_insp"])}</span>' if item["om_insp"] not in ["--", "", "nan", "None"] else '<span style="color:#475569; font-size:0.68rem;">Sem OM</span>'
 
-                <!-- COLUNA DIREITA: INSPEÇÃO -->
-                <div style="background:#050911; border:1px solid #132338; border-radius:8px; padding:7px 8px;">
-                    <div style="font-size:0.65rem; font-weight:800; color:#38bdf8; text-transform:uppercase; border-bottom:1px solid #1c2b42; padding-bottom:4px; margin-bottom:2px;">
-                        📋 Inspeção
+            cards_insp_tp += f"""
+            <div style="background:#070d18; border:1px solid #162840; border-left:4px solid {borda_i}; border-radius:10px; padding:9px 11px; margin-bottom:7px; display:flex; justify-content:space-between; align-items:center; gap:8px;">
+                <div style="min-width:0;">
+                    <div style="display:flex; align-items:center; gap:7px; margin-bottom:4px;">
+                        <b style="color:#ffffff; font-size:0.88rem; letter-spacing:0.2px;">{html_lib.escape(item['tag'])}</b>
+                        {om_i_badge}
                     </div>
-                    {linhas_insp_html}
+                    <div style="font-size:0.73rem; color:#94a3b8;">
+                        Horímetro / Ciclo: <b style="color:#38bdf8; font-family:monospace;">{html_lib.escape(item['horimetro'])}</b>
+                    </div>
                 </div>
+                <span style="background:{bg_i}; color:{cor_i}; border:1px solid {cor_i}; font-size:0.66rem; font-weight:900; padding:4px 9px; border-radius:7px; white-space:nowrap; flex-shrink:0;">
+                    {lbl_i}
+                </span>
             </div>
+            """
+
+        html_aba_inspecao += f"""
+        <div style="margin-bottom:14px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.75rem; font-weight:900; color:#38bdf8; text-transform:uppercase; letter-spacing:0.4px; margin-bottom:7px; padding-left:7px; border-left:3px solid #38bdf8;">
+                <span>{ico_tp} {html_lib.escape(tp)}</span>
+                <span style="color:#64748b; font-size:0.70rem;">{len(itens_insp)} un.</span>
+            </div>
+            {cards_insp_tp}
         </div>
         """
 else:
-    html_prev_insp_grupos = '<div style="color:#64748b; font-size:0.8rem; text-align:center; padding:14px;">Aguardando dados de preventiva e inspeção...</div>'
+    vazio_manut = '<div style="color:#64748b; font-size:0.8rem; text-align:center; padding:14px;">Aguardando dados de preventiva e inspeção...</div>'
+    html_aba_preventiva = vazio_manut
+    html_aba_inspecao = vazio_manut
 
 tot_alertas_manut = qtd_criticos_prev + qtd_criticos_insp
 cor_borda_manut = "#FF2E2E" if tot_alertas_manut > 0 else "#E67E22"
 
 html_prev_insp_bloco = f"""
 <div id="sec-manut"></div>
-<details class="master-box" style="border-left-color:{cor_borda_manut}; margin-bottom:14px;">
-    <summary>
-        <div class="header-layout">
-            <div class="icon-box" style="background-color:rgba(230,126,34,.15); color:{cor_borda_manut};">🔧</div>
-            <div class="master-metric-title">Gestão de Preventiva & Inspeção{txt_base_prev}</div>
-        </div>
-        <div class="value-layout">
-            <div class="master-metric-val" style="color:{cor_borda_manut};">{tot_alertas_manut}</div>
-            <div class="master-metric-unit">Pendências Críticas</div>
-        </div>
-        <div class="master-metric-sub" style="color:#cbd5e1; font-weight:700;">
-            🚨 {qtd_criticos_prev} Preventivas Críticas &nbsp;|&nbsp; 📋 {qtd_criticos_insp} Inspeções Críticas
-        </div>
-    </summary>
+<style>
+    .manut-wrapper input[type="radio"] {{ display: none !important; }}
 
-    <div class="master-content" style="padding-top:14px;">
-        {html_prev_insp_grupos}
-    </div>
-</details>
+    .manut-tab-bar {{
+        display: flex;
+        justify-content: center;
+        gap: 10px;
+        margin-bottom: 14px;
+        padding: 0 2px;
+    }}
+    .manut-tab-bar label {{
+        flex: 1;
+        text-align: center;
+        padding: 10px 8px;
+        font-size: 0.80rem;
+        font-weight: 800;
+        color: #94a3b8;
+        background: #070d18;
+        border: 1.5px solid #1c2b42;
+        border-radius: 10px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        white-space: nowrap;
+        -webkit-tap-highlight-color: transparent;
+    }}
+    #tab_manut_prev:checked ~ details .lbl-manut-prev {{
+        background: #FF8C00 !important;
+        color: #0a101d !important;
+        border-color: #FF8C00 !important;
+        box-shadow: 0 0 10px rgba(255, 140, 0, 0.4);
+    }}
+    #tab_manut_insp:checked ~ details .lbl-manut-insp {{
+        background: #38bdf8 !important;
+        color: #0a101d !important;
+        border-color: #38bdf8 !important;
+        box-shadow: 0 0 10px rgba(56, 189, 248, 0.4);
+    }}
+
+    .manut-view-prev, .manut-view-insp {{ display: none; }}
+    #tab_manut_prev:checked ~ details .manut-view-prev {{ display: block; }}
+    #tab_manut_insp:checked ~ details .manut-view-insp {{ display: block; }}
+</style>
+
+<div class="manut-wrapper">
+    <input type="radio" name="manut_view" id="tab_manut_prev" checked>
+    <input type="radio" name="manut_view" id="tab_manut_insp">
+
+    <details class="master-box" style="border-left-color:{cor_borda_manut}; margin-bottom:14px;">
+        <summary>
+            <div class="header-layout">
+                <div class="icon-box" style="background-color:rgba(230,126,34,.15); color:{cor_borda_manut};">🔧</div>
+                <div class="master-metric-title">Gestão de Preventiva & Inspeção{txt_base_prev}</div>
+            </div>
+            <div class="value-layout">
+                <div class="master-metric-val" style="color:{cor_borda_manut};">{tot_alertas_manut}</div>
+                <div class="master-metric-unit">Pendências Críticas</div>
+            </div>
+            <div class="master-metric-sub" style="color:#cbd5e1; font-weight:700;">
+                🚨 {qtd_criticos_prev} Preventivas Críticas &nbsp;|&nbsp; 📋 {qtd_criticos_insp} Inspeções Críticas
+            </div>
+        </summary>
+
+        <div class="master-content" style="padding-top:14px;">
+            <!-- SELETORES LADO A LADO (IGUAL AO BLOCO DE PEDIDOS) -->
+            <div class="manut-tab-bar">
+                <label for="tab_manut_prev" class="lbl-manut-prev">🛠️ Preventiva ({qtd_criticos_prev})</label>
+                <label for="tab_manut_insp" class="lbl-manut-insp">📋 Inspeção ({qtd_criticos_insp})</label>
+            </div>
+
+            <!-- ABA 1: PREVENTIVA EM LARGURA TOTAL -->
+            <div class="manut-view-prev">
+                {html_aba_preventiva}
+            </div>
+
+            <!-- ABA 2: INSPEÇÃO EM LARGURA TOTAL -->
+            <div class="manut-view-insp">
+                {html_aba_inspecao}
+            </div>
+        </div>
+    </details>
+</div>
 """
 render_html(html_prev_insp_bloco)
+
 
 
 
