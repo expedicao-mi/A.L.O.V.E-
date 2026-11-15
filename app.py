@@ -1476,7 +1476,7 @@ html_exp_completo = f"""
     <input type="radio" name="exp_day" id="day_hoje" checked>
     <input type="radio" name="exp_day" id="day_ontem">
 
-    <details class="master-box" style="border-left-color: #00D672;" open>
+    <details class="master-box" style="border-left-color: #00D672;" >
         <summary>
             <!-- CABEÇALHO COM TÍTULO E SWITCH DESLIZANTE IOS -->
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; gap:4px;">
