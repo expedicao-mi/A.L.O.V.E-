@@ -2485,19 +2485,93 @@ render_html(html_baf_final)
 
 
 # ==============================================================================
-# 🖨️ RENDERIZAÇÃO 10: COMPARATIVO ANUAL (PRODUÇÃO VS EXPEDIÇÃO)
+# 🖨️ RENDERIZAÇÃO 10: COMPARATIVO ANUAL (LENDO ABA PARAMETROS_ANO - SEMPRE FECHADO)
 # ==============================================================================
+df_param_ano, _ = carregar_tabela_cega("Parametros_Ano", "PARAMETRO")
+if df_param_ano.empty:
+    df_param_ano = carregar_dados_nuvem("Parametros_Ano", cabecalho=0)
+
+params_ano_map = {}
+data_ref_ano = ""
+
+if not df_param_ano.empty:
+    df_param_ano.columns = [str(c).strip().upper() for c in df_param_ano.columns]
+    for _, r_pa in df_param_ano.iterrows():
+        chave_p = str(r_pa.get("PARAMETRO", "")).strip().upper()
+        if not chave_p or chave_p in ["NAN", "NONE", "PARAMETRO"]:
+            continue
+        params_ano_map[chave_p] = safe_to_numeric(r_pa.get("VALOR", 0))
+        dt_p = str(r_pa.get("DATA", "")).strip()
+        if dt_p and dt_p not in ["-", "--", "nan", "None"] and not data_ref_ano:
+            data_ref_ano = dt_p
+
 d_res = max(1, (date(hoje_date.year, 12, 31) - hoje_date).days)
-ca_at = forcar_par(1362558.0 + vol_hoje)
-pa_at = forcar_par(1362676.0 + prod_hoje_calc)
+
+# Resgata parâmetros oficiais da aba Parametros_Ano
+carr_base_ano = params_ano_map.get("CARREGAMENTO_BASE", 0.0)
+prod_base_ano = params_ano_map.get("PRODUCAO_BASE", 0.0)
+meta_est_ano = forcar_par(params_ano_map.get("META_ESTOQUE_ANO", 3468.0)) or 3468
+carr_dia_aba = params_ano_map.get("CARREGAMENTO_DIA", 0.0)
+prod_dia_aba = params_ano_map.get("PRODUCAO_DIA", 0.0)
+tot_carr_aba = params_ano_map.get("TOTAL_CARREGAMENTO", 0.0)
+tot_prod_aba = params_ano_map.get("TOTAL_PRODUCAO", 0.0)
+
+if carr_base_ano > 0:
+    ca_at = forcar_par(max(tot_carr_aba, carr_base_ano + max(vol_hoje, carr_dia_aba)))
+else:
+    ca_at = forcar_par(tot_carr_aba if tot_carr_aba > 0 else (1604858.0 + vol_hoje))
+
+if prod_base_ano > 0:
+    pa_at = forcar_par(max(tot_prod_aba, prod_base_ano + max(prod_hoje_calc, prod_dia_aba)))
+else:
+    pa_at = forcar_par(tot_prod_aba if tot_prod_aba > 0 else (1607494.0 + prod_hoje_calc))
+
 df_pc = forcar_par(abs(pa_at - ca_at))
 
-tv, cv = (f"+{fmt(df_pc)} t (Expedição Superando)", "#00D672") if ca_at >= pa_at else (f"+{fmt(df_pc)} t (Produção Superando)", "#FF9F1C")
-mdc = forcar_par(5200.0 + (max(0.0, estoque_total - 3468.0) / d_res))
-ppf = forcar_par(pa_at + (d_res * 5200.0))
-pcf = forcar_par(ca_at + ((estoque_total + (d_res * 5200.0)) - 3468.0))
+if ca_at >= pa_at:
+    tv, cv = f"+{fmt(df_pc)} t (Expedição Superando)", "#00D672"
+else:
+    tv, cv = f"+{fmt(df_pc)} t (Produção Superando)", "#FF9F1C"
 
-h_an = f'<details class="master-box" style="border-left-color:#007BFF;" open><summary><div class="header-layout"><div class="icon-box" style="background-color:rgba(0,123,255,.15); color:#007BFF;">📊</div><div class="master-metric-title">Comparativo Produção vs Expedição</div></div><div class="value-layout"><div class="master-metric-val">{fmt(ca_at)}</div><div class="master-metric-unit">t Expedidas</div></div><div class="master-metric-sub" style="color:#007BFF;">Meta Diária Necessária: {fmt(mdc)} t/dia</div></summary><div class="master-content" style="padding-top:16px;"><div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:12px;"><div style="background-color:#0a101d; border:1px solid #1c2b42; border-radius:8px; padding:10px;"><div style="font-size:0.75rem; color:#007BFF; font-weight:bold;">EXPEDIÇÃO ANUAL</div><div style="font-size:1.4rem; font-weight:bold; color:#fff; margin:4px 0;">{fmt(ca_at)} <span style="font-size:0.8rem; color:#64748b; font-weight:normal;">t</span></div><div style="font-size:0.7rem; color:#64748b;">Proj. 31/12: <span style="color:#007BFF;">{fmt(pcf)} t</span></div></div><div style="background-color:#0a101d; border:1px solid #1c2b42; border-radius:8px; padding:10px;"><div style="font-size:0.75rem; color:#00D672; font-weight:bold;">PRODUÇÃO ANUAL</div><div style="font-size:1.4rem; font-weight:bold; color:#fff; margin:4px 0;">{fmt(pa_at)} <span style="font-size:0.8rem; color:#64748b; font-weight:normal;">t</span></div><div style="font-size:0.7rem; color:#64748b;">Proj. 31/12: <span style="color:#00D672;">{fmt(ppf)} t</span></div></div></div><div style="background-color:#0a101d; border:1px solid #1c2b42; border-radius:8px; padding:12px; font-size:0.82rem; color:#cbd5e1; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;"><span>Variação: <span style="color:{cv}; font-weight:bold;">{tv}</span></span><span>Estoque Meta: <span style="color:#38bdf8; font-weight:bold;">3.468 t</span></span></div></div></details>'
+mdc = forcar_par(5200.0 + (max(0.0, estoque_total - meta_est_ano) / d_res))
+ppf = forcar_par(pa_at + (d_res * 5200.0))
+pcf = forcar_par(ca_at + ((estoque_total + (d_res * 5200.0)) - meta_est_ano))
+
+txt_base_ano = f" | 🕒 Base: {data_ref_ano}" if data_ref_ano else ""
+
+h_an = f"""
+<details class="master-box" style="border-left-color:#007BFF;">
+    <summary>
+        <div class="header-layout">
+            <div class="icon-box" style="background-color:rgba(0,123,255,.15); color:#007BFF;">📊</div>
+            <div class="master-metric-title">Comparativo Produção vs Expedição{txt_base_ano}</div>
+        </div>
+        <div class="value-layout">
+            <div class="master-metric-val">{fmt(ca_at)}</div>
+            <div class="master-metric-unit">t Expedidas</div>
+        </div>
+        <div class="master-metric-sub" style="color:#007BFF;">Meta Diária Necessária: {fmt(mdc)} t/dia</div>
+    </summary>
+    <div class="master-content" style="padding-top:16px;">
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:12px;">
+            <div style="background-color:#0a101d; border:1px solid #1c2b42; border-radius:8px; padding:10px;">
+                <div style="font-size:0.75rem; color:#007BFF; font-weight:bold;">EXPEDIÇÃO ANUAL</div>
+                <div style="font-size:1.4rem; font-weight:bold; color:#fff; margin:4px 0;">{fmt(ca_at)} <span style="font-size:0.8rem; color:#64748b; font-weight:normal;">t</span></div>
+                <div style="font-size:0.7rem; color:#64748b;">Proj. 31/12: <span style="color:#007BFF;">{fmt(pcf)} t</span></div>
+            </div>
+            <div style="background-color:#0a101d; border:1px solid #1c2b42; border-radius:8px; padding:10px;">
+                <div style="font-size:0.75rem; color:#00D672; font-weight:bold;">PRODUÇÃO ANUAL</div>
+                <div style="font-size:1.4rem; font-weight:bold; color:#fff; margin:4px 0;">{fmt(pa_at)} <span style="font-size:0.8rem; color:#64748b; font-weight:normal;">t</span></div>
+                <div style="font-size:0.7rem; color:#64748b;">Proj. 31/12: <span style="color:#00D672;">{fmt(ppf)} t</span></div>
+            </div>
+        </div>
+        <div style="background-color:#0a101d; border:1px solid #1c2b42; border-radius:8px; padding:12px; font-size:0.82rem; color:#cbd5e1; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;">
+            <span>Variação: <span style="color:{cv}; font-weight:bold;">{tv}</span></span>
+            <span>Estoque Meta: <span style="color:#38bdf8; font-weight:bold;">{fmt(meta_est_ano)} t</span></span>
+        </div>
+    </div>
+</details>
+"""
 render_html(h_an)
 
 # ==============================================================================
