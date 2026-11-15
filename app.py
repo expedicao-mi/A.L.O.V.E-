@@ -1835,19 +1835,25 @@ render_html(html_bloco_pedidos)
 
 
 # ==============================================================================
-# 🖨️ RENDERIZAÇÃO 7: ESTOQUE FÍSICO (LINHA 5 CACHE_PAINEL - SOMA EXATA E CONCENTRADA)
+# 🖨️ RENDERIZAÇÃO 7: ESTOQUE FÍSICO (TABELA ABERTA + RODAPÉ ON-GRADE VS OFF-GRADE)
 # ==============================================================================
 CAPACIDADE_MAX_ARMAZEM = 25000.0
 
-# Blindagem extra contra aspas duplicadas ("") vindas da exportação CSV da Cache_Painel
 raw_seg_str = str(cache_dict.get("dados_segregados", "{}")).strip()
 if '""' in raw_seg_str and not dados_segregados:
     dados_segregados = parse_robusto(raw_seg_str.replace('""', '"'))
 
 itens_estoque = []
-tot_eq = 0.0
-tot_sq = 0.0
-tot_os = 0.0
+tot_on_grade = 0.0   # EQ
+tot_off_grade = 0.0  # SQ, BQ, OS
+
+# Cores exatas solicitadas por classe na tabela aberta
+CORES_CLASSE_ESTOQUE = {
+    "EQ": ("#00FF7F", "rgba(0, 255, 127, 0.16)"),   # Verde Neon
+    "SQ": ("#FFD600", "rgba(255, 214, 0, 0.16)"),   # Amarelo
+    "BQ": ("#FF8C00", "rgba(255, 140, 0, 0.18)"),   # Laranja
+    "OS": ("#FF2E2E", "rgba(255, 46, 46, 0.18)"),   # Vermelho
+}
 
 if dados_segregados:
     for m_raw, v_raw in dados_segregados.items():
@@ -1856,30 +1862,36 @@ if dados_segregados:
             continue
         m_str = str(m_raw).strip().upper()
 
-        # Extrai código do material e classificação real entre parênteses (ex: "322 (BQ)" -> mat="322", classe="BQ")
         match_cls = re.search(r'\(([^)]+)\)', m_str)
-        classe_real = match_cls.group(1).strip().upper() if match_cls else ("OS" if "OS" in m_str else ("SQ" if "SQ" in m_str else "EQ"))
+        if match_cls:
+            classe_real = match_cls.group(1).strip().upper()
+        elif "OS" in m_str:
+            classe_real = "OS"
+        elif "BQ" in m_str:
+            classe_real = "BQ"
+        elif "SQ" in m_str:
+            classe_real = "SQ"
+        else:
+            classe_real = "EQ"
+
         cod_mat = re.sub(r'\([^)]*\)', '', m_str).strip() or m_str.split()[0]
 
-        if classe_real in ["OS", "BQ"]:
-            tot_os += t_val
-            cat_cor = "OS"
-        elif classe_real == "SQ":
-            tot_sq += t_val
-            cat_cor = "SQ"
+        if classe_real == "EQ":
+            tot_on_grade += t_val
         else:
-            tot_eq += t_val
-            cat_cor = "EQ"
+            tot_off_grade += t_val
+
+        cor_item, bg_item = CORES_CLASSE_ESTOQUE.get(classe_real, ("#38bdf8", "rgba(56, 189, 248, 0.16)"))
 
         itens_estoque.append({
             "material": cod_mat,
             "classe": classe_real,
             "ton": t_val,
-            "cat_cor": cat_cor
+            "cor": cor_item,
+            "bg": bg_item
         })
 
-# A soma real da Linha 5 (dados_segregados) sempre prevalece para nunca divergir do detalhamento
-soma_segregada_real = forcar_par(tot_eq + tot_sq + tot_os)
+soma_segregada_real = forcar_par(tot_on_grade + tot_off_grade)
 if soma_segregada_real > 0:
     estoque_total = soma_segregada_real
 else:
@@ -1890,25 +1902,18 @@ else:
 pct_ocupacao_est = min(100.0, max(0.0, (estoque_total / CAPACIDADE_MAX_ARMAZEM * 100.0)))
 espaco_livre_est = max(0.0, CAPACIDADE_MAX_ARMAZEM - estoque_total)
 
-# Ordena do maior volume para o menor, exibindo 100% dos itens da Linha 5
 itens_estoque.sort(key=lambda x: (-x["ton"], x["material"], x["classe"]))
 max_ton_item = max([x["ton"] for x in itens_estoque], default=1.0)
 
 tot_geral_calc = soma_segregada_real if soma_segregada_real > 0 else (estoque_total if estoque_total > 0 else 1.0)
-pct_eq = max(0.0, (tot_eq / tot_geral_calc) * 100.0)
-pct_sq = max(0.0, (tot_sq / tot_geral_calc) * 100.0)
-pct_os = max(0.0, (tot_os / tot_geral_calc) * 100.0)
+pct_on_grade = max(0.0, (tot_on_grade / tot_geral_calc) * 100.0)
+pct_off_grade = max(0.0, (tot_off_grade / tot_geral_calc) * 100.0)
 
 linhas_tabela_est = ""
 if itens_estoque:
     for item in itens_estoque:
-        if item["cat_cor"] == "OS":
-            cor_c, bg_c = "#FF5722", "rgba(255, 87, 34, 0.16)"
-        elif item["cat_cor"] == "SQ":
-            cor_c, bg_c = "#FFD600", "rgba(255, 214, 0, 0.16)"
-        else:
-            cor_c, bg_c = "#00E676", "rgba(0, 230, 118, 0.16)"
-
+        cor_c = item["cor"]
+        bg_c = item["bg"]
         pct_barra_item = min(100.0, max(4.0, (item["ton"] / max_ton_item) * 100.0))
 
         linhas_tabela_est += f"""
@@ -1917,7 +1922,7 @@ if itens_estoque:
                 📦 {html_lib.escape(item['material'])}
             </td>
             <td style="padding: 9px 6px; text-align: center;">
-                <span style="background: {bg_c}; color: {cor_c}; border: 1px solid {cor_c}; font-size: 0.68rem; font-weight: 800; padding: 2px 8px; border-radius: 6px; letter-spacing: 0.4px;">
+                <span style="background: {bg_c}; color: {cor_c}; border: 1px solid {cor_c}; font-size: 0.68rem; font-weight: 900; padding: 2px 8px; border-radius: 6px; letter-spacing: 0.4px; box-shadow: 0 0 8px {cor_c}33;">
                     {html_lib.escape(item['classe'])}
                 </span>
             </td>
@@ -1936,10 +1941,10 @@ else:
 
 html_est = f"""
 <div id="sec-est"></div>
-<details class="master-box" style="border-left-color: #00E676;">
+<details class="master-box" style="border-left-color: #00FF7F;">
     <summary>
         <div class="header-layout">
-            <div class="icon-box" style="background-color: rgba(0, 230, 118, 0.15); color: #00E676;">📦</div>
+            <div class="icon-box" style="background-color: rgba(0, 255, 127, 0.15); color: #00FF7F;">📦</div>
             <div class="master-metric-title">Estoque Físico no Armazém</div>
         </div>
 
@@ -1953,7 +1958,7 @@ html_est = f"""
                 Ocupação: <b style="color: #ffffff;">{fmt(estoque_total)} t</b> de <b style="color: #ffffff;">{fmt(CAPACIDADE_MAX_ARMAZEM)} t</b> ({pct_ocupacao_est:.0f}%) 📦
             </div>
             <div style="width: 100%; height: 7px; background: #14243b; border-radius: 999px; overflow: hidden;">
-                <div style="width: {pct_ocupacao_est:.1f}%; height: 100%; background: linear-gradient(90deg, #38bdf8 0%, #00E676 100%); border-radius: 999px; box-shadow: 0 0 10px rgba(0,230,118,0.45);"></div>
+                <div style="width: {pct_ocupacao_est:.1f}%; height: 100%; background: linear-gradient(90deg, #38bdf8 0%, #00FF7F 100%); border-radius: 999px; box-shadow: 0 0 10px rgba(0,255,127,0.45);"></div>
             </div>
             <div style="display: flex; justify-content: space-between; font-size: 0.72rem; color: #64748b; margin-top: 4px;">
                 <span>Espaço Livre: <b style="color: #38bdf8;">{fmt(espaco_livre_est)} t</b></span>
@@ -1963,31 +1968,8 @@ html_est = f"""
     </summary>
 
     <div class="master-content" style="padding-top: 12px;">
-        <!-- 1. RESUMO CONCENTRADO POR CLASSE (BARRA EMPILHADA + 3 PÍLULAS) -->
-        <div style="background: #070d18; border: 1.5px solid #142842; border-radius: 12px; padding: 10px 12px; margin-bottom: 10px;">
-            <div style="display: flex; width: 100%; height: 8px; background: #14243b; border-radius: 999px; overflow: hidden; margin-bottom: 10px;">
-                <div style="width: {pct_eq:.1f}%; background: #00E676;"></div>
-                <div style="width: {pct_sq:.1f}%; background: #FFD600;"></div>
-                <div style="width: {pct_os:.1f}%; background: #FF5722;"></div>
-            </div>
-            <div style="display: flex; justify-content: space-between; gap: 6px; text-align: center;">
-                <div style="flex: 1; background: #050911; border: 1px solid #142842; border-radius: 8px; padding: 6px 4px;">
-                    <div style="font-size: 0.65rem; color: #00E676; font-weight: 800;">● EQ ({pct_eq:.0f}%)</div>
-                    <div style="font-size: 0.92rem; color: #ffffff; font-weight: 800; margin-top: 2px;">{fmt(tot_eq)} <span style="font-size: 0.68rem; color: #64748b; font-weight: normal;">t</span></div>
-                </div>
-                <div style="flex: 1; background: #050911; border: 1px solid #142842; border-radius: 8px; padding: 6px 4px;">
-                    <div style="font-size: 0.65rem; color: #FFD600; font-weight: 800;">● SQ ({pct_sq:.0f}%)</div>
-                    <div style="font-size: 0.92rem; color: #ffffff; font-weight: 800; margin-top: 2px;">{fmt(tot_sq)} <span style="font-size: 0.68rem; color: #64748b; font-weight: normal;">t</span></div>
-                </div>
-                <div style="flex: 1; background: #050911; border: 1px solid #142842; border-radius: 8px; padding: 6px 4px;">
-                    <div style="font-size: 0.65rem; color: #FF5722; font-weight: 800;">● BQ / OS ({pct_os:.0f}%)</div>
-                    <div style="font-size: 0.92rem; color: #ffffff; font-weight: 800; margin-top: 2px;">{fmt(tot_os)} <span style="font-size: 0.68rem; color: #64748b; font-weight: normal;">t</span></div>
-                </div>
-            </div>
-        </div>
-
-        <!-- 2. TABELA CONCENTRADA: MATERIAL | CLASSE | QTD. TON -->
-        <div style="background: #070d18; border: 1.5px solid #142842; border-radius: 12px; padding: 6px 10px;">
+        <!-- 1. MEIO: TABELA ABERTA DE MATERIAIS (EQ Verde Neon | SQ Amarelo | BQ Laranja | OS Vermelho) -->
+        <div style="background: #070d18; border: 1.5px solid #142842; border-radius: 12px; padding: 6px 10px; margin-bottom: 10px;">
             <table style="width: 100%; border-collapse: collapse;">
                 <thead>
                     <tr style="border-bottom: 1.5px solid #1c2b42; color: #64748b; font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.5px;">
@@ -2000,6 +1982,28 @@ html_est = f"""
                     {linhas_tabela_est}
                 </tbody>
             </table>
+        </div>
+
+        <!-- 2. RODAPÉ: BARRA DE CLASSE (MATERIAL ON-GRADE vs MATERIAL OFF-GRADE) -->
+        <div style="background: #070d18; border: 1.5px solid #142842; border-radius: 12px; padding: 10px 12px;">
+            <div style="display: flex; width: 100%; height: 8px; background: #14243b; border-radius: 999px; overflow: hidden; margin-bottom: 10px;">
+                <div style="width: {pct_on_grade:.1f}%; background: #00FF7F; box-shadow: 0 0 8px rgba(0,255,127,0.5);"></div>
+                <div style="width: {pct_off_grade:.1f}%; background: linear-gradient(90deg, #FFD600 0%, #FF8C00 60%, #FF2E2E 100%);"></div>
+            </div>
+            <div style="display: flex; justify-content: space-between; gap: 8px; text-align: center;">
+                <div style="flex: 1; background: #050911; border: 1px solid #142842; border-left: 3px solid #00FF7F; border-radius: 8px; padding: 8px 6px;">
+                    <div style="font-size: 0.66rem; color: #00FF7F; font-weight: 800; text-transform: uppercase;">Material On-Grade (EQ)</div>
+                    <div style="font-size: 1.05rem; color: #ffffff; font-weight: 800; margin-top: 3px;">
+                        {fmt(tot_on_grade)} <span style="font-size: 0.72rem; color: #64748b; font-weight: normal;">t ({pct_on_grade:.0f}%)</span>
+                    </div>
+                </div>
+                <div style="flex: 1; background: #050911; border: 1px solid #142842; border-left: 3px solid #FF8C00; border-radius: 8px; padding: 8px 6px;">
+                    <div style="font-size: 0.66rem; color: #FF8C00; font-weight: 800; text-transform: uppercase;">Material Off-Grade (SQ, BQ, OS)</div>
+                    <div style="font-size: 1.05rem; color: #ffffff; font-weight: 800; margin-top: 3px;">
+                        {fmt(tot_off_grade)} <span style="font-size: 0.72rem; color: #64748b; font-weight: normal;">t ({pct_off_grade:.0f}%)</span>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 </details>
