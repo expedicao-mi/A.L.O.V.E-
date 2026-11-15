@@ -549,9 +549,11 @@ def serie_expedicao(dt_a):
                 elif dtr.date() == dt_a: pts.append((dtr, v))
             except Exception:
                 pass
-    out = [(0.0, 0.0)]
+    out, cum, prev = [(0.0, 0.0)], 0.0, c00
     for dtr, v in pts:
-        out.append(((dtr - h00).total_seconds() / 3600.0, v - c00 if v >= c00 else v))
+        cum += (v - prev) if v >= prev else v   # se o contador zerou, soma o novo valor
+        prev = v
+        out.append(((dtr - h00).total_seconds() / 3600.0, cum))
     return out
 
 
@@ -836,6 +838,10 @@ def pill(txt, cor, fg="#0a101d"):
     return f'<span class="pill" style="background:{cor};color:{fg};">{esc(txt)}</span>'
 
 
+def _noop(*a, **k):
+    pass
+
+
 # ==============================================================================
 # 🖨️ SIDEBAR + HEADER
 # ==============================================================================
@@ -844,7 +850,7 @@ menu = [("sec-topo", "🏠", "Início", True), ("sec-prod", "🏭", "Produção"
         ("sec-tele", "📊", "Telemetria", False), ("sec-ano", "📈", "Relatórios", False)]
 links = "".join(f'<a href="#{i}" class="{"on" if on else ""}"><span>{ic}</span>{nm}</a>' for i, ic, nm, on in menu)
 
-render_html(f"""
+_noop(f"""
 <div class="sb">
   <div class="sb-logo"><img src="{LOGO_ALOVE_URL}"><b>A.L.O.V.E.</b><small>Logística em Tempo Real</small></div>
   {links}
@@ -864,7 +870,7 @@ render_html(f"""
 # 🖨️ LINHA 1: KPIs
 # ==============================================================================
 cor_baf = "#00D672" if not lst_pend else "#E74C3C"
-render_html('<div class="g5">' +
+_noop('<div class="g5">' +
     kpi("Produção Hoje", "🏭", fmt(prod_hoje_calc), "t", f"Prev. 24h: {fmt(prev_prod)} t", "#38bdf8", pct_prod) +
     kpi("Expedição Hoje", "🚚", fmt(vol_hoje), "t", f"Prev. 24h: {fmt(prev_carr)} t", "#00D672", pct_prog) +
     kpi("Pátio Atual", "🏗️", fmt(vol_patio_disponivel), "t", f"{total_veiculos_fisicos} veículos físicos", "#FF9F1C") +
@@ -877,7 +883,7 @@ render_html('<div class="g5">' +
 # ==============================================================================
 def svg_evolucao():
     sh, so = serie_expedicao(hoje_date), serie_expedicao(ontem_date)
-    W, H, L, B, T = 700, 260, 46, 26, 10
+    W, H, L, B, T = 700, 300, 46, 26, 10
     ymax = max([p[1] for p in sh + so] + [prev_carr * 0.0, 1000.0])
     step = 1000 if ymax <= 6000 else 2000
     ymax = (int(ymax // step) + 1) * step
@@ -895,7 +901,7 @@ def svg_evolucao():
     ph = " ".join(xy(p) for p in sh)
     po = " ".join(xy(p) for p in so)
     area = f'{ph} {xy((sh[-1][0], 0))} {xy((0, 0))}'
-    return (f'<svg viewBox="0 0 {W} {H}" style="width:100%;height:auto;">{g}'
+    return (f'<svg viewBox="0 0 {W} {H}" style="width:100%;height:100%;">{g}'
             f'<polygon points="{area}" fill="rgba(0,214,114,.18)"/>'
             f'<polyline points="{po}" fill="none" stroke="#38bdf8" stroke-width="2" stroke-dasharray="5 4"/>'
             f'<polyline points="{ph}" fill="none" stroke="#00D672" stroke-width="3"/></svg>')
@@ -916,7 +922,7 @@ st_rows = [
 st_html = "".join(f'<div class="row"><span>✅ {n}</span>{pill(t, c)}</div>' for n, t, c in st_rows)
 st_html += f'<div class="row"><span>🔁 Transbordo</span>{pill(status_transbordo, "#1c2b42", "#e2e8f0")}</div>'
 
-render_html('<div class="g2">' + pn("Evolução Operacional", "📊", leg + grafico, "Hoje vs Ontem") + pn("Status da Operação", "🚚", st_html) + '</div>')
+_noop('<div class="g2">' + pn("Evolução Operacional", "📊", leg + grafico, "Hoje vs Ontem") + pn("Status da Operação", "🚚", st_html) + '</div>')
 
 # ==============================================================================
 # 🖨️ LINHA 3: ÚLTIMAS ATUALIZAÇÕES | INDICADORES | TELEMETRIA
@@ -943,7 +949,7 @@ for m in modulos:
     tele_html += f'<div class="mini" style="border-color:{c};"><div class="a">{m["ico"]} {m["nome"]}</div><div class="b" style="color:{c};font-size:.95rem;">{m["status"]}</div><div class="a" style="font-family:monospace;">🕒 {esc(m["pulso"])}</div></div>'
 tele_html += '</div>'
 
-render_html('<div class="g3">' + pn("Últimas Atualizações", "📋", ult_html) + pn("Indicadores Principais", "🎯", ind_html) +
+_noop('<div class="g3">' + pn("Últimas Atualizações", "📋", ult_html) + pn("Indicadores Principais", "🎯", ind_html) +
             pn("Telemetria do Ecossistema", "🛡️", tele_html, id_="sec-tele") + '</div>')
 
 # ==============================================================================
@@ -984,7 +990,7 @@ for maq in ["MS1", "MS2"]:
                   f'<div style="border-top:1px solid #14243b;margin-top:10px;padding-top:8px;text-align:center;font-size:.8rem;color:#94a3b8;">PROX MAT: <b style="color:#fff;">{esc(iv.get("prox_mat","--"))}</b> &nbsp;|&nbsp; PREV: <b style="color:#fff;">{esc(iv.get("prev_virada","--"))}</b></div></div>')
 prod_resumo = f'<div class="cols" style="margin-bottom:12px;"><div class="mini"><div class="a">PRODUÇÃO TOTAL</div><div class="b">{fmt(prod_hoje_calc)} t</div></div><div class="mini"><div class="a">PREV. FECHAMENTO</div><div class="b" style="color:#E5B800;">{fmt(prev_prod)} t</div></div></div>'
 
-render_html('<div class="g2e">' + pn("Pátio da Fábrica", "🏭", patio_resumo + patio_html, txt_pat, "#38a9ff", "sec-patio") +
+_noop('<div class="g2e">' + pn("Pátio da Fábrica", "🏭", patio_resumo + patio_html, txt_pat, "#38a9ff", "sec-patio") +
             pn("Produção de Celulose", "🏭", prod_resumo + prod_html, "", "#E5B800", "sec-prod") + '</div>')
 
 # ==============================================================================
@@ -1046,7 +1052,7 @@ ped_html = (f'<div class="cols" style="margin-bottom:10px;"><div class="mini"><d
             f'<div class="scroll"><div class="sec-lbl" style="border-color:#0084FF;">Transferência</div>{tab_pedidos(pedidos_transf)}'
             f'<div class="sec-lbl" style="border-color:#00D672;">MI / LATAM</div>{tab_pedidos(pedidos_mi)}</div>')
 
-render_html('<div class="g2e">' + pn("Expedição Realizada", "🚚", exp_html, "", "#00D672", "sec-exp") + pn("Análise de Pedidos (ZLE087)", "📑", ped_html, txt_ped, "#0084FF") + '</div>')
+_noop('<div class="g2e">' + pn("Expedição Realizada", "🚚", exp_html, "", "#00D672", "sec-exp") + pn("Análise de Pedidos (ZLE087)", "📑", ped_html, txt_ped, "#0084FF") + '</div>')
 
 # ==============================================================================
 # 🖨️ LINHA 6: ESTOQUE | FROTA
@@ -1089,7 +1095,7 @@ fr_html = (f'<div class="cols" style="margin-bottom:10px;"><div class="mini"><di
            f'<div class="sec-lbl" style="border-color:#E67E22;">Preventiva / Inspeção (críticas e próximas)</div>'
            f'<div class="scroll" style="max-height:200px;"><table class="tb"><tr><th>TAG</th><th>Horím.</th><th>Prevent.</th><th>Inspeção</th></tr>{linhas_crit}</table></div>')
 
-render_html('<div class="g2e">' + pn("Estoque Físico no Armazém", "📦", est_html, "", "#00FF7F", "sec-est") + pn("Frota & Manutenção", "🚜", fr_html, txt_prev, "#E67E22", "sec-frota") + '</div>')
+_noop('<div class="g2e">' + pn("Estoque Físico no Armazém", "📦", est_html, "", "#00FF7F", "sec-est") + pn("Frota & Manutenção", "🚜", fr_html, txt_prev, "#E67E22", "sec-frota") + '</div>')
 
 # ==============================================================================
 # 🖨️ LINHA 7: BAFÔMETRO | COMPARATIVO ANUAL
@@ -1111,12 +1117,61 @@ ano_html = (f'<div class="cols" style="margin-bottom:12px;"><div class="mini" st
             f'<div class="mini" style="text-align:left;font-size:.85rem;color:#cbd5e1;">Variação: <b style="color:{cv};">{tv}</b><br>Estoque Meta: <b style="color:#38bdf8;">{fmt(meta_est)} t</b><br>Meta diária necessária: <b style="color:#007BFF;">{fmt(mdc)} t/dia</b></div>')
 txt_ano = f"Base {data_ref_ano}" if data_ref_ano else ""
 
-render_html('<div class="g2">' + pn("Auditoria Bafômetro (H&S)", "🩺", baf_html, txt_baf, cor_baf, "sec-baf") +
+_noop('<div class="g2">' + pn("Auditoria Bafômetro (H&S)", "🩺", baf_html, txt_baf, cor_baf, "sec-baf") +
             pn("Comparativo Produção vs Expedição", "📊", ano_html, txt_ano, "#007BFF", "sec-ano") + '</div>')
 
+
+
 # ==============================================================================
-# 🖨️ LINHA 8: CONSOLE DE LOGS (DEV)
+# 🖥️ LAYOUT COMPACTO: TUDO EM 1 TELA + BLOCOS QUE EXPANDEM AO CLICAR
+#     (modal 100% CSS via :target — não depende de JavaScript nem de rerun)
 # ==============================================================================
+CSS_COMPACTO = """
+<style>
+html, body, [data-testid="stAppViewContainer"], .stApp, [data-testid="stMain"] { overflow: hidden !important; height: 100vh !important; }
+.block-container { padding: 10px 14px 0 244px !important; height: 100vh !important; max-width: 100% !important; overflow: hidden !important; }
+[data-testid="stVerticalBlock"] { gap: 0 !important; }
+.dash { display: grid; grid-template-rows: 54px 92px minmax(0,1.45fr) minmax(0,1fr); gap: 10px; height: calc(100vh - 20px); }
+.r2 { display: grid; grid-template-columns: repeat(5,1fr); gap: 10px; min-height: 0; }
+.r3 { display: grid; grid-template-columns: 6fr 3fr 3fr; gap: 10px; min-height: 0; }
+.r4 { display: grid; grid-template-columns: repeat(5,1fr); gap: 10px; min-height: 0; }
+.dash .pn { padding: 10px 14px; overflow: hidden; min-height: 0; }
+.dash .pn-t { margin-bottom: 8px; font-size: .85rem; }
+.dash .hd { margin: 0; padding: 4px 18px; }
+.dash .hd img { height: 40px; }
+.dash .kpi .v { font-size: 1.7rem; margin: 2px 0; }
+.dash .row { padding: 5px 0; }
+.dash .ring { width: 84px; height: 84px; }
+.dash .ring > div { width: 64px; height: 64px; }
+.big { color: #fff; font-size: 1.8rem; font-weight: 800; line-height: 1.1; margin-bottom: 6px; }
+.big span { font-size: .85rem; color: #94a3b8; font-weight: 500; }
+
+/* BLOCOS CLICÁVEIS */
+a.tile { display: flex; flex-direction: column; position: relative; text-decoration: none !important; color: inherit !important; cursor: pointer; transition: .18s; }
+a.tile:hover { transform: translateY(-2px); box-shadow: 0 0 18px rgba(0,214,114,.28); border-color: #00D672 !important; }
+a.tile .exp { position: absolute; top: 8px; right: 12px; color: #64748b; font-size: .95rem; }
+a.tile:hover .exp { color: #00D672; }
+.flexfill { flex: 1; min-height: 0; }
+
+/* MODAL (EXPANDIR) */
+.md { display: none; position: fixed; inset: 0; z-index: 1000; align-items: center; justify-content: center;
+      background: rgba(2,6,12,.82); backdrop-filter: blur(4px); }
+.md:target { display: flex; }
+.md-bg { position: absolute; inset: 0; cursor: default; }
+.md-box { position: relative; width: min(1180px, 92vw); max-height: 90vh; overflow-y: auto; box-shadow: 0 0 40px rgba(0,0,0,.7); padding: 18px 22px !important; }
+.md-x { position: absolute; top: 12px; right: 16px; width: 34px; height: 34px; border-radius: 50%; border: 1.5px solid #E74C3C;
+        color: #fff !important; text-decoration: none !important; display: flex; align-items: center; justify-content: center; font-weight: 800; }
+.md-x:hover { background: #E74C3C; }
+
+@media (max-height: 760px) {
+  html, body, [data-testid="stAppViewContainer"], .stApp, [data-testid="stMain"], .block-container { overflow: auto !important; height: auto !important; }
+  .dash { height: auto; grid-template-rows: 54px 92px 420px 330px; }
+}
+</style>
+"""
+st.markdown(CSS_COMPACTO, unsafe_allow_html=True)
+
+
 def eh_erro_real(texto):
     t = str(texto).upper()
     if "SINCRONIZAÇÃO CONCLUÍDA" in t or "SINCRONIZACAO CONCLUIDA" in t:
@@ -1128,35 +1183,128 @@ def eh_erro_real(texto):
     return False
 
 
-with st.expander("🛠️ Console de Telemetria & Logs do Core (Dev)", expanded=False):
-    if st.button("🔄 Atualizar Logs", key="btn_refresh_logs"):
-        st.cache_data.clear()
-        st.rerun()
-    if df_logs.empty:
-        st.info("Nenhum log disponível na aba Live_Logs_Core no momento.")
-    else:
-        qtd_erros = int(df_logs["EVENTO"].apply(eh_erro_real).sum())
-        c1, c2, c3 = st.columns([1, 1, 2])
-        with c1:
-            so_erros = st.toggle("🚨 Apenas Alertas / Erros", value=False)
-        with c2:
-            mods = ["TODOS"] + sorted([m for m in df_logs["MODULO"].dropna().unique().tolist() if m])
-            mod_sel = st.selectbox("Módulo:", mods)
-        with c3:
-            st.caption(f"Erros reais nos últimos {len(df_logs)} eventos: {qtd_erros}")
-        df_show = df_logs.copy()
-        if so_erros:
-            df_show = df_show[df_show["EVENTO"].astype(str).str.contains("❌|🚨|⚠️|ERRO|CRÍTICO|Falha", case=False, na=False)]
-        if mod_sel != "TODOS":
-            df_show = df_show[df_show["MODULO"] == mod_sel]
-        with st.container(height=380):
-            for _, r_log in df_show.iterrows():
-                ev, mod = str(r_log["EVENTO"]), str(r_log["MODULO"])
-                hora_log = str(r_log["DATA_HORA"]).split(" ")[-1]
-                if any(x in ev.upper() for x in ["❌", "🚨", "ERRO", "CRÍTICO", "FALHA"]): bc, tc, bg = "#EF4444", "#FCA5A5", "#241010"
-                elif any(x in ev.upper() for x in ["⚠️", "ATENÇÃO", "PAUSA"]): bc, tc, bg = "#F59E0B", "#FDE68A", "#261A08"
-                elif "✅" in ev: bc, tc, bg = "#10B981", "#A7F3D0", "#081E15"
-                else: bc, tc, bg = "#12506e", "#CBD5E1", "#08111f"
-                st.markdown(f'<div style="background:{bg};border-left:3px solid {bc};border-radius:6px;padding:6px 10px;margin-bottom:6px;font-family:monospace;font-size:.75rem;"><span style="color:#64748B;">[{hora_log}]</span> <b style="color:#38bdf8;">[{esc(mod)}]</b><br><span style="color:{tc};">{esc(ev)}</span></div>', unsafe_allow_html=True)
+def ktile(href, titulo, ico, valor, unid, sub, cor, pct=None):
+    barra = f'<div class="bar"><div style="width:{pct:.0f}%"></div></div>' if pct is not None else ""
+    return (f'<a class="pn kpi tile" href="#{href}" style="--c:{cor};"><span class="exp">⤢</span>'
+            f'<div class="l">{ico} {titulo}</div><div class="v">{valor} <span>{unid}</span></div><div class="s">{sub}</div>{barra}</a>')
 
-st.markdown("<br><center><span style='color:#64748b;font-size:.75rem;letter-spacing:.5px;'>A.L.O.V.E - Desktop / Developed by Cristiano Ciriaco</span></center>", unsafe_allow_html=True)
+
+def tile(href, titulo, ico, corpo, cor="#12506e"):
+    return (f'<a class="pn tile" href="#{href}" style="border-color:{cor};"><span class="exp">⤢</span>'
+            f'<div class="pn-t"><span>{ico}</span>{titulo}</div><div class="flexfill">{corpo}</div></a>')
+
+
+def box(titulo, ico, corpo, cor="#12506e"):
+    return (f'<div class="pn" style="border-color:{cor};display:flex;flex-direction:column;">'
+            f'<div class="pn-t"><span>{ico}</span>{titulo}</div><div class="flexfill">{corpo}</div></div>')
+
+
+def modal(id_, titulo, ico, corpo, cor="#12506e", extra=""):
+    return (f'<div class="md" id="{id_}"><a class="md-bg" href="#sec-topo"></a>'
+            f'<div class="md-box pn" style="border-color:{cor};"><a class="md-x" href="#sec-topo">✕</a>'
+            f'<div class="pn-t" style="font-size:1.05rem;"><span>{ico}</span>{titulo}<small>{extra}</small></div>{corpo}</div></div>')
+
+
+# ---------- LOGS (modal) ----------
+def logs_modal_html():
+    if df_logs.empty:
+        return '<div style="color:#64748b;padding:16px;">Nenhum log disponível (aba Live_Logs_Core sem dados ou sem acesso).</div>'
+    qtd = int(df_logs["EVENTO"].apply(eh_erro_real).sum())
+    out = f'<div style="color:#cbd5e1;font-size:.85rem;margin-bottom:10px;">Últimos {len(df_logs)} eventos • Erros reais: <b style="color:{"#E74C3C" if qtd else "#00D672"};">{qtd}</b></div><div class="scroll" style="max-height:62vh;">'
+    for _, r in df_logs.iterrows():
+        ev, mod = str(r["EVENTO"]), str(r["MODULO"])
+        h = str(r["DATA_HORA"]).split(" ")[-1]
+        if eh_erro_real(ev) or any(x in ev.upper() for x in ["❌", "🚨"]): bc, tc, bg = "#EF4444", "#FCA5A5", "#241010"
+        elif any(x in ev.upper() for x in ["⚠️", "ATENÇÃO", "PAUSA"]): bc, tc, bg = "#F59E0B", "#FDE68A", "#261A08"
+        elif "✅" in ev: bc, tc, bg = "#10B981", "#A7F3D0", "#081E15"
+        else: bc, tc, bg = "#12506e", "#CBD5E1", "#08111f"
+        out += f'<div style="background:{bg};border-left:3px solid {bc};border-radius:6px;padding:6px 10px;margin-bottom:5px;font-family:monospace;font-size:.78rem;"><span style="color:#64748B;">[{h}]</span> <b style="color:#38bdf8;">[{esc(mod)}]</b> <span style="color:{tc};">{esc(ev)}</span></div>'
+    return out + '</div>'
+
+
+# ---------- SIDEBAR + HEADER ----------
+menu_c = [("sec-topo", "🏠", "Início", True), ("md-prod", "🏭", "Produção", False), ("md-exp", "🚚", "Expedição", False),
+          ("md-patio", "🏢", "Pátio", False), ("md-frota", "🚜", "Frota", False), ("md-baf", "🩺", "Bafômetro", False),
+          ("md-ped", "📑", "Pedidos", False), ("md-est", "📦", "Estoque", False), ("md-tele", "📡", "Telemetria", False),
+          ("md-ano", "📈", "Relatórios", False)]
+links_c = "".join(f'<a href="#{i}" class="{"on" if on else ""}"><span>{ic}</span>{nm}</a>' for i, ic, nm, on in menu_c)
+
+sidebar_hd = f"""
+<div class="sb">
+  <div class="sb-logo"><img src="{LOGO_ALOVE_URL}"><b>A.L.O.V.E.</b><small>Logística em Tempo Real</small></div>
+  {links_c}
+  <div class="sb-st" style="border-color:{st_geral_cor};"><b style="color:{st_geral_cor};">● {st_geral_txt}</b><small>Atualização automática a cada 1 minuto</small></div>
+</div>
+<div id="sec-topo"></div>
+"""
+header_c = f"""
+<div class="hd">
+  <div style="width:200px;"><img src="{BANNER_TOPO_URL}"></div>
+  <div class="sub">Assistente Logístico Virtual da Expedição</div>
+  <div class="up"><span class="dot" style="background:{conn_cor};box-shadow:0 0 8px {conn_cor};"></span>
+    <div>Última atualização:<br><b style="color:#fff;">{conn_data_full}</b></div>
+    <a href="?refresh=1" target="_self">🔄</a></div>
+</div>
+"""
+
+# ---------- LINHA 2: KPIs (clicáveis) ----------
+kpis_c = (
+    ktile("md-prod", "Produção Hoje", "🏭", fmt(prod_hoje_calc), "t", f"Prev. 24h: {fmt(prev_prod)} t", "#38bdf8", pct_prod) +
+    ktile("md-exp", "Expedição Hoje", "🚚", fmt(vol_hoje), "t", f"Prev. 24h: {fmt(prev_carr)} t", "#00D672", pct_prog) +
+    ktile("md-patio", "Pátio Atual", "🏗️", fmt(vol_patio_disponivel), "t", f"{total_veiculos_fisicos} veículos físicos", "#FF9F1C") +
+    ktile("md-frota", "Frota Ativa", "🚜", f"{disp_frota:.0f}", "%", f"{total_online}/{total_frota} online • {qtd_criticos} prev. críticas", "#a78bfa", disp_frota) +
+    ktile("md-baf", "Bafômetro", "🩺", f"{conf_baf:.0f}", "%", f"{len(lst_pend)} pendências", cor_baf, conf_baf)
+)
+
+# ---------- LINHA 3: GRÁFICO | STATUS | INDICADORES ----------
+grafico_tile = tile("md-exp", "Evolução Operacional", "📊", leg + f'<div style="height:calc(100% - 26px);">{grafico}</div>')
+status_tile = box("Status da Operação", "🚚", st_html)
+ind_tile = box("Indicadores Principais", "🎯", f'<div style="display:flex;align-items:center;height:100%;">{ind_html.replace("grid-template-columns:repeat(4,1fr)", "grid-template-columns:repeat(2,1fr);width:100%").replace("gap:6px", "gap:14px 6px")}</div>')
+
+# ---------- LINHA 4: TILES RESUMO ----------
+n_fim = sum(1 for i in pedidos_transf + pedidos_mi if i["is_fim"])
+ped_tile = tile("md-ped", "Pedidos ZLE087", "📑",
+                f'<div class="big">{fmt(tot_saldo_geral)} <span>t pendentes</span></div>'
+                f'<div class="row"><span>🚛 Transf. ({len(pedidos_transf)})</span><b>{fmt(tot_saldo_transf)} t</b></div>'
+                f'<div class="row"><span>🏢 MI/LATAM ({len(pedidos_mi)})</span><b>{fmt(tot_saldo_mi)} t</b></div>'
+                f'<div class="row"><span>⚠️ Fim de pedido</span><b style="color:{"#FF2E2E" if n_fim else "#00D672"};">{n_fim}</b></div>', "#0084FF")
+est_tile = tile("md-est", "Estoque Físico", "📦",
+                f'<div class="big">{fmt(estoque_total)} <span>t • {pct_ocup:.0f}% de {fmt(CAPACIDADE_MAX_ARMAZEM)} t</span></div>'
+                f'<div class="bar" style="--c:#00FF7F;height:8px;margin:0 0 8px 0;"><div style="width:{pct_ocup:.1f}%"></div></div>'
+                f'<div class="row"><span style="color:#00FF7F;">● On-grade</span><b>{fmt(tot_on)} t ({pct_on:.0f}%)</b></div>'
+                f'<div class="row"><span style="color:#FF8C00;">● Off-grade</span><b>{fmt(tot_off)} t ({pct_off:.0f}%)</b></div>', "#00FF7F")
+ano_tile = tile("md-ano", "Produção vs Expedição (Ano)", "📊",
+                f'<div class="row"><span style="color:#007BFF;">Expedição anual</span><b>{fmt(ca_at)} t</b></div>'
+                f'<div class="row"><span style="color:#00D672;">Produção anual</span><b>{fmt(pa_at)} t</b></div>'
+                f'<div class="row"><span>Variação</span><b style="color:{cv};font-size:.78rem;">{tv}</b></div>'
+                f'<div class="row"><span>Meta diária necessária</span><b style="color:#007BFF;">{fmt(mdc)} t/dia</b></div>', "#007BFF")
+tele_mini = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">' + "".join(
+    f'<div class="mini" style="border-color:{"#00D672" if m["status"] == "ONLINE" else "#E74C3C"};padding:8px;"><div class="a">{m["ico"]} {m["nome"]}</div><div class="a" style="color:{"#00D672" if m["status"] == "ONLINE" else "#E74C3C"};font-weight:800;">{m["status"]}</div></div>'
+    for m in modulos) + '</div>'
+tele_tile = tile("md-tele", "Telemetria", "📡", f'<div style="color:{st_geral_cor};font-weight:800;font-size:.8rem;margin-bottom:8px;">● {st_geral_txt}</div>{tele_mini}', st_geral_cor)
+logs_tile = tile("md-logs", "Últimas Atualizações", "📋", ult_html)
+
+# ---------- MODAIS ----------
+modais = (
+    modal("md-prod", "Produção de Celulose", "🏭", f'<div class="g2e" style="margin:0;">{prod_resumo}<div></div></div>{prod_html}', "#E5B800") +
+    modal("md-exp", "Expedição Realizada", "🚚", exp_html, "#00D672") +
+    modal("md-patio", "Pátio da Fábrica", "🏭", patio_resumo + patio_html, "#38a9ff", txt_pat) +
+    modal("md-frota", "Frota & Manutenção", "🚜", fr_html, "#E67E22", txt_prev) +
+    modal("md-baf", "Auditoria Bafômetro (H&S)", "🩺", baf_html, cor_baf, txt_baf) +
+    modal("md-ped", "Análise de Pedidos (ZLE087)", "📑", ped_html, "#0084FF", txt_ped) +
+    modal("md-est", "Estoque Físico no Armazém", "📦", est_html, "#00FF7F") +
+    modal("md-ano", "Comparativo Produção vs Expedição", "📊", ano_html, "#007BFF", txt_ano) +
+    modal("md-tele", "Telemetria do Ecossistema", "🛡️", tele_html, st_geral_cor) +
+    modal("md-logs", "Console de Logs do Core", "🛠️", logs_modal_html(), "#12506e")
+)
+
+render_html(f"""
+{sidebar_hd}
+<div class="dash">
+  {header_c}
+  <div class="r2">{kpis_c}</div>
+  <div class="r3">{grafico_tile}{status_tile}{ind_tile}</div>
+  <div class="r4">{ped_tile}{est_tile}{ano_tile}{tele_tile}{logs_tile}</div>
+</div>
+{modais}
+""")
