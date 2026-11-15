@@ -103,15 +103,16 @@ st.markdown("""
             pointer-events: none !important;
         }
 
-        /* COLUNA CENTRAL ESTILO APP */
+                /* COLUNA CENTRAL ESTILO APP */
         .block-container {
             padding-top: 0rem !important; 
-            padding-bottom: 10rem !important;
+            padding-bottom: 3.5rem !important;
             padding-left: 0.8rem !important; 
             padding-right: 0.8rem !important;
             max-width: 560px !important; 
             margin: 0 auto !important;
         }
+
 
         /* BANNER */
         .topo-banner { margin: 0 -0.8rem 14px -0.8rem; background: #050d1a; border-bottom: 1px solid #12506e; text-align: center; }
