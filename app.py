@@ -1564,7 +1564,7 @@ render_html(html_exp_completo)
 
 
 # ==============================================================================
-# 🖨️ RENDERIZAÇÃO 6.5: ANÁLISE DE PEDIDOS (ZLE087 - DESTINO & MATERIAL EM DESTAQUE)
+# 🖨️ RENDERIZAÇÃO 6.5: ANÁLISE DE PEDIDOS (ZLE087 - DESTINO, MATERIAL & HORA BASE)
 # ==============================================================================
 @st.cache_data(ttl=30)
 def carregar_pedidos_zle087():
@@ -1650,7 +1650,6 @@ if not df_pedidos.empty:
             pedidos_mi.append(item)
             tot_saldo_mi += saldo
 
-# Prioriza pedidos em fim de saldo no topo da lista, seguidos por destino
 pedidos_transf.sort(key=lambda x: (not x["is_fim"], x["destino"]))
 pedidos_mi.sort(key=lambda x: (not x["is_fim"], x["destino"]))
 tot_saldo_geral = tot_saldo_transf + tot_saldo_mi
@@ -1673,7 +1672,6 @@ def gerar_cards_pedidos(lista_itens, cor_primaria):
     for item in lista_itens:
         cor_mat, bg_mat = cor_badge_material_pedido(item["material"])
 
-        # Segregação visual clara: card em fim de pedido ganha destaque crítico em vermelho
         if item["is_fim"]:
             borda_card = "#FF2E2E"
             bg_card = "linear-gradient(180deg, rgba(255, 46, 46, 0.09) 0%, #070d18 100%)"
@@ -1701,7 +1699,6 @@ def gerar_cards_pedidos(lista_itens, cor_primaria):
 
         html += f"""
         <div style="background:{bg_card}; border:1.5px solid #1a314d; border-left:5px solid {borda_card}; border-radius:13px; padding:11px 13px; margin-bottom:12px; box-shadow:0 4px 12px rgba(0,0,0,0.32);">
-            <!-- LINHA 1: DESTINO (ESQUERDA) + PÍLULA GRANDE DO MATERIAL (DIREITA) -->
             <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:8px;">
                 <div style="min-width:0;">
                     <div style="color:#ffffff; font-weight:900; font-size:0.95rem; letter-spacing:0.2px; line-height:1.2;">
@@ -1713,14 +1710,12 @@ def gerar_cards_pedidos(lista_itens, cor_primaria):
                     </div>
                 </div>
 
-                <!-- BADGE DE DESTAQUE DO MATERIAL -->
                 <div style="background:{bg_mat}; border:1.5px solid {cor_mat}; border-radius:9px; padding:5px 10px; text-align:center; flex-shrink:0; box-shadow:0 0 10px {cor_mat}26;">
                     <div style="font-size:0.56rem; color:{cor_mat}; font-weight:800; text-transform:uppercase; letter-spacing:0.5px; line-height:1;">MATERIAL</div>
                     <div style="font-size:0.86rem; color:#ffffff; font-weight:900; margin-top:2px; white-space:nowrap;">{html_lib.escape(item['material'])}</div>
                 </div>
             </div>
 
-            <!-- LINHA 2: MÉTRICAS DO PEDIDO VIGENTE (SALDO | META | ATENDIDO) -->
             <div style="display:flex; justify-content:space-between; align-items:center; background:#050911; border:1px solid #132338; border-radius:8px; padding:6px 10px; margin-bottom:7px;">
                 <div>
                     <div style="font-size:0.60rem; color:#64748b; font-weight:700; text-transform:uppercase;">Saldo Atual</div>
@@ -1736,7 +1731,6 @@ def gerar_cards_pedidos(lista_itens, cor_primaria):
                 </div>
             </div>
 
-            <!-- BARRA DE PROGRESSO COMPACTA -->
             <div style="width:100%; height:4px; background:#14243b; border-radius:999px; overflow:hidden;">
                 <div style="width:{pct_atend:.1f}%; height:100%; background:linear-gradient(90deg, #38bdf8, {borda_card}); border-radius:999px;"></div>
             </div>
@@ -1748,6 +1742,8 @@ def gerar_cards_pedidos(lista_itens, cor_primaria):
 
 html_cards_transf = gerar_cards_pedidos(pedidos_transf, "#0084FF")
 html_cards_mi = gerar_cards_pedidos(pedidos_mi, "#00D672")
+
+txt_base_ped = f" | 🕒 Base: {hora_att_ped.split(' ')[1][:5]}" if hora_att_ped and " " in hora_att_ped else (f" | 🕒 Base: {hora_att_ped[:5]}" if hora_att_ped and hora_att_ped != "--:--" else "")
 
 html_bloco_pedidos = f"""
 <style>
@@ -1799,24 +1795,16 @@ html_bloco_pedidos = f"""
 
     <details class="master-box" style="border-left-color: #0084FF; margin-bottom: 14px;">
        <summary>
-            <!-- CABEÇALHO COM TÍTULO E TOTAL -->
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px; padding-right:18px;">
-                <div class="header-layout" style="margin-bottom:0;">
-                    <div class="icon-box" style="background-color: rgba(0, 132, 255, 0.15); color: #0084FF;">📑</div>
-                    <div class="master-metric-title">Análise de Pedidos (ZLE087)</div>
-                </div>
-                <div style="font-size:0.72rem; color:#94a3b8; font-weight:700; white-space:nowrap;">
-                    <b style="color:#ffffff;">{len(pedidos_transf) + len(pedidos_mi)}</b> ordens
-                </div>
+            <div class="header-layout" style="margin-bottom:4px; padding-right:18px;">
+                <div class="icon-box" style="background-color: rgba(0, 132, 255, 0.15); color: #0084FF; flex-shrink:0;">📑</div>
+                <div class="master-metric-title">Análise de Pedidos (ZLE087{txt_base_ped})</div>
             </div>
 
-            <!-- VALOR PRINCIPAL -->
             <div class="value-layout" style="margin-bottom:8px;">
                 <div class="master-metric-val">{fmt(tot_saldo_geral)}</div>
                 <div class="master-metric-unit">TON PENDENTES</div>
             </div>
 
-            <!-- SUB-RESUMO SEM QUEBRA DE TEXTO -->
             <div style="display: flex; gap: 8px; margin-top: 4px;">
                 <div style="flex: 1; background: #070d18; border: 1.5px solid #142842; border-left: 3px solid #0084FF; border-radius: 10px; padding: 8px 9px;">
                     <div style="display: flex; justify-content: space-between; align-items: center; gap: 4px;">
@@ -1858,6 +1846,7 @@ html_bloco_pedidos = f"""
 </div>
 """
 render_html(html_bloco_pedidos)
+
 
 
 
