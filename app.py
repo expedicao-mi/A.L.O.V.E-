@@ -26,7 +26,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-st_autorefresh(interval=60000, limit=None, key="refresh_mobile")
+st_autorefresh(interval=1200000, limit=None, key="refresh_mobile")
 
 if "bafometro_autenticado" not in st.session_state:
     st.session_state.bafometro_autenticado = False
