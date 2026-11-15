@@ -18,8 +18,7 @@ import gspread
 # ⚙️ CONFIGURAÇÃO DA PÁGINA
 # ==============================================================================
 LOGO_ALOVE_URL = "https://raw.githubusercontent.com/expedicao-mi/A.L.O.V.E-/main/app_icon.png"
-BANNER_TOPO_PATH = Path(__file__).parent / "assets" / "alove_header.png"
-BANNER_TOPO_DATA = base64.b64encode(BANNER_TOPO_PATH.read_bytes()).decode("utf-8")
+BANNER_TOPO_URL = "https://raw.githubusercontent.com/expedicao-mi/A.L.O.V.E-/main/logo_alove.jpg?v=99"
 SENHA_BAFOMETRO = "1000"
 
 st.set_page_config(
@@ -726,7 +725,7 @@ if "splash_exibida" not in st.session_state:
         <div class="alove-loader-bg"><div class="alove-loader-text">A.L.O.V.E</div></div>
     """, unsafe_allow_html=True)
 
-st.markdown(f'<div id="sec-topo"></div><div class="topo-banner"><img src="data:image/png;base64,{BANNER_TOPO_DATA}" alt="A.L.O.V.E. | Eldorado Brasil"></div>', unsafe_allow_html=True)
+st.markdown(f'<div id="sec-topo"></div><div class="topo-banner"><img src="{BANNER_TOPO_URL}" alt="A.L.O.V.E. | Eldorado Brasil"></div>', unsafe_allow_html=True)
 render_html('\n<nav class="alove-desktop-nav">\n  <span class="nav-brand">A.L.O.V.E.</span>\n  <a href="#sec-topo">Visão geral</a>\n  <a href="#sec-patio">Pátio</a>\n  <a href="#sec-prod">Produção</a>\n  <a href="#sec-exp">Expedição</a>\n  <a href="#sec-est">Estoque</a>\n  <a href="#sec-baf">Bafômetro</a>\n  <a class="nav-refresh" href="?refresh=1" target="_self">↻ Atualizar painel</a>\n</nav>\n')
 
 # ==============================================================================
