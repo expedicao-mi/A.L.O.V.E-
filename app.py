@@ -2057,14 +2057,12 @@ def parse_num_frota_ptbr(val_raw):
 
 def formatar_horimetro_ou_data(val_raw):
     s = str(val_raw).strip()
-    if not s or s.upper() in ["NAN", "NONE", "--", "-"]:
+    if not s or s.upper() in ["NAN", "NONE", "--", "-"] or "/" in s:
         return "--"
-    if "/" in s:
-        return s[:5]  # Ex: 19/11
     num = parse_num_frota_ptbr(s)
     if num > 0:
         return f"{fmt(num)} h"
-    return s
+    return "--"
 
 def analisar_saldo_manut(saldo_raw, is_por_dia=False):
     """
