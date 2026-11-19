@@ -1,1 +1,201 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>A.L.O.V.E. [TESTER]</title>
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="A.L.O.V.E. Test">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#050911">
+  <meta name="color-scheme" content="dark">
+
+  <link rel="apple-touch-icon" sizes="180x180" href="./app_icon.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="./app_icon.png">
+
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      background-color: #050911;
+      color-scheme: dark;
+      overflow: hidden;
+      overscroll-behavior: none;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+
+    .frame {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: #050911;
+    }
+
+    iframe {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: calc(100% + 48px);
+      border: 0;
+      background-color: #050911;
+      color-scheme: dark;
+    }
+
+    /* 🚀 CORTINA DE SPLASH INSTANTÂNEA (0ms - LOGO A.L.O.V.E. + CARREGANDO) */
+    #alove-splash {
+      position: fixed;
+      inset: 0;
+      z-index: 999999;
+      background: radial-gradient(circle at 50% 42%, #0c1f3d 0%, #050911 75%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 18px;
+      opacity: 1;
+      visibility: visible;
+      transition: opacity 0.35s ease, visibility 0.35s ease;
+    }
+
+    #alove-splash.oculto {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }
+
+    .splash-logo-wrap {
+      position: relative;
+      width: 104px;
+      height: 104px;
+      border-radius: 26px;
+      padding: 4px;
+      background: linear-gradient(135deg, #00D672 0%, #00b4ff 100%);
+      box-shadow: 0 0 32px rgba(0, 214, 114, 0.35);
+      animation: pulsoLogo 1.8s ease-in-out infinite;
+    }
+
+    .splash-logo-wrap img {
+      width: 100%;
+      height: 100%;
+      border-radius: 22px;
+      object-fit: cover;
+      display: block;
+      background: #050911;
+    }
+
+    .splash-titulo {
+      color: #ffffff;
+      font-size: 1.75rem;
+      font-weight: 900;
+      letter-spacing: 5px;
+      text-shadow: 0 0 18px rgba(0, 214, 114, 0.45);
+      margin-left: 5px;
+    }
+
+    .splash-status {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      background: rgba(11, 24, 48, 0.85);
+      border: 1px solid #163252;
+      padding: 8px 16px;
+      border-radius: 999px;
+      color: #cbd5e1;
+      font-size: 0.78rem;
+      font-weight: 700;
+      letter-spacing: 0.3px;
+    }
+
+    .splash-spinner {
+      width: 16px;
+      height: 16px;
+      border: 2.5px solid rgba(0, 214, 114, 0.22);
+      border-top-color: #00D672;
+      border-radius: 50%;
+      animation: girar 0.75s linear infinite;
+    }
+
+    @keyframes girar {
+      to { transform: rotate(360deg); }
+    }
+
+    @keyframes pulsoLogo {
+      0%, 100% { transform: scale(1); box-shadow: 0 0 26px rgba(0, 214, 114, 0.30); }
+      50% { transform: scale(1.04); box-shadow: 0 0 42px rgba(0, 214, 114, 0.55); }
+    }
+  </style>
+</head>
+
+<body>
+  <div id="alove-splash">
+    <div class="splash-logo-wrap">
+      <img src="./app_icon.png" alt="A.L.O.V.E.">
+    </div>
+    <div class="splash-titulo">A.L.O.V.E.</div>
+    <div class="splash-status">
+      <div class="splash-spinner"></div>
+      <span id="splash-msg">Sincronizando operação...</span>
+    </div>
+  </div>
+
+  <div class="frame">
+    <!-- TROQUE APENAS A URL ABAIXO PELA URL DO SEU app_tester.py NO STREAMLIT CLOUD -->
+    <iframe
+      id="alove-frame"
+      src="COLE_AQUI_A_URL_DO_APP_TESTER_STREAMLIT/?embed=true&embed_options=dark_theme"
+      title="A.L.O.V.E. Tester"
+      allowfullscreen>
+    </iframe>
+  </div>
+
+  <script>
+    const splash = document.getElementById("alove-splash");
+    const splashMsg = document.getElementById("splash-msg");
+    const frame = document.getElementById("alove-frame");
+    let timerSeguranca = null;
+
+    function mostrarSplash(texto) {
+      if (texto) splashMsg.textContent = texto;
+      splash.classList.remove("oculto");
+      clearTimeout(timerSeguranca);
+      timerSeguranca = setTimeout(esconderSplash, 9000);
+    }
+
+    function esconderSplash() {
+      clearTimeout(timerSeguranca);
+      splash.classList.add("oculto");
+    }
+
+    frame.addEventListener("load", () => {
+      setTimeout(esconderSplash, 600);
+    });
+
+    window.addEventListener("message", (event) => {
+      if (!event || !event.data) return;
+      if (event.data === "ALOVE_REFRESH") {
+        mostrarSplash("Atualizando dados...");
+      } else if (event.data === "ALOVE_READY") {
+        setTimeout(esconderSplash, 250);
+      }
+    });
+
+    timerSeguranca = setTimeout(esconderSplash, 8500);
+  </script>
+</body>
+</html>
 
