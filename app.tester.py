@@ -826,10 +826,11 @@ html_status_sistema = f"""
                 </div>
 
                 <div style="display: flex; align-items: center; gap: 8px;">
-                    <a href="?refresh=1" target="_self" onclick="event.stopPropagation(); try { window.parent.postMessage('ALOVE_REFRESH', '*'); } catch(e) {}" 
+                    <a href="?refresh=1" target="_self" onclick="event.stopPropagation(); try {{ window.parent.postMessage('ALOVE_REFRESH', '*'); }} catch(e) {{}}" 
                        style="width: 38px; height: 38px; border: 1.5px solid #00b4ff; border-radius: 10px; background: #070d18; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; color: #ffffff; text-decoration: none; box-shadow: 0 0 10px rgba(0, 180, 255, 0.25);">
                        🔄
                     </a>
+
 
                     <span class="noc-chev" style="color: #64748b; font-size: 0.8rem; padding: 4px;">▼</span>
                 </div>
