@@ -690,41 +690,20 @@ if not df_balanco_dest.empty:
             })
 
 # ==============================================================================
-# 🖨️ RECARGA NATIVA & SPLASH SCREEN (A.L.O.V.E TYPING EFFECT)
+# 🖨️ RECARGA NATIVA & SINALIZADOR INSTANTÂNEO P/ SPLASH DO CASULO HTML
 # ==============================================================================
 if st.query_params.get("refresh") == "1":
     st.cache_data.clear()
     st.query_params.clear()
-    st.session_state.pop("splash_exibida", None) # Força a animação a rodar ao atualizar
     st.rerun()
 
-# A animação só é desenhada na tela se for o primeiro carregamento
-if "splash_exibida" not in st.session_state:
-    st.session_state.splash_exibida = True
-    st.markdown("""
-        <style>
-            [data-testid="stStatusWidget"] { display: none !important; visibility: hidden !important; }
-            .alove-loader-bg {
-                position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-                background: #050911; z-index: 99999999;
-                display: flex; justify-content: center; align-items: center;
-                animation: loaderFadeOut 0.4s 1.2s forwards; pointer-events: none;
-            }
-            .alove-loader-text {
-                font-size: 2.8rem; font-weight: 900; color: #00D672;
-                letter-spacing: 6px; text-shadow: 0 0 20px rgba(0,214,114,0.6);
-                overflow: hidden; white-space: nowrap; border-right: 4px solid #00D672;
-                width: 0;
-                animation: loaderTyping 1s steps(7, end) forwards, loaderBlink 0.5s step-end infinite alternate;
-            }
-            @keyframes loaderTyping { from { width: 0 } to { width: 5.5em } }
-            @keyframes loaderBlink { 50% { border-color: transparent } }
-            @keyframes loaderFadeOut { to { opacity: 0; visibility: hidden; display: none; } }
-        </style>
-        <div class="alove-loader-bg"><div class="alove-loader-text">A.L.O.V.E</div></div>
-    """, unsafe_allow_html=True)
-
-st.markdown(f'<div id="sec-topo"></div><div class="topo-banner"><img src="{BANNER_TOPO_URL}"></div>', unsafe_allow_html=True)
+# Avisa o tester.html que os dados novos já renderizaram para recolher a logo
+st.markdown("""
+    <style>[data-testid="stStatusWidget"] { display: none !important; visibility: hidden !important; }</style>
+    <script>
+        try { window.parent.postMessage("ALOVE_READY", "*"); } catch (e) {}
+    </script>
+""", unsafe_allow_html=True)
 
 # ==============================================================================
 # 🖨️ RENDERIZAÇÃO 1: STATUS DO SISTEMA (NOC TELEMETRY - SEMPRE FECHADO AO ABRIR)
@@ -847,10 +826,11 @@ html_status_sistema = f"""
                 </div>
 
                 <div style="display: flex; align-items: center; gap: 8px;">
-                    <a href="?refresh=1" target="_self" onclick="event.stopPropagation();" 
+                    <a href="?refresh=1" target="_self" onclick="event.stopPropagation(); try { window.parent.postMessage('ALOVE_REFRESH', '*'); } catch(e) {}" 
                        style="width: 38px; height: 38px; border: 1.5px solid #00b4ff; border-radius: 10px; background: #070d18; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; color: #ffffff; text-decoration: none; box-shadow: 0 0 10px rgba(0, 180, 255, 0.25);">
                        🔄
                     </a>
+
                     <span class="noc-chev" style="color: #64748b; font-size: 0.8rem; padding: 4px;">▼</span>
                 </div>
             </div>
