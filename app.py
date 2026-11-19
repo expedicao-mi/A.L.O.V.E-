@@ -2115,6 +2115,8 @@ def icone_tipo_equipamento(tipo_str):
     if "BICICLETA" in t or "BIKE" in t: return "🚲"
     return "⚙️"
 
+EQUIPAMENTOS_OCULTOS = {"EMP-012", "90-EMP-012"}
+
 if not df_prev_insp.empty:
     df_prev_insp.columns = [str(c).strip().upper() for c in df_prev_insp.columns]
     col_tag = "TAG" if "TAG" in df_prev_insp.columns else df_prev_insp.columns[0]
@@ -2122,6 +2124,8 @@ if not df_prev_insp.empty:
     for _, rp in df_prev_insp.iterrows():
         tag = str(rp.get(col_tag, "")).strip().upper()
         if not tag or tag in ["NAN", "NONE", "TAG", "EQUIPAMENTO"]:
+            continue
+        if tag in EQUIPAMENTOS_OCULTOS or "EMP-012" in tag:
             continue
 
         tipo_eq = str(rp.get("TIPO_EQUIPAMENTO", rp.get("TIPO", "Outros"))).strip() or "Outros"
@@ -2582,7 +2586,7 @@ if linhas_glp_raw:
         # Tabela Direita: Consumo por Máquina (Coluna I=8 até Coluna M=12, Coluna J=9 Abastecimentos)
         if len(row) > 8:
             eq_nome = str(row[8]).strip().upper()
-            if eq_nome and eq_nome not in ["NAN", "NONE", "", "EQUIPAMENTO", "TOTAL"]:
+            if eq_nome and eq_nome not in ["NAN", "NONE", "", "EQUIPAMENTO", "TOTAL"] and eq_nome not in EQUIPAMENTOS_OCULTOS and "EMP-012" not in eq_nome:
                 ab_v = int(round(safe_to_numeric(row[9]))) if len(row) > 9 else 0
                 lit_e_v = safe_to_numeric(row[10]) if len(row) > 10 else 0.0
                 kg_e_v = safe_to_numeric(row[11]) if len(row) > 11 else 0.0
