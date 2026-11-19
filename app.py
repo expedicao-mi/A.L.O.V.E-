@@ -2466,11 +2466,11 @@ html_prev_insp_bloco = f"""
             </div>
             <div class="value-layout">
                 <div class="master-metric-val" style="color:{cor_borda_manut};">{tot_alertas_manut}</div>
-                <div class="master-metric-unit">Pendências Críticas</div>
+                <div class="master-metric-unit">Pendências Identificadas</div>
             </div>
             <div style="display:flex; flex-direction:column; gap:3px; margin-top:4px; font-size:0.78rem; color:#cbd5e1;">
-                <div>🛠️ <b>Preventiva:</b> <span style="color:#FF8C00; font-weight:800;">{qtd_venc_prev} Vencidas</span> &bull; <span style="color:#FF2E2E; font-weight:800;">{qtd_prox_prev} Próx. Vencimento</span></div>
-                <div>📋 <b>Inspeção:</b> <span style="color:#FF8C00; font-weight:800;">{qtd_venc_insp} Vencidas</span> &bull; <span style="color:#FF2E2E; font-weight:800;">{qtd_prox_insp} Próx. Vencimento</span></div>
+                <div>🛠️ <b>Preventiva:</b> <span style="color:#FF2E2E; font-weight:800;">{qtd_venc_prev} Vencidas</span> &bull; <span style="color:#FF8C00; font-weight:800;">{qtd_prox_prev} Próx. Vencimento</span></div>
+                <div>📋 <b>Inspeção:</b> <span style="color:#FF2E2E; font-weight:800;">{qtd_venc_insp} Vencidas</span> &bull; <span style="color:#FF8C00; font-weight:800;">{qtd_prox_insp} Próx. Vencimento</span></div>
             </div>
         </summary>
 
