@@ -963,77 +963,7 @@ html_previsoes = f"""
 render_html(html_previsoes)
 
 # ==============================================================================
-# 🖨️ RENDERIZAÇÃO 4: PÁTIO DA FÁBRICA (FECHADO AO INICIAR + ÍCONE CAMINHÃO AZUL/RELÓGIO)
-# ==============================================================================
-txt_att_patio = f" | 🕒 Base: {hora_att_patio.split(' ')[1][:5]}" if hora_att_patio and " " in hora_att_patio else ""
-
-icone_caminhao_prog_svg = """
-<svg width="28" height="28" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <!-- Baú e Cabine do Caminhão em Azul Ciano -->
-    <rect x="2" y="9" width="15" height="11" rx="2" fill="#38a9ff" fill-opacity="0.25" stroke="#38a9ff" stroke-width="2"/>
-    <path d="M17 12H22.5L26 16V20H17V12Z" fill="#38a9ff" fill-opacity="0.25" stroke="#38a9ff" stroke-width="2" stroke-linejoin="round"/>
-    <!-- Rodas -->
-    <circle cx="8" cy="22" r="2.3" fill="#0a1424" stroke="#38a9ff" stroke-width="2"/>
-    <circle cx="22" cy="22" r="2.3" fill="#0a1424" stroke="#38a9ff" stroke-width="2"/>
-    <!-- Relógio de Programação no canto superior direito -->
-    <circle cx="25" cy="7" r="5.5" fill="#070d18" stroke="#38bdf8" stroke-width="1.8"/>
-    <path d="M25 4.5V7L26.8 8" stroke="#ffffff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
-</svg>
-"""
-
-html_patio = f"""
-<div id="sec-patio"></div>
-<details class="master-box" style="border-left-color: #38a9ff;">
-    <summary>
-        <div class="header-layout">
-            <div class="icon-box" style="background-color: rgba(56, 169, 255, 0.15); color: #38a9ff;">🏭</div>
-            <div class="master-metric-title">Pátio da Fábrica (Tempo Real{txt_att_patio})</div>
-        </div>
-        <div class="value-layout">
-            <div class="master-metric-val">{total_veiculos_fisicos}</div>
-            <div class="master-metric-unit">Veículos Físicos</div>
-        </div>
-        <div class="master-metric-sub" style="color: #38a9ff;">Carga Disponível: {fmt(vol_patio_disponivel)} t</div>
-        <div class="master-metric-sub" style="color: #64748b;">(Checklist + Apoio + Fila)</div>
-    </summary>
-    <div class="master-content" style="padding-top:16px;">
-"""
-
-for tit, chv, col_v, col_t, cor, ico in mapa_status_colunas:
-    lista_destinos = destinos_por_status.get(chv, [])
-    v_qtd = dados_patio[chv]["veiculos"]
-    v_ton = dados_patio[chv]["peso"]
-
-    ico_render = icone_caminhao_prog_svg if chv == "PR" else ico
-
-    linhas_dest_html = ""
-    if lista_destinos:
-        for item in lista_destinos:
-            linhas_dest_html += f'<div class="dest-row"><span class="n">{html_lib.escape(item["destino"])}</span><span class="v">{item["veic"]} veíc. <small>({fmt(item["ton"])} t)</small></span></div>'
-        linhas_dest_html += f'<div class="dest-row total"><span class="n">TOTAL</span><span class="v">{v_qtd} veíc. <small>({fmt(v_ton)} t)</small></span></div>'
-    else:
-        linhas_dest_html = '<div class="dest-vazio">Nenhum veículo alocado neste status.</div>'
-
-    html_patio += f"""
-    <details class="st-card" style="--c:{cor};">
-        <summary>
-            <div class="st-ico">{ico_render}</div>
-            <div class="st-txt">
-                <div class="st-title">{tit}</div>
-                <div class="st-num">{v_qtd} <span>veíc. / {fmt(v_ton)} t</span></div>
-            </div>
-            <div class="chev">›</div>
-        </summary>
-        <div class="st-body">{linhas_dest_html}</div>
-    </details>
-    """
-
-html_patio += "</div></details>"
-render_html(html_patio)
-
-
-# ==============================================================================
-# 🖨️ RENDERIZAÇÃO 5: PRODUÇÃO DE CELULOSE (CLASSE EQ/SQ/OS REFLETIDA NO CARD)
+# 🖨️ RENDERIZAÇÃO 4: PRODUÇÃO DE CELULOSE (CLASSE EQ/SQ/OS REFLETIDA NO CARD)
 # ==============================================================================
 html_prod_content = ""
 for maq in ["MS1", "MS2"]:
@@ -1157,6 +1087,182 @@ html_prod_completo = f"""
 """
 render_html(html_prod_completo)
 
+
+# ==============================================================================
+# 🖨️ RENDERIZAÇÃO 5: ESTOQUE FÍSICO (TABELA ABERTA + RODAPÉ ON-GRADE VS OFF-GRADE)
+# ==============================================================================
+CAPACIDADE_MAX_ARMAZEM = 25000.0
+
+raw_seg_str = str(cache_dict.get("dados_segregados", "{}")).strip()
+if '""' in raw_seg_str and not dados_segregados:
+    dados_segregados = parse_robusto(raw_seg_str.replace('""', '"'))
+
+itens_estoque = []
+tot_on_grade = 0.0   # EQ
+tot_off_grade = 0.0  # SQ, BQ, OS
+
+# Cores exatas solicitadas por classe na tabela aberta
+CORES_CLASSE_ESTOQUE = {
+    "EQ": ("#00FF7F", "rgba(0, 255, 127, 0.16)"),   # Verde Neon
+    "SQ": ("#FFD600", "rgba(255, 214, 0, 0.16)"),   # Amarelo
+    "BQ": ("#FF8C00", "rgba(255, 140, 0, 0.18)"),   # Laranja
+    "OS": ("#FF2E2E", "rgba(255, 46, 46, 0.18)"),   # Vermelho
+}
+
+if dados_segregados:
+    for m_raw, v_raw in dados_segregados.items():
+        t_val = forcar_par(safe_to_numeric(v_raw))
+        if t_val <= 0:
+            continue
+        m_str = str(m_raw).strip().upper()
+
+        match_cls = re.search(r'\(([^)]+)\)', m_str)
+        if match_cls:
+            classe_real = match_cls.group(1).strip().upper()
+        elif "OS" in m_str:
+            classe_real = "OS"
+        elif "BQ" in m_str:
+            classe_real = "BQ"
+        elif "SQ" in m_str:
+            classe_real = "SQ"
+        else:
+            classe_real = "EQ"
+
+        cod_mat = re.sub(r'\([^)]*\)', '', m_str).strip() or m_str.split()[0]
+
+        if classe_real == "EQ":
+            tot_on_grade += t_val
+        else:
+            tot_off_grade += t_val
+
+        cor_item, bg_item = CORES_CLASSE_ESTOQUE.get(classe_real, ("#38bdf8", "rgba(56, 189, 248, 0.16)"))
+
+        itens_estoque.append({
+            "material": cod_mat,
+            "classe": classe_real,
+            "ton": t_val,
+            "cor": cor_item,
+            "bg": bg_item
+        })
+
+soma_segregada_real = forcar_par(tot_on_grade + tot_off_grade)
+if soma_segregada_real > 0:
+    estoque_total = soma_segregada_real
+else:
+    est_linha4 = forcar_par(safe_to_numeric(cache_dict.get("estoque_total", 0)))
+    if est_linha4 > 0:
+        estoque_total = est_linha4
+
+pct_ocupacao_est = min(100.0, max(0.0, (estoque_total / CAPACIDADE_MAX_ARMAZEM * 100.0)))
+espaco_livre_est = max(0.0, CAPACIDADE_MAX_ARMAZEM - estoque_total)
+
+itens_estoque.sort(key=lambda x: (-x["ton"], x["material"], x["classe"]))
+max_ton_item = max([x["ton"] for x in itens_estoque], default=1.0)
+
+tot_geral_calc = soma_segregada_real if soma_segregada_real > 0 else (estoque_total if estoque_total > 0 else 1.0)
+pct_on_grade = max(0.0, (tot_on_grade / tot_geral_calc) * 100.0)
+pct_off_grade = max(0.0, (tot_off_grade / tot_geral_calc) * 100.0)
+
+linhas_tabela_est = ""
+if itens_estoque:
+    for item in itens_estoque:
+        cor_c = item["cor"]
+        bg_c = item["bg"]
+        pct_barra_item = min(100.0, max(4.0, (item["ton"] / max_ton_item) * 100.0))
+
+        linhas_tabela_est += f"""
+        <tr style="border-bottom: 1px dashed #1c2b42;">
+            <td style="padding: 9px 6px; text-align: left; font-weight: 800; color: #ffffff; font-size: 0.84rem;">
+                📦 {html_lib.escape(item['material'])}
+            </td>
+            <td style="padding: 9px 6px; text-align: center;">
+                <span style="background: {bg_c}; color: {cor_c}; border: 1px solid {cor_c}; font-size: 0.68rem; font-weight: 900; padding: 2px 8px; border-radius: 6px; letter-spacing: 0.4px; box-shadow: 0 0 8px {cor_c}33;">
+                    {html_lib.escape(item['classe'])}
+                </span>
+            </td>
+            <td style="padding: 9px 6px; text-align: right;">
+                <div style="color: {cor_c}; font-weight: 800; font-size: 0.84rem; font-family: monospace;">
+                    {fmt(item['ton'])} <span style="font-size: 0.70rem; color: #94a3b8; font-weight: normal;">t</span>
+                </div>
+                <div style="width: 100%; height: 3px; background: #14243b; border-radius: 999px; overflow: hidden; margin-top: 3px;">
+                    <div style="width: {pct_barra_item:.1f}%; height: 100%; background: {cor_c}; border-radius: 999px;"></div>
+                </div>
+            </td>
+        </tr>
+        """
+else:
+    linhas_tabela_est = '<tr><td colspan="3" style="color:#64748b; font-size:0.8rem; text-align:center; padding:14px;">Aguardando dados segregados...</td></tr>'
+
+html_est = f"""
+<div id="sec-est"></div>
+<details class="master-box" style="border-left-color: #00FF7F;">
+    <summary>
+        <div class="header-layout">
+            <div class="icon-box" style="background-color: rgba(0, 255, 127, 0.15); color: #00FF7F;">📦</div>
+            <div class="master-metric-title">Estoque Físico no Armazém</div>
+        </div>
+
+        <div class="value-layout" style="margin-bottom: 2px;">
+            <div class="master-metric-val">{fmt(estoque_total)}</div>
+            <div class="master-metric-unit">TON</div>
+        </div>
+
+        <div style="margin-top: 6px; margin-bottom: 2px;">
+            <div style="font-size: 0.75rem; color: #cbd5e1; margin-bottom: 5px;">
+                Ocupação: <b style="color: #ffffff;">{fmt(estoque_total)} t</b> de <b style="color: #ffffff;">{fmt(CAPACIDADE_MAX_ARMAZEM)} t</b> ({pct_ocupacao_est:.0f}%) 📦
+            </div>
+            <div style="width: 100%; height: 7px; background: #14243b; border-radius: 999px; overflow: hidden;">
+                <div style="width: {pct_ocupacao_est:.1f}%; height: 100%; background: linear-gradient(90deg, #38bdf8 0%, #00FF7F 100%); border-radius: 999px; box-shadow: 0 0 10px rgba(0,255,127,0.45);"></div>
+            </div>
+            <div style="display: flex; justify-content: space-between; font-size: 0.72rem; color: #64748b; margin-top: 4px;">
+                <span>Espaço Livre: <b style="color: #38bdf8;">{fmt(espaco_livre_est)} t</b></span>
+                <span>Capacidade: 25.000 t</span>
+            </div>
+        </div>
+    </summary>
+
+    <div class="master-content" style="padding-top: 12px;">
+        <!-- 1. MEIO: TABELA ABERTA DE MATERIAIS (EQ Verde Neon | SQ Amarelo | BQ Laranja | OS Vermelho) -->
+        <div style="background: #070d18; border: 1.5px solid #142842; border-radius: 12px; padding: 6px 10px; margin-bottom: 10px;">
+            <table style="width: 100%; border-collapse: collapse;">
+                <thead>
+                    <tr style="border-bottom: 1.5px solid #1c2b42; color: #64748b; font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.5px;">
+                        <th style="padding: 8px 6px; text-align: left;">Material</th>
+                        <th style="padding: 8px 6px; text-align: center;">Classe</th>
+                        <th style="padding: 8px 6px; text-align: right;">Qtd. Ton</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {linhas_tabela_est}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- 2. RODAPÉ: BARRA DE CLASSE (MATERIAL ON-GRADE vs MATERIAL OFF-GRADE) -->
+        <div style="background: #070d18; border: 1.5px solid #142842; border-radius: 12px; padding: 10px 12px;">
+            <div style="display: flex; width: 100%; height: 8px; background: #14243b; border-radius: 999px; overflow: hidden; margin-bottom: 10px;">
+                <div style="width: {pct_on_grade:.1f}%; background: #00FF7F; box-shadow: 0 0 8px rgba(0,255,127,0.5);"></div>
+                <div style="width: {pct_off_grade:.1f}%; background: linear-gradient(90deg, #FFD600 0%, #FF8C00 60%, #FF2E2E 100%);"></div>
+            </div>
+            <div style="display: flex; justify-content: space-between; gap: 8px; text-align: center;">
+                <div style="flex: 1; background: #050911; border: 1px solid #142842; border-left: 3px solid #00FF7F; border-radius: 8px; padding: 8px 6px;">
+                    <div style="font-size: 0.66rem; color: #00FF7F; font-weight: 800; text-transform: uppercase;">Material On-Grade </div>
+                    <div style="font-size: 1.05rem; color: #ffffff; font-weight: 800; margin-top: 3px;">
+                        {fmt(tot_on_grade)} <span style="font-size: 0.72rem; color: #64748b; font-weight: normal;">t ({pct_on_grade:.0f}%)</span>
+                    </div>
+                </div>
+                <div style="flex: 1; background: #050911; border: 1px solid #142842; border-left: 3px solid #FF8C00; border-radius: 8px; padding: 8px 6px;">
+                    <div style="font-size: 0.66rem; color: #FF8C00; font-weight: 800; text-transform: uppercase;">Material Off-Grade </div>
+                    <div style="font-size: 1.05rem; color: #ffffff; font-weight: 800; margin-top: 3px;">
+                        {fmt(tot_off_grade)} <span style="font-size: 0.72rem; color: #64748b; font-weight: normal;">t ({pct_off_grade:.0f}%)</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</details>
+"""
+render_html(html_est)
 
 
 # ==============================================================================
@@ -1324,18 +1430,17 @@ totais_rodape_html = f"""
     <!-- CARD 2: TOTAL CARREGADO -->
     <div style="flex: 1; border-left:1px solid #1c2b42; border-right:1px solid #1c2b42; padding: 0 4px;">
         <div style="font-size:0.68rem; color:#38bdf8; font-weight:bold; text-transform:uppercase;">Carregado</div>
-        <div style="font-size:1.25rem; color:#38bdf8; font-weight:bold; margin-top:2px;">{fmt(total_expedicao_real)} <span style="font-size:0.75rem; font-weight:normal;">t</span></div>
+        <div style="font-size:1.25rem; color:#38bdf8; font-weight:bold; margin-top:2px;">{fmt(total_expedicao_real)} <span style="font-size:0.75rem; color:#64748b; font-weight:normal;">t</span></div>
     </div>
 
     <!-- CARD 3: TOTAL PENDENTE (LARANJA) -->
     <div style="flex: 1;">
         <div style="font-size:0.68rem; color:#FF9F1C; font-weight:bold; text-transform:uppercase;">Pendente</div>
-        <div style="font-size:1.25rem; color:#FF9F1C; font-weight:bold; margin-top:2px;">{fmt(total_expedicao_falta)} <span style="font-size:0.75rem; font-weight:normal;">t</span></div>
+        <div style="font-size:1.25rem; color:#FF9F1C; font-weight:bold; margin-top:2px;">{fmt(total_expedicao_falta)} <span style="font-size:0.75rem; color:#64748b; font-weight:normal;">t</span></div>
     </div>
 </div>
 """
 
-# ⚠️ AQUI ESTAVA O BUG: Essa linha tinha sido apagada!
 html_destinos = f"{tabela_linhas_html}{totais_rodape_html}"
 
 # ----------------------------------------------------
@@ -1558,10 +1663,6 @@ html_exp_completo = f"""
 </div>
 """
 render_html(html_exp_completo)
-
-
-
-
 
 
 # ==============================================================================
@@ -1849,183 +1950,74 @@ html_bloco_pedidos = f"""
 render_html(html_bloco_pedidos)
 
 
-
-
 # ==============================================================================
-# 🖨️ RENDERIZAÇÃO 7: ESTOQUE FÍSICO (TABELA ABERTA + RODAPÉ ON-GRADE VS OFF-GRADE)
+# 🖨️ RENDERIZAÇÃO 7: PÁTIO DA FÁBRICA (FECHADO AO INICIAR + ÍCONE CAMINHÃO AZUL/RELÓGIO)
 # ==============================================================================
-CAPACIDADE_MAX_ARMAZEM = 25000.0
+txt_att_patio = f" | 🕒 Base: {hora_att_patio.split(' ')[1][:5]}" if hora_att_patio and " " in hora_att_patio else ""
 
-raw_seg_str = str(cache_dict.get("dados_segregados", "{}")).strip()
-if '""' in raw_seg_str and not dados_segregados:
-    dados_segregados = parse_robusto(raw_seg_str.replace('""', '"'))
+icone_caminhao_prog_svg = """
+<svg width="28" height="28" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <!-- Baú e Cabine do Caminhão em Azul Ciano -->
+    <rect x="2" y="9" width="15" height="11" rx="2" fill="#38a9ff" fill-opacity="0.25" stroke="#38a9ff" stroke-width="2"/>
+    <path d="M17 12H22.5L26 16V20H17V12Z" fill="#38a9ff" fill-opacity="0.25" stroke="#38a9ff" stroke-width="2" stroke-linejoin="round"/>
+    <!-- Rodas -->
+    <circle cx="8" cy="22" r="2.3" fill="#0a1424" stroke="#38a9ff" stroke-width="2"/>
+    <circle cx="22" cy="22" r="2.3" fill="#0a1424" stroke="#38a9ff" stroke-width="2"/>
+    <!-- Relógio de Programação no canto superior direito -->
+    <circle cx="25" cy="7" r="5.5" fill="#070d18" stroke="#38bdf8" stroke-width="1.8"/>
+    <path d="M25 4.5V7L26.8 8" stroke="#ffffff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
+"""
 
-itens_estoque = []
-tot_on_grade = 0.0   # EQ
-tot_off_grade = 0.0  # SQ, BQ, OS
-
-# Cores exatas solicitadas por classe na tabela aberta
-CORES_CLASSE_ESTOQUE = {
-    "EQ": ("#00FF7F", "rgba(0, 255, 127, 0.16)"),   # Verde Neon
-    "SQ": ("#FFD600", "rgba(255, 214, 0, 0.16)"),   # Amarelo
-    "BQ": ("#FF8C00", "rgba(255, 140, 0, 0.18)"),   # Laranja
-    "OS": ("#FF2E2E", "rgba(255, 46, 46, 0.18)"),   # Vermelho
-}
-
-if dados_segregados:
-    for m_raw, v_raw in dados_segregados.items():
-        t_val = forcar_par(safe_to_numeric(v_raw))
-        if t_val <= 0:
-            continue
-        m_str = str(m_raw).strip().upper()
-
-        match_cls = re.search(r'\(([^)]+)\)', m_str)
-        if match_cls:
-            classe_real = match_cls.group(1).strip().upper()
-        elif "OS" in m_str:
-            classe_real = "OS"
-        elif "BQ" in m_str:
-            classe_real = "BQ"
-        elif "SQ" in m_str:
-            classe_real = "SQ"
-        else:
-            classe_real = "EQ"
-
-        cod_mat = re.sub(r'\([^)]*\)', '', m_str).strip() or m_str.split()[0]
-
-        if classe_real == "EQ":
-            tot_on_grade += t_val
-        else:
-            tot_off_grade += t_val
-
-        cor_item, bg_item = CORES_CLASSE_ESTOQUE.get(classe_real, ("#38bdf8", "rgba(56, 189, 248, 0.16)"))
-
-        itens_estoque.append({
-            "material": cod_mat,
-            "classe": classe_real,
-            "ton": t_val,
-            "cor": cor_item,
-            "bg": bg_item
-        })
-
-soma_segregada_real = forcar_par(tot_on_grade + tot_off_grade)
-if soma_segregada_real > 0:
-    estoque_total = soma_segregada_real
-else:
-    est_linha4 = forcar_par(safe_to_numeric(cache_dict.get("estoque_total", 0)))
-    if est_linha4 > 0:
-        estoque_total = est_linha4
-
-pct_ocupacao_est = min(100.0, max(0.0, (estoque_total / CAPACIDADE_MAX_ARMAZEM * 100.0)))
-espaco_livre_est = max(0.0, CAPACIDADE_MAX_ARMAZEM - estoque_total)
-
-itens_estoque.sort(key=lambda x: (-x["ton"], x["material"], x["classe"]))
-max_ton_item = max([x["ton"] for x in itens_estoque], default=1.0)
-
-tot_geral_calc = soma_segregada_real if soma_segregada_real > 0 else (estoque_total if estoque_total > 0 else 1.0)
-pct_on_grade = max(0.0, (tot_on_grade / tot_geral_calc) * 100.0)
-pct_off_grade = max(0.0, (tot_off_grade / tot_geral_calc) * 100.0)
-
-linhas_tabela_est = ""
-if itens_estoque:
-    for item in itens_estoque:
-        cor_c = item["cor"]
-        bg_c = item["bg"]
-        pct_barra_item = min(100.0, max(4.0, (item["ton"] / max_ton_item) * 100.0))
-
-        linhas_tabela_est += f"""
-        <tr style="border-bottom: 1px dashed #1c2b42;">
-            <td style="padding: 9px 6px; text-align: left; font-weight: 800; color: #ffffff; font-size: 0.84rem;">
-                📦 {html_lib.escape(item['material'])}
-            </td>
-            <td style="padding: 9px 6px; text-align: center;">
-                <span style="background: {bg_c}; color: {cor_c}; border: 1px solid {cor_c}; font-size: 0.68rem; font-weight: 900; padding: 2px 8px; border-radius: 6px; letter-spacing: 0.4px; box-shadow: 0 0 8px {cor_c}33;">
-                    {html_lib.escape(item['classe'])}
-                </span>
-            </td>
-            <td style="padding: 9px 6px; text-align: right;">
-                <div style="color: {cor_c}; font-weight: 800; font-size: 0.84rem; font-family: monospace;">
-                    {fmt(item['ton'])} <span style="font-size: 0.70rem; color: #94a3b8; font-weight: normal;">t</span>
-                </div>
-                <div style="width: 100%; height: 3px; background: #14243b; border-radius: 999px; overflow: hidden; margin-top: 3px;">
-                    <div style="width: {pct_barra_item:.1f}%; height: 100%; background: {cor_c}; border-radius: 999px;"></div>
-                </div>
-            </td>
-        </tr>
-        """
-else:
-    linhas_tabela_est = '<tr><td colspan="3" style="color:#64748b; font-size:0.8rem; text-align:center; padding:14px;">Aguardando dados segregados...</td></tr>'
-
-html_est = f"""
-<div id="sec-est"></div>
-<details class="master-box" style="border-left-color: #00FF7F;">
+html_patio = f"""
+<div id="sec-patio"></div>
+<details class="master-box" style="border-left-color: #38a9ff;">
     <summary>
         <div class="header-layout">
-            <div class="icon-box" style="background-color: rgba(0, 255, 127, 0.15); color: #00FF7F;">📦</div>
-            <div class="master-metric-title">Estoque Físico no Armazém</div>
+            <div class="icon-box" style="background-color: rgba(56, 169, 255, 0.15); color: #38a9ff;">🏭</div>
+            <div class="master-metric-title">Pátio da Fábrica (Tempo Real{txt_att_patio})</div>
         </div>
-
-        <div class="value-layout" style="margin-bottom: 2px;">
-            <div class="master-metric-val">{fmt(estoque_total)}</div>
-            <div class="master-metric-unit">TON</div>
+        <div class="value-layout">
+            <div class="master-metric-val">{total_veiculos_fisicos}</div>
+            <div class="master-metric-unit">Veículos Físicos</div>
         </div>
-
-        <div style="margin-top: 6px; margin-bottom: 2px;">
-            <div style="font-size: 0.75rem; color: #cbd5e1; margin-bottom: 5px;">
-                Ocupação: <b style="color: #ffffff;">{fmt(estoque_total)} t</b> de <b style="color: #ffffff;">{fmt(CAPACIDADE_MAX_ARMAZEM)} t</b> ({pct_ocupacao_est:.0f}%) 📦
-            </div>
-            <div style="width: 100%; height: 7px; background: #14243b; border-radius: 999px; overflow: hidden;">
-                <div style="width: {pct_ocupacao_est:.1f}%; height: 100%; background: linear-gradient(90deg, #38bdf8 0%, #00FF7F 100%); border-radius: 999px; box-shadow: 0 0 10px rgba(0,255,127,0.45);"></div>
-            </div>
-            <div style="display: flex; justify-content: space-between; font-size: 0.72rem; color: #64748b; margin-top: 4px;">
-                <span>Espaço Livre: <b style="color: #38bdf8;">{fmt(espaco_livre_est)} t</b></span>
-                <span>Capacidade: 25.000 t</span>
-            </div>
-        </div>
+        <div class="master-metric-sub" style="color: #38a9ff;">Carga Disponível: {fmt(vol_patio_disponivel)} t</div>
+        <div class="master-metric-sub" style="color: #64748b;">(Checklist + Apoio + Fila)</div>
     </summary>
-
-    <div class="master-content" style="padding-top: 12px;">
-        <!-- 1. MEIO: TABELA ABERTA DE MATERIAIS (EQ Verde Neon | SQ Amarelo | BQ Laranja | OS Vermelho) -->
-        <div style="background: #070d18; border: 1.5px solid #142842; border-radius: 12px; padding: 6px 10px; margin-bottom: 10px;">
-            <table style="width: 100%; border-collapse: collapse;">
-                <thead>
-                    <tr style="border-bottom: 1.5px solid #1c2b42; color: #64748b; font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.5px;">
-                        <th style="padding: 8px 6px; text-align: left;">Material</th>
-                        <th style="padding: 8px 6px; text-align: center;">Classe</th>
-                        <th style="padding: 8px 6px; text-align: right;">Qtd. Ton</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {linhas_tabela_est}
-                </tbody>
-            </table>
-        </div>
-
-        <!-- 2. RODAPÉ: BARRA DE CLASSE (MATERIAL ON-GRADE vs MATERIAL OFF-GRADE) -->
-        <div style="background: #070d18; border: 1.5px solid #142842; border-radius: 12px; padding: 10px 12px;">
-            <div style="display: flex; width: 100%; height: 8px; background: #14243b; border-radius: 999px; overflow: hidden; margin-bottom: 10px;">
-                <div style="width: {pct_on_grade:.1f}%; background: #00FF7F; box-shadow: 0 0 8px rgba(0,255,127,0.5);"></div>
-                <div style="width: {pct_off_grade:.1f}%; background: linear-gradient(90deg, #FFD600 0%, #FF8C00 60%, #FF2E2E 100%);"></div>
-            </div>
-            <div style="display: flex; justify-content: space-between; gap: 8px; text-align: center;">
-                <div style="flex: 1; background: #050911; border: 1px solid #142842; border-left: 3px solid #00FF7F; border-radius: 8px; padding: 8px 6px;">
-                    <div style="font-size: 0.66rem; color: #00FF7F; font-weight: 800; text-transform: uppercase;">Material On-Grade </div>
-                    <div style="font-size: 1.05rem; color: #ffffff; font-weight: 800; margin-top: 3px;">
-                        {fmt(tot_on_grade)} <span style="font-size: 0.72rem; color: #64748b; font-weight: normal;">t ({pct_on_grade:.0f}%)</span>
-                    </div>
-                </div>
-                <div style="flex: 1; background: #050911; border: 1px solid #142842; border-left: 3px solid #FF8C00; border-radius: 8px; padding: 8px 6px;">
-                    <div style="font-size: 0.66rem; color: #FF8C00; font-weight: 800; text-transform: uppercase;">Material Off-Grade </div>
-                    <div style="font-size: 1.05rem; color: #ffffff; font-weight: 800; margin-top: 3px;">
-                        {fmt(tot_off_grade)} <span style="font-size: 0.72rem; color: #64748b; font-weight: normal;">t ({pct_off_grade:.0f}%)</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</details>
+    <div class="master-content" style="padding-top:16px;">
 """
-render_html(html_est)
+
+for tit, chv, col_v, col_t, cor, ico in mapa_status_colunas:
+    lista_destinos = destinos_por_status.get(chv, [])
+    v_qtd = dados_patio[chv]["veiculos"]
+    v_ton = dados_patio[chv]["peso"]
+
+    ico_render = icone_caminhao_prog_svg if chv == "PR" else ico
+
+    linhas_dest_html = ""
+    if lista_destinos:
+        for item in lista_destinos:
+            linhas_dest_html += f'<div class="dest-row"><span class="n">{html_lib.escape(item["destino"])}</span><span class="v">{item["veic"]} veíc. <small>({fmt(item["ton"])} t)</small></span></div>'
+        linhas_dest_html += f'<div class="dest-row total"><span class="n">TOTAL</span><span class="v">{v_qtd} veíc. <small>({fmt(v_ton)} t)</small></span></div>'
+    else:
+        linhas_dest_html = '<div class="dest-vazio">Nenhum veículo alocado neste status.</div>'
+
+    html_patio += f"""
+    <details class="st-card" style="--c:{cor};">
+        <summary>
+            <div class="st-ico">{ico_render}</div>
+            <div class="st-txt">
+                <div class="st-title">{tit}</div>
+                <div class="st-num">{v_qtd} <span>veíc. / {fmt(v_ton)} t</span></div>
+            </div>
+            <div class="chev">›</div>
+        </summary>
+        <div class="st-body">{linhas_dest_html}</div>
+    </details>
+    """
+
+html_patio += "</div></details>"
+render_html(html_patio)
 
 
 
