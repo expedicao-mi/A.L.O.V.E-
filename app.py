@@ -2030,8 +2030,11 @@ equip_por_tipo = {}
 todos_equip_lista = []
 qtd_total_disp = 0
 qtd_total_indisp = 0
-qtd_criticos_prev = 0
-qtd_criticos_insp = 0
+
+qtd_venc_prev = 0
+qtd_prox_prev = 0
+qtd_venc_insp = 0
+qtd_prox_insp = 0
 
 def parse_num_frota_ptbr(val_raw):
     if val_raw is None or pd.isna(val_raw):
@@ -2066,8 +2069,8 @@ def formatar_horimetro_ou_data(val_raw):
 def analisar_saldo_manut(saldo_raw, is_por_dia=False):
     """
     Régua oficial (Preventiva Col. H e Inspeção Col. N):
-      < 0       -> VENCIDA (Texto Vermelho #FF2E2E + Borda Laranja #FF8C00)
-      0 a 50    -> PRÓX. AO VENCIMENTO (Vermelho #FF2E2E)
+      <= 0      -> VENCIDA (Texto Vermelho #FF2E2E + Borda Laranja #FF8C00)
+      1 a 50    -> PRÓX. AO VENCIMENTO (Vermelho #FF2E2E)
       51 a 100  -> ATENÇÃO (Laranja #FF8C00)
       101 +     -> EM DIA (Verde #00FF7F)
     Retorna: (texto_exibicao, rotulo_status, cor_texto, cor_borda, bg_rgba, peso_ordem)
@@ -2080,7 +2083,7 @@ def analisar_saldo_manut(saldo_raw, is_por_dia=False):
     unidade = "d" if is_por_dia else "h"
     val_fmt = f"{fmt(val)} {unidade}"
 
-    if val < 0:
+    if val <= 0:
         return val_fmt, "VENCIDA", "#FF2E2E", "#FF8C00", "rgba(255, 46, 46, 0.22)", 0
     if val <= 50:
         return val_fmt, "PRÓX. AO VENCIMENTO", "#FF2E2E", "#FF2E2E", "rgba(255, 46, 46, 0.16)", 1
@@ -2094,12 +2097,6 @@ def limpar_om_sap(om_raw):
         return "--"
     nums = re.findall(r'\d+', s)
     return nums[0] if nums else s
-
-def limpar_data_curta(dt_raw):
-    s = str(dt_raw).strip()
-    if not s or s.upper() in ["NAN", "NONE", "--", "-"]:
-        return "--"
-    return s[:5] if "/" in s else s
 
 def ordem_tipo_equipamento(tipo_str):
     t = str(tipo_str).upper()
@@ -2155,14 +2152,16 @@ if not df_prev_insp.empty:
         om_p = limpar_om_sap(rp.get("OM_PREVENTIVA", "--"))
         om_i = limpar_om_sap(rp.get("OM_INSPECAO", "--"))
 
-        # Coluna L: DATA_ULT_PREVENTIVA | Coluna R: DATA_ULT_INSPECAO
-        ult_prev_dt = limpar_data_curta(rp.get("DATA_ULT_PREVENTIVA", "--"))
-        ult_insp_dt = limpar_data_curta(rp.get("DATA_ULT_INSPECAO", "--"))
+        # Contabiliza Vencidas (sev == 0) e Próx. ao Vencimento (sev == 1)
+        if sev_p == 0:
+            qtd_venc_prev += 1
+        elif sev_p == 1:
+            qtd_prox_prev += 1
 
-        if sev_p <= 1:
-            qtd_criticos_prev += 1
-        if sev_i <= 1:
-            qtd_criticos_insp += 1
+        if sev_i == 0:
+            qtd_venc_insp += 1
+        elif sev_i == 1:
+            qtd_prox_insp += 1
 
         is_indisponivel = ("OFFLINE" in disp) or ("INDISP" in disp) or ("MANUT" in st_op)
         if is_indisponivel:
@@ -2184,7 +2183,6 @@ if not df_prev_insp.empty:
             "sev_p": sev_p,
             "tipo_prev": tipo_prev_txt,
             "om_prev": om_p,
-            "ult_prev": ult_prev_dt,
             "txt_saldo_i": txt_saldo_i,
             "lbl_i": lbl_i,
             "cor_txt_i": cor_txt_i,
@@ -2193,7 +2191,6 @@ if not df_prev_insp.empty:
             "sev_i": sev_i,
             "tipo_insp": tipo_insp_txt,
             "om_insp": om_i,
-            "ult_insp": ult_insp_dt,
         }
 
         todos_equip_lista.append(obj_eq)
@@ -2282,7 +2279,7 @@ html_frota_disp = f"""
 render_html(html_frota_disp)
 
 # ------------------------------------------------------------------------------
-# BLOCO 8B: GESTÃO DE PREVENTIVA & INSPEÇÃO (SALDO + TIPO ESCOPO + OM SAP)
+# BLOCO 8B: GESTÃO DE PREVENTIVA & INSPEÇÃO (OM AZUL/BRANCO + TOPO VENC/PRÓX)
 # ------------------------------------------------------------------------------
 html_aba_preventiva = ""
 html_aba_inspecao = ""
@@ -2304,21 +2301,18 @@ if tipos_ordenados_frota:
             borda_box_p = f"1.5px solid {cor_brd_p}" if item["sev_p"] == 0 else "1px solid #162840"
             cor_val_p = cor_txt_p if item["sev_p"] <= 3 else "#64748b"
 
-            # Pílula do Tipo de Preventiva (Coluna J)
             tipo_p_badge = (
                 f'<span style="background:rgba(255,140,0,0.12); border:1px solid rgba(255,140,0,0.45); color:#FF9F1C; font-size:0.65rem; font-weight:800; padding:2px 7px; border-radius:5px; white-space:nowrap;">🛠️ {html_lib.escape(item["tipo_prev"])}</span>'
                 if item["tipo_prev"] != "--" else ""
             )
 
-            # Badge da OM ou Alerta de Sem OM quando crítico
+            # Badge da OM em AZUL com letras BRANCAS quando existir; senão "OM n/criada"
             if item["om_prev"] != "--":
-                om_p_badge = f'<span style="background:#0d1a2d; border:1px solid #1e3554; color:#cbd5e1; font-family:monospace; font-size:0.66rem; padding:2px 7px; border-radius:5px;">OM {html_lib.escape(item["om_prev"])}</span>'
+                om_p_badge = f'<span style="background:#0084FF; border:1px solid #38bdf8; color:#ffffff; font-family:monospace; font-size:0.68rem; font-weight:800; padding:2px 8px; border-radius:5px; box-shadow:0 0 8px rgba(0,132,255,0.35);">OM {html_lib.escape(item["om_prev"])}</span>'
             elif item["sev_p"] <= 1:
-                om_p_badge = '<span style="background:rgba(255,46,46,0.16); border:1px solid #FF2E2E; color:#ff8080; font-size:0.62rem; font-weight:900; padding:2px 6px; border-radius:5px;">⚠️ SEM OM</span>'
+                om_p_badge = '<span style="background:rgba(255,46,46,0.16); border:1px solid #FF2E2E; color:#ff8080; font-size:0.64rem; font-weight:900; padding:2px 7px; border-radius:5px;">OM n/criada</span>'
             else:
-                om_p_badge = '<span style="color:#475569; font-size:0.66rem;">Sem OM</span>'
-
-            ult_p_txt = f' &nbsp;&bull;&nbsp; Últ: <b style="color:#cbd5e1; font-family:monospace;">{html_lib.escape(item["ult_prev"])}</b>' if item["ult_prev"] != "--" else ""
+                om_p_badge = '<span style="background:#0a1322; border:1px solid #1a2c44; color:#64748b; font-size:0.64rem; font-weight:700; padding:2px 7px; border-radius:5px;">OM n/criada</span>'
 
             cards_prev_tp += f"""
             <div style="background:#070d18; border:{borda_box_p}; border-left:4px solid {borda_lat_p}; border-radius:10px; padding:9px 11px; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center; gap:8px;">
@@ -2331,7 +2325,7 @@ if tipos_ordenados_frota:
                         {tipo_p_badge}
                     </div>
                     <div style="font-size:0.74rem; color:#94a3b8;">
-                        Saldo Restante: <b style="color:{cor_val_p}; font-family:monospace; font-size:0.83rem;">{html_lib.escape(item['txt_saldo_p'])}</b>{ult_p_txt}
+                        Saldo Restante: <b style="color:{cor_val_p}; font-family:monospace; font-size:0.83rem;">{html_lib.escape(item['txt_saldo_p'])}</b>
                     </div>
                 </div>
                 <span style="background:{bg_p}; color:{cor_txt_p}; border:1.5px solid {cor_brd_p}; font-size:0.62rem; font-weight:900; padding:4px 8px; border-radius:7px; white-space:nowrap; flex-shrink:0; letter-spacing:0.2px;">
@@ -2363,20 +2357,18 @@ if tipos_ordenados_frota:
             borda_box_i = f"1.5px solid {cor_brd_i}" if item["sev_i"] == 0 else "1px solid #162840"
             cor_val_i = cor_txt_i if item["sev_i"] <= 3 else "#64748b"
 
-            # Pílula do Tipo de Inspeção (Coluna P)
             tipo_i_badge = (
                 f'<span style="background:rgba(56,189,248,0.12); border:1px solid rgba(56,189,248,0.45); color:#38bdf8; font-size:0.65rem; font-weight:800; padding:2px 7px; border-radius:5px; white-space:nowrap;">📋 {html_lib.escape(item["tipo_insp"])}</span>'
                 if item["tipo_insp"] != "--" else ""
             )
 
+            # Badge da OM em AZUL com letras BRANCAS quando existir; senão "OM n/criada"
             if item["om_insp"] != "--":
-                om_i_badge = f'<span style="background:#0d1a2d; border:1px solid #1e3554; color:#cbd5e1; font-family:monospace; font-size:0.66rem; padding:2px 7px; border-radius:5px;">OM {html_lib.escape(item["om_insp"])}</span>'
+                om_i_badge = f'<span style="background:#0084FF; border:1px solid #38bdf8; color:#ffffff; font-family:monospace; font-size:0.68rem; font-weight:800; padding:2px 8px; border-radius:5px; box-shadow:0 0 8px rgba(0,132,255,0.35);">OM {html_lib.escape(item["om_insp"])}</span>'
             elif item["sev_i"] <= 1:
-                om_i_badge = '<span style="background:rgba(255,46,46,0.16); border:1px solid #FF2E2E; color:#ff8080; font-size:0.62rem; font-weight:900; padding:2px 6px; border-radius:5px;">⚠️ SEM OM</span>'
+                om_i_badge = '<span style="background:rgba(255,46,46,0.16); border:1px solid #FF2E2E; color:#ff8080; font-size:0.64rem; font-weight:900; padding:2px 7px; border-radius:5px;">OM n/criada</span>'
             else:
-                om_i_badge = '<span style="color:#475569; font-size:0.66rem;">Sem OM</span>'
-
-            ult_i_txt = f' &nbsp;&bull;&nbsp; Últ: <b style="color:#cbd5e1; font-family:monospace;">{html_lib.escape(item["ult_insp"])}</b>' if item["ult_insp"] != "--" else ""
+                om_i_badge = '<span style="background:#0a1322; border:1px solid #1a2c44; color:#64748b; font-size:0.64rem; font-weight:700; padding:2px 7px; border-radius:5px;">OM n/criada</span>'
 
             cards_insp_tp += f"""
             <div style="background:#070d18; border:{borda_box_i}; border-left:4px solid {borda_lat_i}; border-radius:10px; padding:9px 11px; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center; gap:8px;">
@@ -2389,7 +2381,7 @@ if tipos_ordenados_frota:
                         {tipo_i_badge}
                     </div>
                     <div style="font-size:0.74rem; color:#94a3b8;">
-                        Saldo Restante: <b style="color:{cor_val_i}; font-family:monospace; font-size:0.83rem;">{html_lib.escape(item['txt_saldo_i'])}</b>{ult_i_txt}
+                        Saldo Restante: <b style="color:{cor_val_i}; font-family:monospace; font-size:0.83rem;">{html_lib.escape(item['txt_saldo_i'])}</b>
                     </div>
                 </div>
                 <span style="background:{bg_i}; color:{cor_txt_i}; border:1.5px solid {cor_brd_i}; font-size:0.62rem; font-weight:900; padding:4px 8px; border-radius:7px; white-space:nowrap; flex-shrink:0; letter-spacing:0.2px;">
@@ -2412,6 +2404,8 @@ else:
     html_aba_preventiva = vazio_manut
     html_aba_inspecao = vazio_manut
 
+qtd_criticos_prev = qtd_venc_prev + qtd_prox_prev
+qtd_criticos_insp = qtd_venc_insp + qtd_prox_insp
 tot_alertas_manut = qtd_criticos_prev + qtd_criticos_insp
 cor_borda_manut = "#FF2E2E" if tot_alertas_manut > 0 else "#E67E22"
 
@@ -2474,8 +2468,9 @@ html_prev_insp_bloco = f"""
                 <div class="master-metric-val" style="color:{cor_borda_manut};">{tot_alertas_manut}</div>
                 <div class="master-metric-unit">Pendências Críticas</div>
             </div>
-            <div class="master-metric-sub" style="color:#cbd5e1; font-weight:700;">
-                🚨 {qtd_criticos_prev} Preventivas Críticas &nbsp;|&nbsp; 📋 {qtd_criticos_insp} Inspeções Críticas
+            <div style="display:flex; flex-direction:column; gap:3px; margin-top:4px; font-size:0.78rem; color:#cbd5e1;">
+                <div>🛠️ <b>Preventiva:</b> <span style="color:#FF8C00; font-weight:800;">{qtd_venc_prev} Vencidas</span> &bull; <span style="color:#FF2E2E; font-weight:800;">{qtd_prox_prev} Próx. Vencimento</span></div>
+                <div>📋 <b>Inspeção:</b> <span style="color:#FF8C00; font-weight:800;">{qtd_venc_insp} Vencidas</span> &bull; <span style="color:#FF2E2E; font-weight:800;">{qtd_prox_insp} Próx. Vencimento</span></div>
             </div>
         </summary>
 
