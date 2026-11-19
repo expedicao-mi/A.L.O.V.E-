@@ -485,7 +485,7 @@ def carregar_dados_mobile_otimizados():
     d_pat, h_pat = carregar_tabela_cega("Patio_Destino_Status", "DESTINO")
     d_tr, _ = carregar_tabela_cega("Status_TR", "PLACA")
     d_sinal, h_sinal = carregar_tabela_cega("Sinal_de_Vida", "APLICATIVO")
-    d_prev, h_prev = carregar_tabela_cega("Disponibilidade_Equipamentos", "EQUIPAMENTO")
+    d_prev, h_prev = carregar_tabela_cega("Preventiva_Inspecao", "TAG")
     d_pran = carregar_prancheta_direto()
     return d_dash, d_qual, d_alert, d_cache, d_virada, d_bal, d_baf, d_frot, d_pran, d_pat, h_pat, d_tr, d_sinal, h_sinal, d_prev, h_prev
 
@@ -2065,7 +2065,7 @@ def formatar_horimetro_ou_data(val_raw):
 
 def analisar_saldo_manut(saldo_raw, is_por_dia=False):
     """
-    Régua oficial (Preventiva Col. F e Inspeção Col. G):
+    Régua oficial (Preventiva Col. H e Inspeção Col. N):
       < 0       -> VENCIDA (Texto Vermelho #FF2E2E + Borda Laranja #FF8C00)
       0 a 50    -> PRÓX. AO VENCIMENTO (Vermelho #FF2E2E)
       51 a 100  -> ATENÇÃO (Laranja #FF8C00)
@@ -2088,21 +2088,18 @@ def analisar_saldo_manut(saldo_raw, is_por_dia=False):
         return val_fmt, "ATENÇÃO", "#FF8C00", "#FF8C00", "rgba(255, 140, 0, 0.16)", 2
     return val_fmt, "EM DIA", "#00FF7F", "#00FF7F", "rgba(0, 255, 127, 0.14)", 3
 
-def extrair_oms_abertas(om_raw):
-    """Separa OMs de Preventiva e Inspeção da Coluna H (OM_ABERTA)."""
+def limpar_om_sap(om_raw):
     s = str(om_raw).strip()
     if not s or s.upper() in ["NAN", "NONE", "--", "-"]:
-        return "--", "--"
-    om_p, om_i = "--", "--"
-    for parte in s.split("|"):
-        p_up = parte.strip().upper()
-        nums = re.findall(r'\d+', parte)
-        num_str = nums[0] if nums else parte.strip()
-        if "PREV" in p_up:
-            om_p = num_str
-        elif "INSP" in p_up:
-            om_i = num_str
-    return om_p, om_i
+        return "--"
+    nums = re.findall(r'\d+', s)
+    return nums[0] if nums else s
+
+def limpar_data_curta(dt_raw):
+    s = str(dt_raw).strip()
+    if not s or s.upper() in ["NAN", "NONE", "--", "-"]:
+        return "--"
+    return s[:5] if "/" in s else s
 
 def ordem_tipo_equipamento(tipo_str):
     t = str(tipo_str).upper()
@@ -2125,30 +2122,42 @@ def icone_tipo_equipamento(tipo_str):
 
 if not df_prev_insp.empty:
     df_prev_insp.columns = [str(c).strip().upper() for c in df_prev_insp.columns]
-    col_tag = "EQUIPAMENTO" if "EQUIPAMENTO" in df_prev_insp.columns else ("TAG" if "TAG" in df_prev_insp.columns else df_prev_insp.columns[0])
+    col_tag = "TAG" if "TAG" in df_prev_insp.columns else df_prev_insp.columns[0]
 
     for _, rp in df_prev_insp.iterrows():
         tag = str(rp.get(col_tag, "")).strip().upper()
         if not tag or tag in ["NAN", "NONE", "TAG", "EQUIPAMENTO"]:
             continue
 
-        tipo_eq = str(rp.get("TIPO", rp.get("TIPO_EQUIPAMENTO", "Outros"))).strip() or "Outros"
-        disp = str(rp.get("STATUS", rp.get("DISPONIBILIDADE", "ONLINE"))).strip().upper()
+        tipo_eq = str(rp.get("TIPO_EQUIPAMENTO", rp.get("TIPO", "Outros"))).strip() or "Outros"
+        disp = str(rp.get("DISPONIBILIDADE", rp.get("STATUS", "ONLINE"))).strip().upper()
         st_op = str(rp.get("STATUS_OPERACAO", "")).strip().upper()
 
         horim_raw = str(rp.get("HORIMETRO_ATUAL", "--")).strip()
         horim_str = formatar_horimetro_ou_data(horim_raw)
         is_por_dia = ("/" in horim_raw) or ("TALHA" in tipo_eq.upper()) or ("BICICLETA" in tipo_eq.upper())
 
-        # Coluna F: SALDO_PREVENTIVA | Coluna G: SALDO_INSPECAO_125H
+        # Coluna H: SALDO_PREVENTIVA | Coluna N: SALDO_INSPECAO_125H
         saldo_prev_raw = rp.get("SALDO_PREVENTIVA", "--")
         saldo_insp_raw = rp.get("SALDO_INSPECAO_125H", "--")
 
         txt_saldo_p, lbl_p, cor_txt_p, cor_brd_p, bg_p, sev_p = analisar_saldo_manut(saldo_prev_raw, is_por_dia=is_por_dia)
         txt_saldo_i, lbl_i, cor_txt_i, cor_brd_i, bg_i, sev_i = analisar_saldo_manut(saldo_insp_raw, is_por_dia=False)
 
-        # Coluna H: OM_ABERTA
-        om_p, om_i = extrair_oms_abertas(rp.get("OM_ABERTA", "--"))
+        # Coluna J: TIPO_PREVENTIVA | Coluna P: TIPO_INSPECAO
+        tipo_prev_txt = str(rp.get("TIPO_PREVENTIVA", "--")).strip()
+        if tipo_prev_txt.upper() in ["NAN", "NONE", ""]: tipo_prev_txt = "--"
+
+        tipo_insp_txt = str(rp.get("TIPO_INSPECAO", "--")).strip()
+        if tipo_insp_txt.upper() in ["NAN", "NONE", ""]: tipo_insp_txt = "--"
+
+        # Coluna K: OM_PREVENTIVA | Coluna Q: OM_INSPECAO
+        om_p = limpar_om_sap(rp.get("OM_PREVENTIVA", "--"))
+        om_i = limpar_om_sap(rp.get("OM_INSPECAO", "--"))
+
+        # Coluna L: DATA_ULT_PREVENTIVA | Coluna R: DATA_ULT_INSPECAO
+        ult_prev_dt = limpar_data_curta(rp.get("DATA_ULT_PREVENTIVA", "--"))
+        ult_insp_dt = limpar_data_curta(rp.get("DATA_ULT_INSPECAO", "--"))
 
         if sev_p <= 1:
             qtd_criticos_prev += 1
@@ -2173,14 +2182,18 @@ if not df_prev_insp.empty:
             "cor_brd_p": cor_brd_p,
             "bg_p": bg_p,
             "sev_p": sev_p,
+            "tipo_prev": tipo_prev_txt,
             "om_prev": om_p,
+            "ult_prev": ult_prev_dt,
             "txt_saldo_i": txt_saldo_i,
             "lbl_i": lbl_i,
             "cor_txt_i": cor_txt_i,
             "cor_brd_i": cor_brd_i,
             "bg_i": bg_i,
             "sev_i": sev_i,
+            "tipo_insp": tipo_insp_txt,
             "om_insp": om_i,
+            "ult_insp": ult_insp_dt,
         }
 
         todos_equip_lista.append(obj_eq)
@@ -2269,7 +2282,7 @@ html_frota_disp = f"""
 render_html(html_frota_disp)
 
 # ------------------------------------------------------------------------------
-# BLOCO 8B: GESTÃO DE PREVENTIVA & INSPEÇÃO (RÉGUA: <0 VENCIDA | 0-50 | 51-100 | 101+)
+# BLOCO 8B: GESTÃO DE PREVENTIVA & INSPEÇÃO (SALDO + TIPO ESCOPO + OM SAP)
 # ------------------------------------------------------------------------------
 html_aba_preventiva = ""
 html_aba_inspecao = ""
@@ -2278,7 +2291,7 @@ if tipos_ordenados_frota:
     for tp in tipos_ordenados_frota:
         ico_tp = icone_tipo_equipamento(tp)
 
-        # --- LISTA 1: PREVENTIVAS (COLUNA F - SALDO_PREVENTIVA) ---
+        # --- LISTA 1: PREVENTIVAS (COLUNA H SALDO + COLUNA J TIPO + COLUNA K OM) ---
         itens_prev = sorted(equip_por_tipo[tp], key=lambda x: (x["sev_p"], x["tag"]))
         cards_prev_tp = ""
         for item in itens_prev:
@@ -2291,17 +2304,34 @@ if tipos_ordenados_frota:
             borda_box_p = f"1.5px solid {cor_brd_p}" if item["sev_p"] == 0 else "1px solid #162840"
             cor_val_p = cor_txt_p if item["sev_p"] <= 3 else "#64748b"
 
-            om_p_badge = f'<span style="background:#0d1a2d; border:1px solid #1e3554; color:#cbd5e1; font-family:monospace; font-size:0.68rem; padding:2px 7px; border-radius:5px;">OM {html_lib.escape(item["om_prev"])}</span>' if item["om_prev"] not in ["--", "", "nan", "None"] else '<span style="color:#475569; font-size:0.68rem;">Sem OM</span>'
+            # Pílula do Tipo de Preventiva (Coluna J)
+            tipo_p_badge = (
+                f'<span style="background:rgba(255,140,0,0.12); border:1px solid rgba(255,140,0,0.45); color:#FF9F1C; font-size:0.65rem; font-weight:800; padding:2px 7px; border-radius:5px; white-space:nowrap;">🛠️ {html_lib.escape(item["tipo_prev"])}</span>'
+                if item["tipo_prev"] != "--" else ""
+            )
+
+            # Badge da OM ou Alerta de Sem OM quando crítico
+            if item["om_prev"] != "--":
+                om_p_badge = f'<span style="background:#0d1a2d; border:1px solid #1e3554; color:#cbd5e1; font-family:monospace; font-size:0.66rem; padding:2px 7px; border-radius:5px;">OM {html_lib.escape(item["om_prev"])}</span>'
+            elif item["sev_p"] <= 1:
+                om_p_badge = '<span style="background:rgba(255,46,46,0.16); border:1px solid #FF2E2E; color:#ff8080; font-size:0.62rem; font-weight:900; padding:2px 6px; border-radius:5px;">⚠️ SEM OM</span>'
+            else:
+                om_p_badge = '<span style="color:#475569; font-size:0.66rem;">Sem OM</span>'
+
+            ult_p_txt = f' &nbsp;&bull;&nbsp; Últ: <b style="color:#cbd5e1; font-family:monospace;">{html_lib.escape(item["ult_prev"])}</b>' if item["ult_prev"] != "--" else ""
 
             cards_prev_tp += f"""
-            <div style="background:#070d18; border:{borda_box_p}; border-left:4px solid {borda_lat_p}; border-radius:10px; padding:9px 11px; margin-bottom:7px; display:flex; justify-content:space-between; align-items:center; gap:8px;">
+            <div style="background:#070d18; border:{borda_box_p}; border-left:4px solid {borda_lat_p}; border-radius:10px; padding:9px 11px; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center; gap:8px;">
                 <div style="min-width:0;">
-                    <div style="display:flex; align-items:center; gap:7px; margin-bottom:4px;">
+                    <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-bottom:5px;">
                         <b style="color:#ffffff; font-size:0.88rem; letter-spacing:0.2px;">{html_lib.escape(item['tag'])}</b>
                         {om_p_badge}
                     </div>
-                    <div style="font-size:0.76rem; color:#94a3b8;">
-                        Saldo Restante: <b style="color:{cor_val_p}; font-family:monospace; font-size:0.84rem;">{html_lib.escape(item['txt_saldo_p'])}</b>
+                    <div style="margin-bottom:5px;">
+                        {tipo_p_badge}
+                    </div>
+                    <div style="font-size:0.74rem; color:#94a3b8;">
+                        Saldo Restante: <b style="color:{cor_val_p}; font-family:monospace; font-size:0.83rem;">{html_lib.escape(item['txt_saldo_p'])}</b>{ult_p_txt}
                     </div>
                 </div>
                 <span style="background:{bg_p}; color:{cor_txt_p}; border:1.5px solid {cor_brd_p}; font-size:0.62rem; font-weight:900; padding:4px 8px; border-radius:7px; white-space:nowrap; flex-shrink:0; letter-spacing:0.2px;">
@@ -2320,7 +2350,7 @@ if tipos_ordenados_frota:
         </div>
         """
 
-        # --- LISTA 2: INSPEÇÕES (COLUNA G - SALDO_INSPECAO_125H) ---
+        # --- LISTA 2: INSPEÇÕES (COLUNA N SALDO + COLUNA P TIPO + COLUNA Q OM) ---
         itens_insp = sorted(equip_por_tipo[tp], key=lambda x: (x["sev_i"], x["tag"]))
         cards_insp_tp = ""
         for item in itens_insp:
@@ -2333,17 +2363,33 @@ if tipos_ordenados_frota:
             borda_box_i = f"1.5px solid {cor_brd_i}" if item["sev_i"] == 0 else "1px solid #162840"
             cor_val_i = cor_txt_i if item["sev_i"] <= 3 else "#64748b"
 
-            om_i_badge = f'<span style="background:#0d1a2d; border:1px solid #1e3554; color:#cbd5e1; font-family:monospace; font-size:0.68rem; padding:2px 7px; border-radius:5px;">OM {html_lib.escape(item["om_insp"])}</span>' if item["om_insp"] not in ["--", "", "nan", "None"] else '<span style="color:#475569; font-size:0.68rem;">Sem OM</span>'
+            # Pílula do Tipo de Inspeção (Coluna P)
+            tipo_i_badge = (
+                f'<span style="background:rgba(56,189,248,0.12); border:1px solid rgba(56,189,248,0.45); color:#38bdf8; font-size:0.65rem; font-weight:800; padding:2px 7px; border-radius:5px; white-space:nowrap;">📋 {html_lib.escape(item["tipo_insp"])}</span>'
+                if item["tipo_insp"] != "--" else ""
+            )
+
+            if item["om_insp"] != "--":
+                om_i_badge = f'<span style="background:#0d1a2d; border:1px solid #1e3554; color:#cbd5e1; font-family:monospace; font-size:0.66rem; padding:2px 7px; border-radius:5px;">OM {html_lib.escape(item["om_insp"])}</span>'
+            elif item["sev_i"] <= 1:
+                om_i_badge = '<span style="background:rgba(255,46,46,0.16); border:1px solid #FF2E2E; color:#ff8080; font-size:0.62rem; font-weight:900; padding:2px 6px; border-radius:5px;">⚠️ SEM OM</span>'
+            else:
+                om_i_badge = '<span style="color:#475569; font-size:0.66rem;">Sem OM</span>'
+
+            ult_i_txt = f' &nbsp;&bull;&nbsp; Últ: <b style="color:#cbd5e1; font-family:monospace;">{html_lib.escape(item["ult_insp"])}</b>' if item["ult_insp"] != "--" else ""
 
             cards_insp_tp += f"""
-            <div style="background:#070d18; border:{borda_box_i}; border-left:4px solid {borda_lat_i}; border-radius:10px; padding:9px 11px; margin-bottom:7px; display:flex; justify-content:space-between; align-items:center; gap:8px;">
+            <div style="background:#070d18; border:{borda_box_i}; border-left:4px solid {borda_lat_i}; border-radius:10px; padding:9px 11px; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center; gap:8px;">
                 <div style="min-width:0;">
-                    <div style="display:flex; align-items:center; gap:7px; margin-bottom:4px;">
+                    <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-bottom:5px;">
                         <b style="color:#ffffff; font-size:0.88rem; letter-spacing:0.2px;">{html_lib.escape(item['tag'])}</b>
                         {om_i_badge}
                     </div>
-                    <div style="font-size:0.76rem; color:#94a3b8;">
-                        Saldo Restante: <b style="color:{cor_val_i}; font-family:monospace; font-size:0.84rem;">{html_lib.escape(item['txt_saldo_i'])}</b>
+                    <div style="margin-bottom:5px;">
+                        {tipo_i_badge}
+                    </div>
+                    <div style="font-size:0.74rem; color:#94a3b8;">
+                        Saldo Restante: <b style="color:{cor_val_i}; font-family:monospace; font-size:0.83rem;">{html_lib.escape(item['txt_saldo_i'])}</b>{ult_i_txt}
                     </div>
                 </div>
                 <span style="background:{bg_i}; color:{cor_txt_i}; border:1.5px solid {cor_brd_i}; font-size:0.62rem; font-weight:900; padding:4px 8px; border-radius:7px; white-space:nowrap; flex-shrink:0; letter-spacing:0.2px;">
