@@ -485,7 +485,7 @@ def carregar_dados_mobile_otimizados():
     d_pat, h_pat = carregar_tabela_cega("Patio_Destino_Status", "DESTINO")
     d_tr, _ = carregar_tabela_cega("Status_TR", "PLACA")
     d_sinal, h_sinal = carregar_tabela_cega("Sinal_de_Vida", "APLICATIVO")
-    d_prev, h_prev = carregar_tabela_cega("Preventiva_Inspecao", "TAG")
+    d_prev, h_prev = carregar_tabela_cega("Disponibilidade_Equipamentos", "EQUIPAMENTO")
     d_pran = carregar_prancheta_direto()
     return d_dash, d_qual, d_alert, d_cache, d_virada, d_bal, d_baf, d_frot, d_pran, d_pat, h_pat, d_tr, d_sinal, h_sinal, d_prev, h_prev
 
@@ -2033,77 +2033,123 @@ qtd_total_indisp = 0
 qtd_criticos_prev = 0
 qtd_criticos_insp = 0
 
+def parse_num_frota_ptbr(val_raw):
+    if val_raw is None or pd.isna(val_raw):
+        return 0.0
+    s = re.sub(r'[^\d,\.\-]', '', str(val_raw).strip())
+    if not s or s in ["-", "."]:
+        return 0.0
+    if "," in s and "." in s:
+        s = s.replace(".", "").replace(",", ".")
+    elif "," in s:
+        s = s.replace(",", ".")
+    elif "." in s:
+        partes = s.split(".")
+        if len(partes[-1]) == 3:
+            s = s.replace(".", "")
+    try:
+        return float(s)
+    except Exception:
+        return 0.0
+
 def formatar_horimetro_ou_data(val_raw):
     s = str(val_raw).strip()
     if not s or s.upper() in ["NAN", "NONE", "--", "-"]:
         return "--"
     if "/" in s:
-        return s[:5]  # Ex: 14/11
-    num = safe_to_numeric(s)
+        return s[:5]  # Ex: 19/11
+    num = parse_num_frota_ptbr(s)
     if num > 0:
         return f"{fmt(num)} h"
     return s
 
-def peso_severidade(alerta_str):
-    a = str(alerta_str).upper()
-    if "VENCIDA" in a:
-        return 0
-    if "CRITICO" in a or "CRÍTICO" in a:
-        return 1
-    if "ATENCAO" in a or "ATENÇÃO" in a or "PROXIMA" in a or "PRÓXIMA" in a:
-        return 2
-    if "NORMAL" in a or "EM DIA" in a:
-        return 3
-    return 4
+def analisar_saldo_manut(saldo_raw, is_por_dia=False):
+    """
+    Régua oficial (Preventiva Col. F e Inspeção Col. G):
+      < 0       -> VENCIDA (Texto Vermelho #FF2E2E + Borda Laranja #FF8C00)
+      0 a 50    -> PRÓX. AO VENCIMENTO (Vermelho #FF2E2E)
+      51 a 100  -> ATENÇÃO (Laranja #FF8C00)
+      101 +     -> EM DIA (Verde #00FF7F)
+    Retorna: (texto_exibicao, rotulo_status, cor_texto, cor_borda, bg_rgba, peso_ordem)
+    """
+    s = str(saldo_raw).strip()
+    if not s or s.upper() in ["NAN", "NONE", "--", "-", "SEM META"]:
+        return "--", "SEM META", "#64748b", "#64748b", "rgba(100, 116, 139, 0.14)", 4
+
+    val = parse_num_frota_ptbr(s)
+    unidade = "d" if is_por_dia else "h"
+    val_fmt = f"{fmt(val)} {unidade}"
+
+    if val < 0:
+        return val_fmt, "VENCIDA", "#FF2E2E", "#FF8C00", "rgba(255, 46, 46, 0.22)", 0
+    if val <= 50:
+        return val_fmt, "PRÓX. AO VENCIMENTO", "#FF2E2E", "#FF2E2E", "rgba(255, 46, 46, 0.16)", 1
+    if val <= 100:
+        return val_fmt, "ATENÇÃO", "#FF8C00", "#FF8C00", "rgba(255, 140, 0, 0.16)", 2
+    return val_fmt, "EM DIA", "#00FF7F", "#00FF7F", "rgba(0, 255, 127, 0.14)", 3
+
+def extrair_oms_abertas(om_raw):
+    """Separa OMs de Preventiva e Inspeção da Coluna H (OM_ABERTA)."""
+    s = str(om_raw).strip()
+    if not s or s.upper() in ["NAN", "NONE", "--", "-"]:
+        return "--", "--"
+    om_p, om_i = "--", "--"
+    for parte in s.split("|"):
+        p_up = parte.strip().upper()
+        nums = re.findall(r'\d+', parte)
+        num_str = nums[0] if nums else parte.strip()
+        if "PREV" in p_up:
+            om_p = num_str
+        elif "INSP" in p_up:
+            om_i = num_str
+    return om_p, om_i
 
 def ordem_tipo_equipamento(tipo_str):
     t = str(tipo_str).upper()
-    if "EMPILHADEIRA" in t:
-        return 0  # 1º Empilhadeiras
-    if "TALHA" in t or "PONTE" in t:
-        return 1  # 2º Talhas Elétricas
-    if "TRANSPALETEIRA" in t:
-        return 2  # 3º Transpaleteira
-    if "VARREDEIRA" in t:
-        return 3  # 4º Varredeira
-    if "LAVADORA" in t:
-        return 4  # 5º Lavadora
-    if "BICICLETA" in t or "BIKE" in t:
-        return 5  # 6º Bicicletas
+    if "EMPILHADEIRA" in t: return 0
+    if "TALHA" in t or "PONTE" in t: return 1
+    if "TRANSPALETEIRA" in t: return 2
+    if "VARREDEIRA" in t: return 3
+    if "LAVADORA" in t: return 4
+    if "BICICLETA" in t or "BIKE" in t: return 5
     return 6
 
 def icone_tipo_equipamento(tipo_str):
     t = str(tipo_str).upper()
-    if "EMPILHADEIRA" in t:
-        return "🚜"
-    if "TALHA" in t or "PONTE" in t:
-        return "🏗️"
-    if "TRANSPALETEIRA" in t:
-        return "📦"
-    if "VARREDEIRA" in t or "LAVADORA" in t:
-        return "🧹"
-    if "BICICLETA" in t or "BIKE" in t:
-        return "🚲"
+    if "EMPILHADEIRA" in t: return "🚜"
+    if "TALHA" in t or "PONTE" in t: return "🏗️"
+    if "TRANSPALETEIRA" in t: return "📦"
+    if "VARREDEIRA" in t or "LAVADORA" in t: return "🧹"
+    if "BICICLETA" in t or "BIKE" in t: return "🚲"
     return "⚙️"
 
-if not df_prev_insp.empty and "TAG" in df_prev_insp.columns:
+if not df_prev_insp.empty:
+    df_prev_insp.columns = [str(c).strip().upper() for c in df_prev_insp.columns]
+    col_tag = "EQUIPAMENTO" if "EQUIPAMENTO" in df_prev_insp.columns else ("TAG" if "TAG" in df_prev_insp.columns else df_prev_insp.columns[0])
+
     for _, rp in df_prev_insp.iterrows():
-        tag = str(rp.get("TAG", "")).strip().upper()
-        if not tag or tag in ["NAN", "NONE", "TAG"]:
+        tag = str(rp.get(col_tag, "")).strip().upper()
+        if not tag or tag in ["NAN", "NONE", "TAG", "EQUIPAMENTO"]:
             continue
 
-        tipo_eq = str(rp.get("TIPO_EQUIPAMENTO", "Outros")).strip() or "Outros"
+        tipo_eq = str(rp.get("TIPO", rp.get("TIPO_EQUIPAMENTO", "Outros"))).strip() or "Outros"
+        disp = str(rp.get("STATUS", rp.get("DISPONIBILIDADE", "ONLINE"))).strip().upper()
         st_op = str(rp.get("STATUS_OPERACAO", "")).strip().upper()
-        disp = str(rp.get("DISPONIBILIDADE", "ONLINE")).strip().upper()
-        horim_str = formatar_horimetro_ou_data(rp.get("HORIMETRO_ATUAL", "--"))
-        meta_prev = formatar_horimetro_ou_data(rp.get("META_PREVENTIVA", "--"))
-        alerta_prev = str(rp.get("ALERTA_PREVENTIVA", "--")).strip()
-        om_prev = str(rp.get("OM_PREVENTIVA", "--")).strip()
-        alerta_insp = str(rp.get("ALERTA_INSPECAO", "SEM META")).strip()
-        om_insp = str(rp.get("OM_INSPECAO", "--")).strip()
 
-        sev_p = peso_severidade(alerta_prev)
-        sev_i = peso_severidade(alerta_insp)
+        horim_raw = str(rp.get("HORIMETRO_ATUAL", "--")).strip()
+        horim_str = formatar_horimetro_ou_data(horim_raw)
+        is_por_dia = ("/" in horim_raw) or ("TALHA" in tipo_eq.upper()) or ("BICICLETA" in tipo_eq.upper())
+
+        # Coluna F: SALDO_PREVENTIVA | Coluna G: SALDO_INSPECAO_125H
+        saldo_prev_raw = rp.get("SALDO_PREVENTIVA", "--")
+        saldo_insp_raw = rp.get("SALDO_INSPECAO_125H", "--")
+
+        txt_saldo_p, lbl_p, cor_txt_p, cor_brd_p, bg_p, sev_p = analisar_saldo_manut(saldo_prev_raw, is_por_dia=is_por_dia)
+        txt_saldo_i, lbl_i, cor_txt_i, cor_brd_i, bg_i, sev_i = analisar_saldo_manut(saldo_insp_raw, is_por_dia=False)
+
+        # Coluna H: OM_ABERTA
+        om_p, om_i = extrair_oms_abertas(rp.get("OM_ABERTA", "--"))
+
         if sev_p <= 1:
             qtd_criticos_prev += 1
         if sev_i <= 1:
@@ -2121,14 +2167,20 @@ if not df_prev_insp.empty and "TAG" in df_prev_insp.columns:
             "ordem_tipo": ordem_tipo_equipamento(tipo_eq),
             "is_indisponivel": is_indisponivel,
             "horimetro": horim_str,
-            "meta_prev": meta_prev,
-            "alerta_prev": alerta_prev,
-            "om_prev": om_prev,
-            "alerta_insp": alerta_insp,
-            "om_insp": om_insp,
+            "txt_saldo_p": txt_saldo_p,
+            "lbl_p": lbl_p,
+            "cor_txt_p": cor_txt_p,
+            "cor_brd_p": cor_brd_p,
+            "bg_p": bg_p,
             "sev_p": sev_p,
+            "om_prev": om_p,
+            "txt_saldo_i": txt_saldo_i,
+            "lbl_i": lbl_i,
+            "cor_txt_i": cor_txt_i,
+            "cor_brd_i": cor_brd_i,
+            "bg_i": bg_i,
             "sev_i": sev_i,
-            "sev_geral": min(sev_p, sev_i),
+            "om_insp": om_i,
         }
 
         todos_equip_lista.append(obj_eq)
@@ -2167,7 +2219,6 @@ if tipos_ordenados_frota:
 
         html_tabelas_disponibilidade += f"""
         <div style="background:#070d18; border:1.5px solid #162d47; border-radius:14px; margin-bottom:12px; overflow:hidden; box-shadow:0 4px 12px rgba(0,0,0,0.28);">
-            <!-- CABEÇALHO DA CLASSE COM BARRA VERDE LATERAL -->
             <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 12px; background:#0a1424;">
                 <div style="display:flex; align-items:center; gap:9px;">
                     <span style="width:4px; height:20px; background:#2EE65B; border-radius:3px; display:inline-block;"></span>
@@ -2176,7 +2227,6 @@ if tipos_ordenados_frota:
                 <span style="background:#14253d; color:#cbd5e1; font-size:0.74rem; font-weight:800; padding:3px 10px; border-radius:999px;">{len(itens_tp)} un.</span>
             </div>
 
-            <!-- TABELA 3 COLUNAS: NOMENCLATURA | HORÍMETRO | STATUS -->
             <table style="width:100%; border-collapse:collapse;">
                 <thead>
                     <tr style="background:#092418; border-top:1px solid #144d32; border-bottom:1px solid #144d32; color:#e2e8f0; font-size:0.72rem; font-weight:800;">
@@ -2219,18 +2269,8 @@ html_frota_disp = f"""
 render_html(html_frota_disp)
 
 # ------------------------------------------------------------------------------
-# BLOCO 8B: GESTÃO DE PREVENTIVA & INSPEÇÃO (SELETORES EM ABAS - 100% LARGURA)
+# BLOCO 8B: GESTÃO DE PREVENTIVA & INSPEÇÃO (RÉGUA: <0 VENCIDA | 0-50 | 51-100 | 101+)
 # ------------------------------------------------------------------------------
-def estilo_alerta_manut_curto(txt, is_inspecao=False):
-    t = str(txt).upper()
-    if "VENCIDA" in t or "CRITICO" in t or "CRÍTICO" in t:
-        return "CRÍTICA", "#FF2E2E", "rgba(255, 46, 46, 0.16)"
-    if "ATENCAO" in t or "ATENÇÃO" in t or "PROXIMA" in t or "PRÓXIMA" in t:
-        return "ALERTA", "#FFD600", "rgba(255, 214, 0, 0.16)"
-    if "SEM META" in t or t in ["--", "NAN", ""]:
-        return ("SEM META" if is_inspecao else "--"), "#64748b", "rgba(100, 116, 139, 0.14)"
-    return "EM DIA", "#00FF7F", "rgba(0, 255, 127, 0.14)"
-
 html_aba_preventiva = ""
 html_aba_inspecao = ""
 
@@ -2238,26 +2278,33 @@ if tipos_ordenados_frota:
     for tp in tipos_ordenados_frota:
         ico_tp = icone_tipo_equipamento(tp)
 
-        # --- LISTA 1: PREVENTIVAS DA CLASSE (ORDENADA POR SEVERIDADE) ---
+        # --- LISTA 1: PREVENTIVAS (COLUNA F - SALDO_PREVENTIVA) ---
         itens_prev = sorted(equip_por_tipo[tp], key=lambda x: (x["sev_p"], x["tag"]))
         cards_prev_tp = ""
         for item in itens_prev:
-            lbl_p, cor_p, bg_p = estilo_alerta_manut_curto(item["alerta_prev"], is_inspecao=False)
-            borda_p = cor_p if item["sev_p"] <= 2 else "#1c2b42"
+            cor_txt_p = item["cor_txt_p"]
+            cor_brd_p = item["cor_brd_p"]
+            bg_p = item["bg_p"]
+            lbl_p = item["lbl_p"]
+
+            borda_lat_p = cor_brd_p if item["sev_p"] <= 2 else "#1c2b42"
+            borda_box_p = f"1.5px solid {cor_brd_p}" if item["sev_p"] == 0 else "1px solid #162840"
+            cor_val_p = cor_txt_p if item["sev_p"] <= 3 else "#64748b"
+
             om_p_badge = f'<span style="background:#0d1a2d; border:1px solid #1e3554; color:#cbd5e1; font-family:monospace; font-size:0.68rem; padding:2px 7px; border-radius:5px;">OM {html_lib.escape(item["om_prev"])}</span>' if item["om_prev"] not in ["--", "", "nan", "None"] else '<span style="color:#475569; font-size:0.68rem;">Sem OM</span>'
 
             cards_prev_tp += f"""
-            <div style="background:#070d18; border:1px solid #162840; border-left:4px solid {borda_p}; border-radius:10px; padding:9px 11px; margin-bottom:7px; display:flex; justify-content:space-between; align-items:center; gap:8px;">
+            <div style="background:#070d18; border:{borda_box_p}; border-left:4px solid {borda_lat_p}; border-radius:10px; padding:9px 11px; margin-bottom:7px; display:flex; justify-content:space-between; align-items:center; gap:8px;">
                 <div style="min-width:0;">
                     <div style="display:flex; align-items:center; gap:7px; margin-bottom:4px;">
                         <b style="color:#ffffff; font-size:0.88rem; letter-spacing:0.2px;">{html_lib.escape(item['tag'])}</b>
                         {om_p_badge}
                     </div>
-                    <div style="font-size:0.73rem; color:#94a3b8;">
-                        Atual: <b style="color:#38bdf8; font-family:monospace;">{html_lib.escape(item['horimetro'])}</b> &nbsp;&bull;&nbsp; Meta: <b style="color:#e2e8f0; font-family:monospace;">{html_lib.escape(item['meta_prev'])}</b>
+                    <div style="font-size:0.76rem; color:#94a3b8;">
+                        Saldo Restante: <b style="color:{cor_val_p}; font-family:monospace; font-size:0.84rem;">{html_lib.escape(item['txt_saldo_p'])}</b>
                     </div>
                 </div>
-                <span style="background:{bg_p}; color:{cor_p}; border:1px solid {cor_p}; font-size:0.66rem; font-weight:900; padding:4px 9px; border-radius:7px; white-space:nowrap; flex-shrink:0;">
+                <span style="background:{bg_p}; color:{cor_txt_p}; border:1.5px solid {cor_brd_p}; font-size:0.62rem; font-weight:900; padding:4px 8px; border-radius:7px; white-space:nowrap; flex-shrink:0; letter-spacing:0.2px;">
                     {lbl_p}
                 </span>
             </div>
@@ -2273,26 +2320,33 @@ if tipos_ordenados_frota:
         </div>
         """
 
-        # --- LISTA 2: INSPEÇÕES DA CLASSE (ORDENADA POR SEVERIDADE) ---
+        # --- LISTA 2: INSPEÇÕES (COLUNA G - SALDO_INSPECAO_125H) ---
         itens_insp = sorted(equip_por_tipo[tp], key=lambda x: (x["sev_i"], x["tag"]))
         cards_insp_tp = ""
         for item in itens_insp:
-            lbl_i, cor_i, bg_i = estilo_alerta_manut_curto(item["alerta_insp"], is_inspecao=True)
-            borda_i = cor_i if item["sev_i"] <= 2 else "#1c2b42"
+            cor_txt_i = item["cor_txt_i"]
+            cor_brd_i = item["cor_brd_i"]
+            bg_i = item["bg_i"]
+            lbl_i = item["lbl_i"]
+
+            borda_lat_i = cor_brd_i if item["sev_i"] <= 2 else "#1c2b42"
+            borda_box_i = f"1.5px solid {cor_brd_i}" if item["sev_i"] == 0 else "1px solid #162840"
+            cor_val_i = cor_txt_i if item["sev_i"] <= 3 else "#64748b"
+
             om_i_badge = f'<span style="background:#0d1a2d; border:1px solid #1e3554; color:#cbd5e1; font-family:monospace; font-size:0.68rem; padding:2px 7px; border-radius:5px;">OM {html_lib.escape(item["om_insp"])}</span>' if item["om_insp"] not in ["--", "", "nan", "None"] else '<span style="color:#475569; font-size:0.68rem;">Sem OM</span>'
 
             cards_insp_tp += f"""
-            <div style="background:#070d18; border:1px solid #162840; border-left:4px solid {borda_i}; border-radius:10px; padding:9px 11px; margin-bottom:7px; display:flex; justify-content:space-between; align-items:center; gap:8px;">
+            <div style="background:#070d18; border:{borda_box_i}; border-left:4px solid {borda_lat_i}; border-radius:10px; padding:9px 11px; margin-bottom:7px; display:flex; justify-content:space-between; align-items:center; gap:8px;">
                 <div style="min-width:0;">
                     <div style="display:flex; align-items:center; gap:7px; margin-bottom:4px;">
                         <b style="color:#ffffff; font-size:0.88rem; letter-spacing:0.2px;">{html_lib.escape(item['tag'])}</b>
                         {om_i_badge}
                     </div>
-                    <div style="font-size:0.73rem; color:#94a3b8;">
-                        Horímetro / Ciclo: <b style="color:#38bdf8; font-family:monospace;">{html_lib.escape(item['horimetro'])}</b>
+                    <div style="font-size:0.76rem; color:#94a3b8;">
+                        Saldo Restante: <b style="color:{cor_val_i}; font-family:monospace; font-size:0.84rem;">{html_lib.escape(item['txt_saldo_i'])}</b>
                     </div>
                 </div>
-                <span style="background:{bg_i}; color:{cor_i}; border:1px solid {cor_i}; font-size:0.66rem; font-weight:900; padding:4px 9px; border-radius:7px; white-space:nowrap; flex-shrink:0;">
+                <span style="background:{bg_i}; color:{cor_txt_i}; border:1.5px solid {cor_brd_i}; font-size:0.62rem; font-weight:900; padding:4px 8px; border-radius:7px; white-space:nowrap; flex-shrink:0; letter-spacing:0.2px;">
                     {lbl_i}
                 </span>
             </div>
@@ -2380,18 +2434,15 @@ html_prev_insp_bloco = f"""
         </summary>
 
         <div class="master-content" style="padding-top:14px;">
-            <!-- SELETORES LADO A LADO (IGUAL AO BLOCO DE PEDIDOS) -->
             <div class="manut-tab-bar">
                 <label for="tab_manut_prev" class="lbl-manut-prev">🛠️ Preventiva ({qtd_criticos_prev})</label>
                 <label for="tab_manut_insp" class="lbl-manut-insp">📋 Inspeção ({qtd_criticos_insp})</label>
             </div>
 
-            <!-- ABA 1: PREVENTIVA EM LARGURA TOTAL -->
             <div class="manut-view-prev">
                 {html_aba_preventiva}
             </div>
 
-            <!-- ABA 2: INSPEÇÃO EM LARGURA TOTAL -->
             <div class="manut-view-insp">
                 {html_aba_inspecao}
             </div>
@@ -2400,7 +2451,6 @@ html_prev_insp_bloco = f"""
 </div>
 """
 render_html(html_prev_insp_bloco)
-
 
 
 # ==============================================================================
