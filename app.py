@@ -739,7 +739,7 @@ if "splash_exibida" not in st.session_state:
 
 @st.cache_data(ttl=1800)
 def obter_clima_tres_lagoas():
-    """Busca clima atual + umidade, vento, nascer/pôr do sol e previsão de 5 dias para Três Lagoas - MS."""
+    """Busca clima atual + previsão horária (24h) + previsão diária (5 dias) para Três Lagoas - MS."""
     def mapear_wmo(code, is_day=1):
         if code == 0:
             return ("☀️" if is_day else "🌙"), "Céu Limpo"
@@ -768,11 +768,13 @@ def obter_clima_tres_lagoas():
             "https://api.open-meteo.com/v1/forecast?"
             "latitude=-20.7849&longitude=-51.7007"
             "&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m,wind_direction_10m,is_day"
+            "&hourly=temperature_2m,precipitation_probability,weather_code,is_day"
             "&daily=weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset"
             "&timezone=America%2FCampo_Grande&forecast_days=5"
         )
         resp = requests.get(url_w, timeout=4).json()
         cur = resp.get("current", {})
+        hourly = resp.get("hourly", {})
         daily = resp.get("daily", {})
 
         temp_atual = int(round(float(cur.get("temperature_2m", 0))))
@@ -788,6 +790,41 @@ def obter_clima_tres_lagoas():
         nascer_sol = sunrise_raw.split("T")[1][:5] if "T" in sunrise_raw else "--:--"
         por_sol = sunset_raw.split("T")[1][:5] if "T" in sunset_raw else "--:--"
 
+        # Processa próximas 24 horas a partir da hora atual de Três Lagoas (UTC-4)
+        agora_tl = datetime.utcnow() - timedelta(hours=4)
+        hora_chave_atual = agora_tl.strftime("%Y-%m-%dT%H:00")
+
+        times_h = hourly.get("time", [])
+        temps_h = hourly.get("temperature_2m", [])
+        probs_h = hourly.get("precipitation_probability", [])
+        codes_h = hourly.get("weather_code", [])
+        isday_h = hourly.get("is_day", [])
+
+        idx_ini_h = 0
+        for idx_t, t_str in enumerate(times_h):
+            if t_str >= hora_chave_atual:
+                idx_ini_h = idx_t
+                break
+
+        previsao_24h = []
+        for idx_h in range(idx_ini_h, min(len(times_h), idx_ini_h + 24)):
+            t_raw = times_h[idx_h]
+            hora_lbl = t_raw.split("T")[1][:5] if "T" in t_raw else t_raw[-5:]
+            temp_h_v = int(round(float(temps_h[idx_h]))) if idx_h < len(temps_h) else 0
+            prob_h_v = int(round(float(probs_h[idx_h] or 0))) if idx_h < len(probs_h) else 0
+            code_h_v = int(codes_h[idx_h]) if idx_h < len(codes_h) else 0
+            day_h_v = int(isday_h[idx_h]) if idx_h < len(isday_h) else 1
+            ico_h, _ = mapear_wmo(code_h_v, day_h_v)
+
+            previsao_24h.append({
+                "hora": "Agora" if idx_h == idx_ini_h else hora_lbl,
+                "is_agora": (idx_h == idx_ini_h),
+                "ico": ico_h,
+                "temp": f"{temp_h_v}°",
+                "chuva": prob_h_v
+            })
+
+        # Processa 5 dias
         previsao_5d = []
         tem_chuva_prox = False
         datas_d = daily.get("time", [])
@@ -825,6 +862,7 @@ def obter_clima_tres_lagoas():
             "vento_dir": vento_dir,
             "nascer": nascer_sol,
             "por": por_sol,
+            "horas": previsao_24h,
             "dias": previsao_5d,
             "aviso": aviso_op
         }
@@ -832,7 +870,7 @@ def obter_clima_tres_lagoas():
         return {
             "temp": "--°C", "ico": "⛅", "desc": "Indisponível",
             "umid": "--%", "vento": "-- km/h", "vento_dir": "",
-            "nascer": "--:--", "por": "--:--", "dias": [],
+            "nascer": "--:--", "por": "--:--", "horas": [], "dias": [],
             "aviso": "Consulta meteorológica temporariamente indisponível."
         }
 
@@ -842,6 +880,27 @@ dias_pt_topo = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"]
 meses_pt_topo = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"]
 data_topo_str = f"{dias_pt_topo[hoje_date.weekday()]}, {hoje_date.day:02d} de {meses_pt_topo[hoje_date.month - 1]}"
 
+# Montagem dos Cards Por Horário (24h deslizável no dedo)
+cards_24h_html = ""
+for h_item in clima_tl["horas"]:
+    borda_h = "1.5px solid #00D672" if h_item["is_agora"] else "1px solid #163252"
+    bg_h = "linear-gradient(180deg, rgba(0,214,114,0.14) 0%, #070f1d 100%)" if h_item["is_agora"] else "#070f1d"
+    cor_hora_txt = "#00D672" if h_item["is_agora"] else "#cbd5e1"
+    cor_chuva = "#38bdf8" if h_item["chuva"] >= 35 else "#64748b"
+
+    cards_24h_html += f"""
+    <div style="flex:0 0 58px; background:{bg_h}; border:{borda_h}; border-radius:10px; padding:7px 4px; text-align:center;">
+        <div style="font-size:0.64rem; font-weight:800; color:{cor_hora_txt};">{h_item['hora']}</div>
+        <div style="font-size:1.15rem; margin:4px 0;">{h_item['ico']}</div>
+        <div style="font-size:0.80rem; font-weight:900; color:#ffffff;">{h_item['temp']}</div>
+        <div style="font-size:0.58rem; font-weight:700; color:{cor_chuva}; margin-top:3px;">💧{h_item['chuva']}%</div>
+    </div>
+    """
+
+if not cards_24h_html:
+    cards_24h_html = '<div style="color:#94a3b8; font-size:0.75rem; padding:12px; text-align:center; width:100%;">Previsão horária indisponível no momento.</div>'
+
+# Montagem dos Cards Por Dia (5 Dias)
 cards_5d_html = ""
 for d_item in clima_tl["dias"]:
     cards_5d_html += f"""
@@ -861,9 +920,11 @@ if not cards_5d_html:
 # 1. Banner Oficial 100% Livre e Inteiro no Topo
 st.markdown(f'<div id="sec-topo"></div><div class="topo-banner" style="margin-bottom:10px;"><img src="{BANNER_TOPO_URL}"></div>', unsafe_allow_html=True)
 
-# 2. Faixa Fina Expansível de Clima (Entre o Banner e a Telemetria)
+# 2. Faixa Fina Expansível de Clima com Pílulas (Por Horário vs Por Dia)
 html_clima_barra = f"""
 <style>
+    .clm-wrapper input[type="radio"] {{ display: none !important; }}
+
     details.clima-strip > summary .clm-chev {{
         transition: transform 0.25s ease;
         display: inline-block;
@@ -871,8 +932,51 @@ html_clima_barra = f"""
     details.clima-strip[open] > summary .clm-chev {{
         transform: rotate(180deg);
     }}
+
+    /* Pílulas de Seleção: Por Horário vs Por Dia */
+    .clm-pill-bar {{
+        display: flex;
+        justify-content: center;
+        gap: 8px;
+        margin-bottom: 10px;
+    }}
+    .clm-pill-bar label {{
+        flex: 1;
+        text-align: center;
+        padding: 7px 8px;
+        font-size: 0.74rem;
+        font-weight: 800;
+        color: #94a3b8;
+        background: #070f1d;
+        border: 1.5px solid #163252;
+        border-radius: 999px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        white-space: nowrap;
+        -webkit-tap-highlight-color: transparent;
+    }}
+    #tab_clm_hora:checked ~ details .lbl-clm-hora {{
+        background: #00D672 !important;
+        color: #050911 !important;
+        border-color: #00D672 !important;
+        box-shadow: 0 0 10px rgba(0, 214, 114, 0.38);
+    }}
+    #tab_clm_dia:checked ~ details .lbl-clm-dia {{
+        background: #38bdf8 !important;
+        color: #050911 !important;
+        border-color: #38bdf8 !important;
+        box-shadow: 0 0 10px rgba(56, 189, 248, 0.38);
+    }}
+
+    .clm-view-hora, .clm-view-dia {{ display: none; }}
+    #tab_clm_hora:checked ~ details .clm-view-hora {{ display: block; }}
+    #tab_clm_dia:checked ~ details .clm-view-dia {{ display: block; }}
 </style>
-<div style="margin-bottom:12px; border:1.5px solid #00D672; border-radius:13px; background:linear-gradient(180deg, #0b1c33 0%, #070f1d 100%); box-shadow:0 0 14px rgba(0, 214, 114, 0.16); overflow:hidden;">
+
+<div class="clm-wrapper" style="margin-bottom:12px; border:1.5px solid #00D672; border-radius:13px; background:linear-gradient(180deg, #0b1c33 0%, #070f1d 100%); box-shadow:0 0 14px rgba(0, 214, 114, 0.16); overflow:hidden;">
+    <input type="radio" name="clm_view" id="tab_clm_hora" checked>
+    <input type="radio" name="clm_view" id="tab_clm_dia">
+
     <details class="clima-strip" style="border:none; background:transparent;">
         <summary style="list-style:none; cursor:pointer; padding:8px 12px; display:flex; align-items:center; justify-content:space-between; gap:8px; outline:none; -webkit-tap-highlight-color:transparent;">
             <div style="display:flex; align-items:center; gap:7px; min-width:0;">
@@ -888,6 +992,7 @@ html_clima_barra = f"""
         </summary>
 
         <div style="padding:10px 12px 12px 12px; border-top:1px solid #163252;">
+            <!-- PAINEL ATUAL -->
             <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; background:rgba(5,9,17,0.75); border:1px solid #163252; border-radius:12px; padding:10px; margin-bottom:10px;">
                 <div style="display:flex; align-items:center; gap:8px; padding-right:10px; border-right:1px solid #163252;">
                     <span style="font-size:2.1rem;">{clima_tl['ico']}</span>
@@ -928,10 +1033,27 @@ html_clima_barra = f"""
                 </div>
             </div>
 
-            <div style="display:flex; gap:5px; margin-bottom:9px;">
-                {cards_5d_html}
+            <!-- PÍLULAS DE ALTERNÂNCIA -->
+            <div class="clm-pill-bar">
+                <label for="tab_clm_hora" class="lbl-clm-hora">⏰ Por Horário (24h)</label>
+                <label for="tab_clm_dia" class="lbl-clm-dia">📅 Por Dia (5 Dias)</label>
             </div>
 
+            <!-- VISÃO 1: POR HORÁRIO (DESLIZE HORIZONTAL) -->
+            <div class="clm-view-hora">
+                <div style="display:flex; gap:6px; overflow-x:auto; padding-bottom:4px; margin-bottom:7px; -webkit-overflow-scrolling:touch;">
+                    {cards_24h_html}
+                </div>
+            </div>
+
+            <!-- VISÃO 2: POR DIA (5 DIAS) -->
+            <div class="clm-view-dia">
+                <div style="display:flex; gap:5px; margin-bottom:9px;">
+                    {cards_5d_html}
+                </div>
+            </div>
+
+            <!-- RODAPÉ DE ALERTA OPERACIONAL -->
             <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; background:#050911; border:1px solid #163252; border-radius:10px; padding:7px 10px;">
                 <span style="color:#00D672; font-size:0.85rem;">ℹ️</span>
                 <div style="font-size:0.62rem; color:#cbd5e1; line-height:1.25; flex:1;">{html_lib.escape(clima_tl['aviso'])}</div>
@@ -942,6 +1064,7 @@ html_clima_barra = f"""
 </div>
 """
 render_html(html_clima_barra)
+
 
 
 
