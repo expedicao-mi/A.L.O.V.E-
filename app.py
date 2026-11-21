@@ -98,18 +98,26 @@ st.markdown(f"""
 
 st.markdown("""
     <style>
-                /* 🚀 1. TRAVA O FUNDO ATÉ A SAFE AREA INFERIOR DO IPHONE (MATA BARRA PRETA) */
+        /* 🚀 1. ESTICA O CONTAINER DO STREAMLIT ATÉ O ÚLTIMO PIXEL FÍSICO DO IPHONE */
         html, body {
             background-color: #050911 !important;
+            height: 100% !important;
             min-height: 100dvh !important;
             margin: 0 !important;
             padding: 0 !important;
+            overflow: hidden !important;
         }
 
-        html, body, [data-testid="stAppViewContainer"], .stApp {
+        [data-testid="stAppViewContainer"], .stApp {
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            right: 0 !important;
+            bottom: 0 !important;
+            height: 100dvh !important;
+            min-height: 100dvh !important;
             background: radial-gradient(ellipse at top, #0c1a33 0%, #070d18 55%, #050911 100%) !important;
             background-color: #050911 !important;
-            min-height: 100dvh !important;
             overflow-x: hidden !important;
             overflow-y: auto !important;
             -webkit-overflow-scrolling: touch !important;
