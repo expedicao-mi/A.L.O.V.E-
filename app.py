@@ -739,30 +739,120 @@ if "splash_exibida" not in st.session_state:
 
 @st.cache_data(ttl=1800)
 def obter_clima_tres_lagoas():
-    try:
-        url_w = "https://api.open-meteo.com/v1/forecast?latitude=-20.7849&longitude=-51.7007&current=temperature_2m,weather_code,is_day&timezone=America%2FCampo_Grande"
-        resp = requests.get(url_w, timeout=3).json()
-        cur = resp.get("current", {})
-        temp = int(round(float(cur.get("temperature_2m", 0))))
-        code = int(cur.get("weather_code", 0))
-        is_day = int(cur.get("is_day", 1))
+    """Busca clima atual + umidade, vento, nascer/pôr do sol e previsão de 5 dias para Três Lagoas - MS."""
+    def mapear_wmo(code, is_day=1):
         if code == 0:
-            ico = "☀️" if is_day else "🌙"
-        elif code in [1, 2]:
-            ico = "⛅" if is_day else "☁️"
-        elif code in [3, 45, 48]:
-            ico = "☁️"
-        elif code in [51, 53, 55, 61, 63, 65, 80, 81, 82]:
-            ico = "🌧️"
-        elif code in [95, 96, 99]:
-            ico = "⛈️"
-        else:
-            ico = "⛅"
-        return f"{temp}°C", ico
-    except Exception:
-        return "--°C", "⛅"
+            return ("☀️" if is_day else "🌙"), "Céu Limpo"
+        if code in [1, 2]:
+            return ("⛅" if is_day else "☁️"), "Parcialmente Nublado"
+        if code == 3:
+            return "☁️", "Nublado"
+        if code in [45, 48]:
+            return "🌫️", "Neblina"
+        if code in [51, 53, 55]:
+            return "🌦️", "Garoa Leve"
+        if code in [61, 63, 65, 80, 81, 82]:
+            return "🌧️", "Pancadas de Chuva"
+        if code in [95, 96, 99]:
+            return "⛈️", "Trovoadas"
+        return "⛅", "Estável"
 
-temp_tl, ico_clima_tl = obter_clima_tres_lagoas()
+    def dir_vento(deg):
+        dirs = ["N", "NE", "L", "SE", "S", "SO", "O", "NO"]
+        return dirs[int((float(deg) + 22.5) // 45) % 8]
+
+    dias_pt = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"]
+
+    try:
+        url_w = (
+            "https://api.open-meteo.com/v1/forecast?"
+            "latitude=-20.7849&longitude=-51.7007"
+            "&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m,wind_direction_10m,is_day"
+            "&daily=weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset"
+            "&timezone=America%2FCampo_Grande&forecast_days=5"
+        )
+        resp = requests.get(url_w, timeout=4).json()
+        cur = resp.get("current", {})
+        daily = resp.get("daily", {})
+
+        temp_atual = int(round(float(cur.get("temperature_2m", 0))))
+        umid_atual = int(round(float(cur.get("relative_humidity_2m", 0))))
+        vento_vel = int(round(float(cur.get("wind_speed_10m", 0))))
+        vento_dir = dir_vento(cur.get("wind_direction_10m", 0))
+        code_atual = int(cur.get("weather_code", 0))
+        is_day = int(cur.get("is_day", 1))
+        ico_atual, desc_atual = mapear_wmo(code_atual, is_day)
+
+        sunrise_raw = (daily.get("sunrise") or [""])[0]
+        sunset_raw = (daily.get("sunset") or [""])[0]
+        nascer_sol = sunrise_raw.split("T")[1][:5] if "T" in sunrise_raw else "--:--"
+        por_sol = sunset_raw.split("T")[1][:5] if "T" in sunset_raw else "--:--"
+
+        previsao_5d = []
+        tem_chuva_prox = False
+        datas_d = daily.get("time", [])
+        codes_d = daily.get("weather_code", [])
+        maxs_d = daily.get("temperature_2m_max", [])
+        mins_d = daily.get("temperature_2m_min", [])
+
+        for i in range(min(5, len(datas_d))):
+            dt_obj = datetime.strptime(datas_d[i], "%Y-%m-%d")
+            d_sem = dias_pt[dt_obj.weekday()]
+            d_dm = dt_obj.strftime("%d/%m")
+            c_d = int(codes_d[i]) if i < len(codes_d) else 0
+            if c_d in [51, 53, 55, 61, 63, 65, 80, 81, 82, 95, 96, 99]:
+                tem_chuva_prox = True
+            ico_d, desc_d = mapear_wmo(c_d, 1)
+            mx_d = int(round(float(maxs_d[i]))) if i < len(maxs_d) else 0
+            mn_d = int(round(float(mins_d[i]))) if i < len(mins_d) else 0
+            previsao_5d.append({
+                "sem": d_sem, "dm": d_dm, "ico": ico_d,
+                "max": f"{mx_d}°C", "min": f"{mn_d}°C", "desc": desc_d
+            })
+
+        aviso_op = (
+            "Atenção pátio: previsão de chuva nos próximos dias — monitorar enlonamento e piso."
+            if tem_chuva_prox
+            else "Tempo firme nos próximos dias em Três Lagoas — condições favoráveis para operação."
+        )
+
+        return {
+            "temp": f"{temp_atual}°C",
+            "ico": ico_atual,
+            "desc": desc_atual,
+            "umid": f"{umid_atual}%",
+            "vento": f"{vento_vel} km/h",
+            "vento_dir": vento_dir,
+            "nascer": nascer_sol,
+            "por": por_sol,
+            "dias": previsao_5d,
+            "aviso": aviso_op
+        }
+    except Exception:
+        return {
+            "temp": "--°C", "ico": "⛅", "desc": "Indisponível",
+            "umid": "--%", "vento": "-- km/h", "vento_dir": "",
+            "nascer": "--:--", "por": "--:--", "dias": [],
+            "aviso": "Consulta meteorológica temporariamente indisponível."
+        }
+
+clima_tl = obter_clima_tres_lagoas()
+
+cards_5d_html = ""
+for d_item in clima_tl["dias"]:
+    cards_5d_html += f"""
+    <div class="day-card">
+        <div class="d-sem">{d_item['sem']}</div>
+        <div class="d-dm">{d_item['dm']}</div>
+        <div class="d-ico">{d_item['ico']}</div>
+        <div class="d-max">{d_item['max']}</div>
+        <div class="d-min">{d_item['min']}</div>
+        <div class="d-desc">{html_lib.escape(d_item['desc'])}</div>
+    </div>
+    """
+
+if not cards_5d_html:
+    cards_5d_html = '<div style="color:#94a3b8; font-size:0.75rem; padding:12px; text-align:center; width:100%;">Previsão estendida indisponível no momento.</div>'
 
 st.markdown('<div id="sec-topo"></div>', unsafe_allow_html=True)
 components.html(f"""
@@ -773,56 +863,69 @@ components.html(f"""
 <style>
     * {{ box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }}
     html, body {{ background: transparent; overflow: hidden; }}
-    .hdr-wrap {{
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 6px;
-        padding: 4px 2px 4px 2px;
+
+    /* BANNER FULL-WIDTH GRANDE COM WIDGET FLUTUANTE POR CIMA À DIREITA */
+    .banner-stage {{
+        position: relative;
         width: 100%;
-        height: 76px;
+        height: 112px;
+        background: #050911;
+        border-bottom: 1.5px solid #12506e;
+        overflow: hidden;
     }}
-    .logo-col {{
-        flex: 1;
-        min-width: 0;
+    .banner-bg {{
+        width: 100%;
         height: 100%;
-        display: flex;
-        align-items: center;
-        justify-content: flex-start;
-    }}
-    .logo-col img {{
-        width: 100%;
-        max-height: 70px;
-        object-fit: contain;
+        object-fit: cover;
         object-position: left center;
-        mix-blend-mode: lighten;
         display: block;
     }}
-    .widget-box {{
+    .banner-grad {{
+        position: absolute;
+        top: 0; right: 0; bottom: 0;
+        width: 52%;
+        background: linear-gradient(90deg, rgba(5,9,17,0) 0%, rgba(5,9,17,0.78) 45%, rgba(5,9,17,0.95) 100%);
+        pointer-events: none;
+    }}
+
+    /* WIDGET COMPACTO CLICÁVEL SOBREPOSTO NO CANTO DIREITO */
+    .weather-pill {{
+        position: absolute;
+        right: 8px;
+        top: 50%;
+        transform: translateY(-50%);
         display: flex;
         align-items: center;
-        gap: 7px;
-        background: linear-gradient(180deg, rgba(11, 24, 48, 0.95) 0%, rgba(6, 13, 26, 0.98) 100%);
+        gap: 6px;
+        background: rgba(7, 15, 29, 0.88);
+        backdrop-filter: blur(6px);
+        -webkit-backdrop-filter: blur(6px);
         border: 1.5px solid #00D672;
         border-radius: 11px;
         padding: 5px 8px;
-        box-shadow: 0 0 12px rgba(0, 214, 114, 0.22);
-        flex-shrink: 0;
+        box-shadow: 0 0 14px rgba(0, 214, 114, 0.28);
+        cursor: pointer;
+        z-index: 5;
+        transition: transform 0.15s ease, box-shadow 0.2s ease;
+        -webkit-tap-highlight-color: transparent;
+    }}
+    .weather-pill:active {{
+        transform: translateY(-50%) scale(0.97);
     }}
     .time-col {{
         display: flex;
         flex-direction: column;
         align-items: center;
-        line-height: 1.12;
+        line-height: 1.1;
     }}
     .loc-txt {{
-        font-size: 0.54rem;
+        font-size: 0.52rem;
         font-weight: 700;
         color: #cbd5e1;
         white-space: nowrap;
     }}
     .clock-txt {{
-        font-size: 1.04rem;
+        font-size: 0.98rem;
         font-weight: 900;
         color: #ffffff;
         font-variant-numeric: tabular-nums;
@@ -830,7 +933,7 @@ components.html(f"""
         margin: 1px 0;
     }}
     .date-txt {{
-        font-size: 0.52rem;
+        font-size: 0.50rem;
         font-weight: 700;
         color: #94a3b8;
         white-space: nowrap;
@@ -842,35 +945,268 @@ components.html(f"""
         justify-content: center;
         border-left: 1px solid #163252;
         padding-left: 6px;
-        line-height: 1.1;
+        line-height: 1.05;
     }}
-    .w-ico {{
-        font-size: 0.98rem;
-    }}
+    .w-ico {{ font-size: 0.95rem; }}
     .w-temp {{
         font-size: 0.72rem;
-        font-weight: 800;
+        font-weight: 900;
         color: #ffffff;
         margin-top: 2px;
+    }}
+    .w-hint {{
+        font-size: 0.48rem;
+        color: #00D672;
+        font-weight: 800;
+        margin-top: 1px;
+    }}
+
+    /* JANELA EXPANSÍVEL DE PREVISÃO DO TEMPO */
+    .weather-modal {{
+        display: none;
+        margin-top: 8px;
+        background: linear-gradient(180deg, #0b1c33 0%, #060d18 100%);
+        border: 1.5px solid #00D672;
+        border-radius: 16px;
+        padding: 12px;
+        box-shadow: 0 8px 26px rgba(0, 214, 114, 0.22);
+        animation: slideDown 0.22s ease;
+    }}
+    .weather-modal.open {{
+        display: block;
+    }}
+    @keyframes slideDown {{
+        from {{ opacity: 0; transform: translateY(-6px); }}
+        to {{ opacity: 1; transform: translateY(0); }}
+    }}
+
+    .wm-head {{
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 10px;
+    }}
+    .wm-title-grp {{
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }}
+    .wm-big-ico {{
+        font-size: 1.45rem;
+        padding-right: 8px;
+        border-right: 1.5px solid #1e3a5f;
+    }}
+    .wm-tit {{
+        font-size: 0.88rem;
+        font-weight: 900;
+        color: #ffffff;
+        letter-spacing: 0.4px;
+    }}
+    .wm-sub {{
+        font-size: 0.66rem;
+        color: #94a3b8;
+        font-weight: 600;
+    }}
+    .wm-close {{
+        width: 28px;
+        height: 28px;
+        border-radius: 8px;
+        background: #070f1d;
+        border: 1.5px solid #00D672;
+        color: #ffffff;
+        font-size: 0.85rem;
+        font-weight: 900;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+    }}
+
+    /* CARD PRINCIPAL DO CLIMA ATUAL */
+    .wm-now-card {{
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        background: rgba(7, 15, 29, 0.88);
+        border: 1px solid #163252;
+        border-radius: 12px;
+        padding: 10px;
+        margin-bottom: 10px;
+    }}
+    .wm-now-left {{
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding-right: 8px;
+        border-right: 1px solid #163252;
+    }}
+    .wm-now-ico {{ font-size: 2.1rem; }}
+    .wm-now-temp {{
+        font-size: 1.75rem;
+        font-weight: 900;
+        color: #ffffff;
+        line-height: 1;
+    }}
+    .wm-now-desc {{
+        font-size: 0.64rem;
+        color: #cbd5e1;
+        margin-top: 3px;
+        font-weight: 600;
+    }}
+    .wm-now-grid {{
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 7px 10px;
+        flex: 1;
+    }}
+    .wm-stat {{
+        display: flex;
+        align-items: center;
+        gap: 5px;
+    }}
+    .wm-stat-ico {{ font-size: 0.85rem; }}
+    .wm-stat-lbl {{ font-size: 0.56rem; color: #94a3b8; }}
+    .wm-stat-val {{ font-size: 0.72rem; color: #ffffff; font-weight: 800; }}
+
+    /* GRADE 5 DIAS */
+    .wm-days {{
+        display: flex;
+        gap: 5px;
+        margin-bottom: 9px;
+    }}
+    .day-card {{
+        flex: 1;
+        min-width: 0;
+        background: #070f1d;
+        border: 1px solid #163252;
+        border-radius: 10px;
+        padding: 7px 3px;
+        text-align: center;
+    }}
+    .d-sem {{ font-size: 0.68rem; font-weight: 800; color: #ffffff; }}
+    .d-dm {{ font-size: 0.56rem; color: #94a3b8; margin-bottom: 4px; }}
+    .d-ico {{ font-size: 1.15rem; margin: 2px 0; }}
+    .d-max {{ font-size: 0.74rem; font-weight: 900; color: #ffffff; margin-top: 3px; }}
+    .d-min {{ font-size: 0.66rem; font-weight: 800; color: #38bdf8; }}
+    .d-desc {{
+        font-size: 0.50rem;
+        color: #94a3b8;
+        margin-top: 3px;
+        line-height: 1.15;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }}
+
+    /* RODAPÉ DE ALERTA OPERACIONAL */
+    .wm-foot {{
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        background: #070f1d;
+        border: 1px solid #163252;
+        border-radius: 10px;
+        padding: 7px 10px;
+    }}
+    .wm-foot-txt {{
+        font-size: 0.60rem;
+        color: #cbd5e1;
+        line-height: 1.25;
+        flex: 1;
+    }}
+    .wm-foot-brand {{
+        font-size: 0.68rem;
+        font-weight: 800;
+        color: #00D672;
+        text-align: right;
+        line-height: 1.05;
+        flex-shrink: 0;
     }}
 </style>
 </head>
 <body>
-<div class="hdr-wrap">
-    <div class="logo-col">
-        <img src="{BANNER_TOPO_URL}" alt="A.L.O.V.E. Eldorado Brasil">
-    </div>
 
-    <div class="widget-box">
+<div class="banner-stage">
+    <img class="banner-bg" src="{BANNER_TOPO_URL}" alt="A.L.O.V.E. Eldorado Brasil">
+    <div class="banner-grad"></div>
+
+    <div class="weather-pill" onclick="togglePrevisao()">
         <div class="time-col">
             <div class="loc-txt">📍 Três Lagoas - MS</div>
             <div class="clock-txt" id="relogio-tl">--:--:--</div>
             <div class="date-txt" id="data-tl">---</div>
         </div>
         <div class="weather-col">
-            <div class="w-ico">{ico_clima_tl}</div>
-            <div class="w-temp">{temp_tl}</div>
+            <div class="w-ico">{clima_tl['ico']}</div>
+            <div class="w-temp">{clima_tl['temp']}</div>
+            <div class="w-hint" id="hint-clima">▼ Clima</div>
         </div>
+    </div>
+</div>
+
+<div class="weather-modal" id="modal-clima">
+    <div class="wm-head">
+        <div class="wm-title-grp">
+            <div class="wm-big-ico">{clima_tl['ico']}</div>
+            <div>
+                <div class="wm-tit">PREVISÃO DO TEMPO</div>
+                <div class="wm-sub">📍 Três Lagoas - MS</div>
+            </div>
+        </div>
+        <button class="wm-close" onclick="togglePrevisao()">✕</button>
+    </div>
+
+    <div class="wm-now-card">
+        <div class="wm-now-left">
+            <div class="wm-now-ico">{clima_tl['ico']}</div>
+            <div>
+                <div class="wm-now-temp">{clima_tl['temp']}</div>
+                <div class="wm-now-desc">{html_lib.escape(clima_tl['desc'])}</div>
+            </div>
+        </div>
+        <div class="wm-now-grid">
+            <div class="wm-stat">
+                <span class="wm-stat-ico">💧</span>
+                <div>
+                    <div class="wm-stat-lbl">Umidade</div>
+                    <div class="wm-stat-val">{clima_tl['umid']}</div>
+                </div>
+            </div>
+            <div class="wm-stat">
+                <span class="wm-stat-ico">💨</span>
+                <div>
+                    <div class="wm-stat-lbl">Vento</div>
+                    <div class="wm-stat-val">{clima_tl['vento']} <span style="color:#00D672; font-size:0.60rem;">{clima_tl['vento_dir']}</span></div>
+                </div>
+            </div>
+            <div class="wm-stat">
+                <span class="wm-stat-ico">🌅</span>
+                <div>
+                    <div class="wm-stat-lbl">Nascer do Sol</div>
+                    <div class="wm-stat-val">{clima_tl['nascer']}</div>
+                </div>
+            </div>
+            <div class="wm-stat">
+                <span class="wm-stat-ico">🌇</span>
+                <div>
+                    <div class="wm-stat-lbl">Pôr do Sol</div>
+                    <div class="wm-stat-val">{clima_tl['por']}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="wm-days">
+        {cards_5d_html}
+    </div>
+
+    <div class="wm-foot">
+        <span style="color:#00D672; font-size:0.85rem;">ℹ️</span>
+        <div class="wm-foot-txt">{html_lib.escape(clima_tl['aviso'])}</div>
+        <div class="wm-foot-brand">Eldorado<br><span style="color:#94a3b8; font-size:0.56rem;">Brasil</span></div>
     </div>
 </div>
 
@@ -880,7 +1216,6 @@ components.html(f"""
 
     function atualizarRelogioTL() {{
         const agora = new Date();
-        // Converte para fuso de Três Lagoas - MS (UTC-4)
         const utcMs = agora.getTime() + (agora.getTimezoneOffset() * 60000);
         const tl = new Date(utcMs - (4 * 3600000));
 
@@ -896,12 +1231,30 @@ components.html(f"""
         document.getElementById("data-tl").innerHTML = `${{ds}}, ${{dd}} de ${{mes}} de <span style="color:#00D672;">${{aa}}</span>`;
     }}
 
+    function togglePrevisao() {{
+        const modal = document.getElementById("modal-clima");
+        const hint = document.getElementById("hint-clima");
+        const aberto = modal.classList.toggle("open");
+        hint.textContent = aberto ? "▲ Fechar" : "▼ Clima";
+
+        // Ajusta dinamicamente a altura do iframe do Streamlit para não cortar nem deixar buraco
+        if (window.frameElement) {{
+            if (aberto) {{
+                const alturaTotal = document.body.scrollHeight + 8;
+                window.frameElement.style.height = alturaTotal + "px";
+            }} else {{
+                window.frameElement.style.height = "116px";
+            }}
+        }}
+    }}
+
     atualizarRelogioTL();
     setInterval(atualizarRelogioTL, 1000);
 </script>
 </body>
 </html>
-""", height=78)
+""", height=116)
+
 
 
 # ==============================================================================
