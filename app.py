@@ -9,8 +9,10 @@ from io import StringIO
 import ast
 import re
 import html as html_lib
+import streamlit.components.v1 as components
 from streamlit_autorefresh import st_autorefresh
 import gspread
+
 
 # ==============================================================================
 # ⚙️ CONFIGURAÇÃO DA PÁGINA
@@ -707,24 +709,254 @@ if "splash_exibida" not in st.session_state:
             .alove-loader-bg {
                 position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
                 background: #050911; z-index: 99999999;
-                display: flex; justify-content: center; align-items: center;
-                animation: loaderFadeOut 0.4s 1.2s forwards; pointer-events: none;
+                display: flex; flex-direction: column; justify-content: center; align-items: center;
+                gap: 10px;
+                animation: loaderFadeOut 0.45s 1.65s forwards; pointer-events: none;
             }
             .alove-loader-text {
                 font-size: 2.8rem; font-weight: 900; color: #00D672;
                 letter-spacing: 6px; text-shadow: 0 0 20px rgba(0,214,114,0.6);
                 overflow: hidden; white-space: nowrap; border-right: 4px solid #00D672;
                 width: 0;
-                animation: loaderTyping 1s steps(7, end) forwards, loaderBlink 0.5s step-end infinite alternate;
+                animation: loaderTyping 0.95s steps(7, end) forwards, loaderBlink 0.5s step-end infinite alternate;
+            }
+            .alove-loader-sub {
+                font-size: 0.82rem; font-weight: 700; color: #94a3b8;
+                letter-spacing: 2.2px; text-transform: uppercase;
+                opacity: 0;
+                animation: loaderSubIn 0.45s 0.75s forwards;
             }
             @keyframes loaderTyping { from { width: 0 } to { width: 5.5em } }
             @keyframes loaderBlink { 50% { border-color: transparent } }
+            @keyframes loaderSubIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
             @keyframes loaderFadeOut { to { opacity: 0; visibility: hidden; display: none; } }
         </style>
-        <div class="alove-loader-bg"><div class="alove-loader-text">A.L.O.V.E</div></div>
+        <div class="alove-loader-bg">
+            <div class="alove-loader-text">A.L.O.V.E</div>
+            <div class="alove-loader-sub">Assistente Virtual da Expedição</div>
+        </div>
     """, unsafe_allow_html=True)
 
-st.markdown(f'<div id="sec-topo"></div><div class="topo-banner"><img src="{BANNER_TOPO_URL}"></div>', unsafe_allow_html=True)
+@st.cache_data(ttl=1800)
+def obter_clima_tres_lagoas():
+    try:
+        url_w = "https://api.open-meteo.com/v1/forecast?latitude=-20.7849&longitude=-51.7007&current=temperature_2m,weather_code,is_day&timezone=America%2FCampo_Grande"
+        resp = requests.get(url_w, timeout=3).json()
+        cur = resp.get("current", {})
+        temp = int(round(float(cur.get("temperature_2m", 0))))
+        code = int(cur.get("weather_code", 0))
+        is_day = int(cur.get("is_day", 1))
+        if code == 0:
+            ico = "☀️" if is_day else "🌙"
+        elif code in [1, 2]:
+            ico = "⛅" if is_day else "☁️"
+        elif code in [3, 45, 48]:
+            ico = "☁️"
+        elif code in [51, 53, 55, 61, 63, 65, 80, 81, 82]:
+            ico = "🌧️"
+        elif code in [95, 96, 99]:
+            ico = "⛈️"
+        else:
+            ico = "⛅"
+        return f"{temp}°C", ico
+    except Exception:
+        return "--°C", "⛅"
+
+temp_tl, ico_clima_tl = obter_clima_tres_lagoas()
+
+st.markdown('<div id="sec-topo"></div>', unsafe_allow_html=True)
+components.html(f"""
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+    * {{ box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }}
+    html, body {{ background: transparent; overflow: hidden; }}
+    .hdr-wrap {{
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        padding: 8px 4px 6px 4px;
+        width: 100%;
+    }}
+    .brand-box {{
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        min-width: 0;
+        flex: 1;
+    }}
+    .brand-top {{
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }}
+    .brand-alove {{
+        font-size: 1.32rem;
+        font-weight: 900;
+        color: #00E676;
+        letter-spacing: 1px;
+        text-shadow: 0 0 12px rgba(0, 230, 118, 0.45);
+        white-space: nowrap;
+    }}
+    .brand-sep {{
+        width: 1.5px;
+        height: 20px;
+        background: #1e3a5f;
+    }}
+    .brand-eld {{
+        display: flex;
+        flex-direction: column;
+        line-height: 1.05;
+    }}
+    .brand-eld-main {{
+        font-size: 0.78rem;
+        font-weight: 800;
+        color: #00D672;
+    }}
+    .brand-eld-sub {{
+        font-size: 0.62rem;
+        font-weight: 600;
+        color: #94a3b8;
+        text-align: right;
+    }}
+    .brand-tagline {{
+        font-size: 0.56rem;
+        font-weight: 700;
+        color: #94a3b8;
+        margin-top: 4px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }}
+    .widget-box {{
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        background: linear-gradient(180deg, rgba(11, 24, 48, 0.95) 0%, rgba(6, 13, 26, 0.98) 100%);
+        border: 1.5px solid #00D672;
+        border-radius: 12px;
+        padding: 6px 9px;
+        box-shadow: 0 0 14px rgba(0, 214, 114, 0.22);
+        flex-shrink: 0;
+    }}
+    .clock-ico {{
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        border: 1.5px solid #00D672;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #00D672;
+        font-size: 0.78rem;
+        font-weight: 900;
+        box-shadow: 0 0 8px rgba(0, 214, 114, 0.35);
+    }}
+    .time-col {{
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        line-height: 1.1;
+    }}
+    .loc-txt {{
+        font-size: 0.56rem;
+        font-weight: 700;
+        color: #cbd5e1;
+        white-space: nowrap;
+    }}
+    .clock-txt {{
+        font-size: 1.08rem;
+        font-weight: 900;
+        color: #ffffff;
+        font-variant-numeric: tabular-nums;
+        letter-spacing: 0.4px;
+        margin: 1px 0;
+    }}
+    .date-txt {{
+        font-size: 0.54rem;
+        font-weight: 700;
+        color: #94a3b8;
+        white-space: nowrap;
+    }}
+    .weather-col {{
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        border-left: 1px solid #163252;
+        padding-left: 7px;
+        line-height: 1.1;
+    }}
+    .w-ico {{
+        font-size: 1.05rem;
+    }}
+    .w-temp {{
+        font-size: 0.74rem;
+        font-weight: 800;
+        color: #ffffff;
+        margin-top: 2px;
+    }}
+</style>
+</head>
+<body>
+<div class="hdr-wrap">
+    <div class="brand-box">
+        <div class="brand-top">
+            <span class="brand-alove">A.L.O.V.E.</span>
+            <span class="brand-sep"></span>
+            <div class="brand-eld">
+                <span class="brand-eld-main">Eldorado</span>
+                <span class="brand-eld-sub">Brasil</span>
+            </div>
+        </div>
+        <div class="brand-tagline">Assistente Virtual da Expedição</div>
+    </div>
+
+    <div class="widget-box">
+        <div class="clock-ico">🕒</div>
+        <div class="time-col">
+            <div class="loc-txt">📍 Três Lagoas - MS</div>
+            <div class="clock-txt" id="relogio-tl">--:--:--</div>
+            <div class="date-txt" id="data-tl">---</div>
+        </div>
+        <div class="weather-col">
+            <div class="w-ico">{ico_clima_tl}</div>
+            <div class="w-temp">{temp_tl}</div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const diasSem = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
+    const meses = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+
+    function atualizarRelogioTL() {{
+        const agora = new Date();
+        // Converte para fuso de Três Lagoas - MS (UTC-4)
+        const utcMs = agora.getTime() + (agora.getTimezoneOffset() * 60000);
+        const tl = new Date(utcMs - (4 * 3600000));
+
+        const hh = String(tl.getHours()).padStart(2, '0');
+        const mm = String(tl.getMinutes()).padStart(2, '0');
+        const ss = String(tl.getSeconds()).padStart(2, '0');
+        document.getElementById("relogio-tl").textContent = `${{hh}}:${{mm}}:${{ss}}`;
+
+        const ds = diasSem[tl.getDay()];
+        const dd = String(tl.getDate()).padStart(2, '0');
+        const mes = meses[tl.getMonth()];
+        const aa = tl.getFullYear();
+        document.getElementById("data-tl").innerHTML = `${{ds}}, ${{dd}} de ${{mes}} de <span style="color:#00D672;">${{aa}}</span>`;
+    }}
+
+    atualizarRelogioTL();
+    setInterval(atualizarRelogioTL, 1000);
+</script>
+</body>
+</html>
+""", height=78)
 
 # ==============================================================================
 # 🖨️ RENDERIZAÇÃO 1: STATUS DO SISTEMA (NOC TELEMETRY - SEMPRE FECHADO AO ABRIR)
