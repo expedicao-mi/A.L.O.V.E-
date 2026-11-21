@@ -965,8 +965,8 @@ for d_item in clima_tl["dias"]:
 if not cards_5d_html:
     cards_5d_html = '<div style="color:#94a3b8; font-size:0.75rem; padding:12px; text-align:center; width:100%;">Previsão estendida indisponível no momento.</div>'
 
-# 1. Banner Oficial 100% Livre e Inteiro no Topo
-st.markdown(f'<div id="sec-topo"></div><div class="topo-banner" style="margin-bottom:10px;"><img src="{BANNER_TOPO_URL}"></div>', unsafe_allow_html=True)
+# 1. Banner Oficial Persistente no Topo (Arredondado + Neon Verde)
+st.markdown(f'<div id="sec-topo"></div><div class="topo-banner-mask"></div><div class="topo-banner"><img src="{BANNER_TOPO_URL}"></div>', unsafe_allow_html=True)
 
 # 2. Faixa Fina Expansível de Clima com Pílulas (Por Horário vs Por Dia)
 html_clima_barra = f"""
