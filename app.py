@@ -824,9 +824,10 @@ def obter_clima_tres_lagoas():
                 "chuva": prob_h_v
             })
 
-        # Processa 5 dias
+                # Processa 5 dias
         previsao_5d = []
-        tem_chuva_prox = False
+        chuva_hoje = code_atual in [51, 53, 55, 61, 63, 65, 80, 81, 82, 95, 96, 99] or any(h["chuva"] >= 45 for h in previsao_24h[:12])
+        chuva_prox_dias = False
         datas_d = daily.get("time", [])
         codes_d = daily.get("weather_code", [])
         maxs_d = daily.get("temperature_2m_max", [])
@@ -838,7 +839,10 @@ def obter_clima_tres_lagoas():
             d_dm = dt_obj.strftime("%d/%m")
             c_d = int(codes_d[i]) if i < len(codes_d) else 0
             if c_d in [51, 53, 55, 61, 63, 65, 80, 81, 82, 95, 96, 99]:
-                tem_chuva_prox = True
+                if i == 0:
+                    chuva_hoje = True
+                else:
+                    chuva_prox_dias = True
             ico_d, desc_d = mapear_wmo(c_d, 1)
             mx_d = int(round(float(maxs_d[i]))) if i < len(maxs_d) else 0
             mn_d = int(round(float(mins_d[i]))) if i < len(mins_d) else 0
@@ -847,11 +851,22 @@ def obter_clima_tres_lagoas():
                 "max": f"{mx_d}°C", "min": f"{mn_d}°C", "desc": desc_d
             })
 
-        aviso_op = (
-            "Atenção pátio: previsão de chuva nos próximos dias — monitorar enlonamento e piso."
-            if tem_chuva_prox
-            else "Tempo firme nos próximos dias em Três Lagoas — condições favoráveis para operação."
-        )
+        # Régua Operacional Dinâmica (Prioridade: Chuva Hoje > Vento > Calor/Seco > Chuva Futura > Firme)
+        if chuva_hoje:
+            aviso_ico, aviso_cor = "🌧️", "#FF8C00"
+            aviso_op = "Alerta pátio (Hoje): risco de chuva nas próximas horas — priorizar enlonamento e atenção ao piso."
+        elif vento_vel >= 30:
+            aviso_ico, aviso_cor = "💨", "#FF8C00"
+            aviso_op = f"Atenção vento ({vento_vel} km/h {vento_dir}): rajadas no pátio — redobrar cuidado no enlonamento."
+        elif temp_atual >= 34 or umid_atual <= 35:
+            aviso_ico, aviso_cor = "☀️", "#FFD600"
+            aviso_op = f"Calor intenso ({temp_atual}°C | Umid. {umid_atual}%): reforçar hidratação no pátio e atenção térmica na frota."
+        elif chuva_prox_dias:
+            aviso_ico, aviso_cor = "🌦️", "#38bdf8"
+            aviso_op = "Tempo firme hoje; previsão de chuva nos próximos dias — acompanhar janela de embarque."
+        else:
+            aviso_ico, aviso_cor = "✅", "#00D672"
+            aviso_op = "Tempo firme e estável em Três Lagoas — condições favoráveis para operação no pátio."
 
         return {
             "temp": f"{temp_atual}°C",
@@ -864,15 +879,19 @@ def obter_clima_tres_lagoas():
             "por": por_sol,
             "horas": previsao_24h,
             "dias": previsao_5d,
-            "aviso": aviso_op
+            "aviso": aviso_op,
+            "aviso_ico": aviso_ico,
+            "aviso_cor": aviso_cor
         }
     except Exception:
         return {
             "temp": "--°C", "ico": "⛅", "desc": "Indisponível",
             "umid": "--%", "vento": "-- km/h", "vento_dir": "",
             "nascer": "--:--", "por": "--:--", "horas": [], "dias": [],
-            "aviso": "Consulta meteorológica temporariamente indisponível."
+            "aviso": "Consulta meteorológica temporariamente indisponível.",
+            "aviso_ico": "ℹ️", "aviso_cor": "#64748b"
         }
+
 
 clima_tl = obter_clima_tres_lagoas()
 
