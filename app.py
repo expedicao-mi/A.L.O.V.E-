@@ -105,15 +105,16 @@ st.markdown("""
             pointer-events: none !important;
         }
 
-        /* COLUNA CENTRAL ESTILO APP (COMPENSA O BANNER FIXO SEM BURACO) */
+                /* COLUNA CENTRAL ESTILO APP (COMPENSA O BANNER FIXO SEM BURACO) */
         .block-container {
-            padding-top: calc(env(safe-area-inset-top, 0px) + 52px) !important;
+            padding-top: calc(env(safe-area-inset-top, 0px) + 38px) !important;
             padding-bottom: 3.5rem !important;
             padding-left: 0.8rem !important;
             padding-right: 0.8rem !important;
             max-width: 560px !important;
             margin: 0 auto !important;
         }
+
 
         /* BANNER PERSISTENTE NO TOPO COM CANTOS ARREDONDADOS E NEON VERDE */
         .topo-banner-mask {
