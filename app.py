@@ -98,9 +98,18 @@ st.markdown(f"""
 
 st.markdown("""
     <style>
-        /* 🚀 1. TRAVA O FUNDO E GARANTE SCROLL NATIVO LISO NO IPHONE */
+                /* 🚀 1. TRAVA O FUNDO ATÉ A SAFE AREA INFERIOR DO IPHONE (MATA BARRA PRETA) */
+        html, body {
+            background-color: #050911 !important;
+            min-height: 100dvh !important;
+            margin: 0 !important;
+            padding: 0 !important;
+        }
+
         html, body, [data-testid="stAppViewContainer"], .stApp {
             background: radial-gradient(ellipse at top, #0c1a33 0%, #070d18 55%, #050911 100%) !important;
+            background-color: #050911 !important;
+            min-height: 100dvh !important;
             overflow-x: hidden !important;
             overflow-y: auto !important;
             -webkit-overflow-scrolling: touch !important;
@@ -124,10 +133,12 @@ st.markdown("""
             content: "";
         }
 
-        /* 🚀 3. ESCONDE CABEÇALHO, RODAPÉ E BOTÕES DO STREAMLIT */
+        /* 🚀 3. ESCONDE CABEÇALHO, RODAPÉ FANTASMA E BOTÕES DO STREAMLIT */
         #MainMenu, footer, header,
         [data-testid="stHeader"],
         [data-testid="stFooter"],
+        [data-testid="stBottom"],
+        [data-testid="stBottomBlockContainer"],
         [data-testid="manage-app-button"],
         [data-testid="stToolbar"],
         [data-testid="stDecoration"],
@@ -148,6 +159,7 @@ st.markdown("""
             width: 0 !important;
             pointer-events: none !important;
         }
+
 
                 /* COLUNA CENTRAL ESTILO APP (COMPENSA O BANNER FIXO SEM BURACO) */
         .block-container {
