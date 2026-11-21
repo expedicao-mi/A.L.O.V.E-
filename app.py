@@ -51,7 +51,7 @@ if "splash_exibida" not in st.session_state:
                 background: #050911; z-index: 99999999;
                 display: flex; flex-direction: column; justify-content: center; align-items: center;
                 gap: 10px;
-                animation: loaderFadeOut 0.45s 1.85s forwards; pointer-events: none;
+                animation: loaderFadeOut 0.45s 2.85s forwards; pointer-events: none;
             }
             .alove-loader-text {
                 font-size: 2.8rem; font-weight: 900; color: #00D672;
