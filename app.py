@@ -33,6 +33,50 @@ st_autorefresh(interval=1200000, limit=None, key="refresh_mobile")
 if "bafometro_autenticado" not in st.session_state:
     st.session_state.bafometro_autenticado = False
 
+# ==============================================================================
+# ⚡ SPLASH SCREEN INSTANTÂNEA (RENDERIZA ANTES DAS CONSULTAS DO GOOGLE SHEETS)
+# ==============================================================================
+if st.query_params.get("refresh") == "1":
+    st.cache_data.clear()
+    st.query_params.clear()
+    st.session_state.pop("splash_exibida", None)
+
+if "splash_exibida" not in st.session_state:
+    st.session_state.splash_exibida = True
+    st.markdown("""
+        <style>
+            [data-testid="stStatusWidget"] { display: none !important; visibility: hidden !important; }
+            .alove-loader-bg {
+                position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+                background: #050911; z-index: 99999999;
+                display: flex; flex-direction: column; justify-content: center; align-items: center;
+                gap: 10px;
+                animation: loaderFadeOut 0.45s 1.85s forwards; pointer-events: none;
+            }
+            .alove-loader-text {
+                font-size: 2.8rem; font-weight: 900; color: #00D672;
+                letter-spacing: 6px; text-shadow: 0 0 20px rgba(0,214,114,0.6);
+                overflow: hidden; white-space: nowrap; border-right: 4px solid #00D672;
+                width: 0;
+                animation: loaderTyping 0.95s steps(7, end) forwards, loaderBlink 0.5s step-end infinite alternate;
+            }
+            .alove-loader-sub {
+                font-size: 0.82rem; font-weight: 700; color: #94a3b8;
+                letter-spacing: 2.2px; text-transform: uppercase;
+                opacity: 0;
+                animation: loaderSubIn 0.45s 0.70s forwards;
+            }
+            @keyframes loaderTyping { from { width: 0 } to { width: 5.5em } }
+            @keyframes loaderBlink { 50% { border-color: transparent } }
+            @keyframes loaderSubIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+            @keyframes loaderFadeOut { to { opacity: 0; visibility: hidden; display: none; } }
+        </style>
+        <div class="alove-loader-bg">
+            <div class="alove-loader-text">A.L.O.V.E</div>
+            <div class="alove-loader-sub">Assistente Virtual da Expedição</div>
+        </div>
+    """, unsafe_allow_html=True)
+
 def render_html(html_str: str):
     """Remove recuos e linhas em branco que fazem o Streamlit achar que o HTML é um bloco de código."""
     linhas_limpas = [linha.strip() for linha in html_str.splitlines() if linha.strip()]
@@ -721,51 +765,8 @@ if not df_balanco_dest.empty:
                 "saldo": saldo_val, "atingimento": ating_val
             })
 
-# ==============================================================================
-# 🖨️ RECARGA NATIVA & SPLASH SCREEN (A.L.O.V.E TYPING EFFECT)
-# ==============================================================================
-if st.query_params.get("refresh") == "1":
-    st.cache_data.clear()
-    st.query_params.clear()
-    st.session_state.pop("splash_exibida", None) # Força a animação a rodar ao atualizar
-    st.rerun()
+# (Splash Screen já renderizada instantaneamente no topo antes das consultas)
 
-# A animação só é desenhada na tela se for o primeiro carregamento
-if "splash_exibida" not in st.session_state:
-    st.session_state.splash_exibida = True
-    st.markdown("""
-        <style>
-            [data-testid="stStatusWidget"] { display: none !important; visibility: hidden !important; }
-            .alove-loader-bg {
-                position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-                background: #050911; z-index: 99999999;
-                display: flex; flex-direction: column; justify-content: center; align-items: center;
-                gap: 10px;
-                animation: loaderFadeOut 0.45s 1.65s forwards; pointer-events: none;
-            }
-            .alove-loader-text {
-                font-size: 2.8rem; font-weight: 900; color: #00D672;
-                letter-spacing: 6px; text-shadow: 0 0 20px rgba(0,214,114,0.6);
-                overflow: hidden; white-space: nowrap; border-right: 4px solid #00D672;
-                width: 0;
-                animation: loaderTyping 0.95s steps(7, end) forwards, loaderBlink 0.5s step-end infinite alternate;
-            }
-            .alove-loader-sub {
-                font-size: 0.82rem; font-weight: 700; color: #94a3b8;
-                letter-spacing: 2.2px; text-transform: uppercase;
-                opacity: 0;
-                animation: loaderSubIn 0.45s 0.75s forwards;
-            }
-            @keyframes loaderTyping { from { width: 0 } to { width: 5.5em } }
-            @keyframes loaderBlink { 50% { border-color: transparent } }
-            @keyframes loaderSubIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
-            @keyframes loaderFadeOut { to { opacity: 0; visibility: hidden; display: none; } }
-        </style>
-        <div class="alove-loader-bg">
-            <div class="alove-loader-text">A.L.O.V.E</div>
-            <div class="alove-loader-sub">Assistente Virtual da Expedição</div>
-        </div>
-    """, unsafe_allow_html=True)
 
 @st.cache_data(ttl=1800)
 def obter_clima_tres_lagoas():
@@ -1240,10 +1241,11 @@ html_status_sistema = f"""
                 </div>
 
                 <div style="display: flex; align-items: center; gap: 8px;">
-                    <a href="?refresh=1" target="_self" onclick="event.stopPropagation();" 
+                    <a href="?refresh=1" target="_self" onclick="event.stopPropagation(); document.body.insertAdjacentHTML('beforeend', '<div style=\'position:fixed;inset:0;background:#050911;z-index:99999999;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:10px;\'><div style=\'font-size:2.8rem;font-weight:900;color:#00D672;letter-spacing:6px;text-shadow:0 0 20px rgba(0,214,114,0.6);\'>A.L.O.V.E</div><div style=\'font-size:0.82rem;font-weight:700;color:#94a3b8;letter-spacing:2.2px;text-transform:uppercase;\'>Assistente Virtual da Expedição</div></div>');" 
                        style="width: 38px; height: 38px; border: 1.5px solid #00b4ff; border-radius: 10px; background: #070d18; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; color: #ffffff; text-decoration: none; box-shadow: 0 0 10px rgba(0, 180, 255, 0.25);">
                        🔄
                     </a>
+
                     <span class="noc-chev" style="color: #64748b; font-size: 0.8rem; padding: 4px;">▼</span>
                 </div>
             </div>
