@@ -105,9 +105,9 @@ st.markdown("""
             pointer-events: none !important;
         }
 
-                        /* COLUNA CENTRAL ESTILO APP (COMPENSA O BANNER FIXO NO TOPO) */
+        /* COLUNA CENTRAL ESTILO APP (COMPENSA O BANNER FIXO SEM BURACO) */
         .block-container {
-            padding-top: calc(env(safe-area-inset-top, 0px) + 102px) !important;
+            padding-top: calc(env(safe-area-inset-top, 0px) + 52px) !important;
             padding-bottom: 3.5rem !important;
             padding-left: 0.8rem !important;
             padding-right: 0.8rem !important;
@@ -121,7 +121,7 @@ st.markdown("""
             top: 0;
             left: 0;
             right: 0;
-            height: calc(env(safe-area-inset-top, 0px) + 96px);
+            height: calc(env(safe-area-inset-top, 0px) + 94px);
             background: linear-gradient(180deg, #050911 82%, rgba(5, 9, 17, 0) 100%);
             z-index: 9998;
             pointer-events: none;
