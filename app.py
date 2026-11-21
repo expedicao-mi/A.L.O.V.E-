@@ -9,9 +9,9 @@ from io import StringIO
 import ast
 import re
 import html as html_lib
-import streamlit.components.v1 as components
 from streamlit_autorefresh import st_autorefresh
 import gspread
+
 
 
 # ==============================================================================
@@ -838,422 +838,111 @@ def obter_clima_tres_lagoas():
 
 clima_tl = obter_clima_tres_lagoas()
 
+dias_pt_topo = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"]
+meses_pt_topo = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"]
+data_topo_str = f"{dias_pt_topo[hoje_date.weekday()]}, {hoje_date.day:02d} de {meses_pt_topo[hoje_date.month - 1]}"
+
 cards_5d_html = ""
 for d_item in clima_tl["dias"]:
     cards_5d_html += f"""
-    <div class="day-card">
-        <div class="d-sem">{d_item['sem']}</div>
-        <div class="d-dm">{d_item['dm']}</div>
-        <div class="d-ico">{d_item['ico']}</div>
-        <div class="d-max">{d_item['max']}</div>
-        <div class="d-min">{d_item['min']}</div>
-        <div class="d-desc">{html_lib.escape(d_item['desc'])}</div>
+    <div style="flex:1; min-width:0; background:#070f1d; border:1px solid #163252; border-radius:10px; padding:7px 3px; text-align:center;">
+        <div style="font-size:0.68rem; font-weight:800; color:#ffffff;">{d_item['sem']}</div>
+        <div style="font-size:0.56rem; color:#94a3b8; margin-bottom:4px;">{d_item['dm']}</div>
+        <div style="font-size:1.15rem; margin:2px 0;">{d_item['ico']}</div>
+        <div style="font-size:0.74rem; font-weight:900; color:#ffffff; margin-top:3px;">{d_item['max']}</div>
+        <div style="font-size:0.66rem; font-weight:800; color:#38bdf8;">{d_item['min']}</div>
+        <div style="font-size:0.50rem; color:#94a3b8; margin-top:3px; line-height:1.15;">{html_lib.escape(d_item['desc'])}</div>
     </div>
     """
 
 if not cards_5d_html:
     cards_5d_html = '<div style="color:#94a3b8; font-size:0.75rem; padding:12px; text-align:center; width:100%;">Previsão estendida indisponível no momento.</div>'
 
-st.markdown('<div id="sec-topo"></div>', unsafe_allow_html=True)
-components.html(f"""
-<!DOCTYPE html>
-<html>
-<head>
-<meta charset="utf-8">
+# 1. Banner Oficial 100% Livre e Inteiro no Topo
+st.markdown(f'<div id="sec-topo"></div><div class="topo-banner" style="margin-bottom:10px;"><img src="{BANNER_TOPO_URL}"></div>', unsafe_allow_html=True)
+
+# 2. Faixa Fina Expansível de Clima (Entre o Banner e a Telemetria)
+html_clima_barra = f"""
 <style>
-    * {{ box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }}
-    html, body {{ background: transparent; overflow: hidden; }}
-
-    /* BANNER FULL-WIDTH GRANDE COM WIDGET FLUTUANTE POR CIMA À DIREITA */
-    .banner-stage {{
-        position: relative;
-        width: 100%;
-        height: 112px;
-        background: #050911;
-        border-bottom: 1.5px solid #12506e;
-        overflow: hidden;
+    details.clima-strip > summary .clm-chev {{
+        transition: transform 0.25s ease;
+        display: inline-block;
     }}
-    .banner-bg {{
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-        object-position: left center;
-        display: block;
-    }}
-    .banner-grad {{
-        position: absolute;
-        top: 0; right: 0; bottom: 0;
-        width: 52%;
-        background: linear-gradient(90deg, rgba(5,9,17,0) 0%, rgba(5,9,17,0.78) 45%, rgba(5,9,17,0.95) 100%);
-        pointer-events: none;
-    }}
-
-    /* WIDGET COMPACTO CLICÁVEL SOBREPOSTO NO CANTO DIREITO */
-    .weather-pill {{
-        position: absolute;
-        right: 8px;
-        top: 50%;
-        transform: translateY(-50%);
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        background: rgba(7, 15, 29, 0.88);
-        backdrop-filter: blur(6px);
-        -webkit-backdrop-filter: blur(6px);
-        border: 1.5px solid #00D672;
-        border-radius: 11px;
-        padding: 5px 8px;
-        box-shadow: 0 0 14px rgba(0, 214, 114, 0.28);
-        cursor: pointer;
-        z-index: 5;
-        transition: transform 0.15s ease, box-shadow 0.2s ease;
-        -webkit-tap-highlight-color: transparent;
-    }}
-    .weather-pill:active {{
-        transform: translateY(-50%) scale(0.97);
-    }}
-    .time-col {{
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        line-height: 1.1;
-    }}
-    .loc-txt {{
-        font-size: 0.52rem;
-        font-weight: 700;
-        color: #cbd5e1;
-        white-space: nowrap;
-    }}
-    .clock-txt {{
-        font-size: 0.98rem;
-        font-weight: 900;
-        color: #ffffff;
-        font-variant-numeric: tabular-nums;
-        letter-spacing: 0.3px;
-        margin: 1px 0;
-    }}
-    .date-txt {{
-        font-size: 0.50rem;
-        font-weight: 700;
-        color: #94a3b8;
-        white-space: nowrap;
-    }}
-    .weather-col {{
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        border-left: 1px solid #163252;
-        padding-left: 6px;
-        line-height: 1.05;
-    }}
-    .w-ico {{ font-size: 0.95rem; }}
-    .w-temp {{
-        font-size: 0.72rem;
-        font-weight: 900;
-        color: #ffffff;
-        margin-top: 2px;
-    }}
-    .w-hint {{
-        font-size: 0.48rem;
-        color: #00D672;
-        font-weight: 800;
-        margin-top: 1px;
-    }}
-
-    /* JANELA EXPANSÍVEL DE PREVISÃO DO TEMPO */
-    .weather-modal {{
-        display: none;
-        margin-top: 8px;
-        background: linear-gradient(180deg, #0b1c33 0%, #060d18 100%);
-        border: 1.5px solid #00D672;
-        border-radius: 16px;
-        padding: 12px;
-        box-shadow: 0 8px 26px rgba(0, 214, 114, 0.22);
-        animation: slideDown 0.22s ease;
-    }}
-    .weather-modal.open {{
-        display: block;
-    }}
-    @keyframes slideDown {{
-        from {{ opacity: 0; transform: translateY(-6px); }}
-        to {{ opacity: 1; transform: translateY(0); }}
-    }}
-
-    .wm-head {{
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 10px;
-    }}
-    .wm-title-grp {{
-        display: flex;
-        align-items: center;
-        gap: 8px;
-    }}
-    .wm-big-ico {{
-        font-size: 1.45rem;
-        padding-right: 8px;
-        border-right: 1.5px solid #1e3a5f;
-    }}
-    .wm-tit {{
-        font-size: 0.88rem;
-        font-weight: 900;
-        color: #ffffff;
-        letter-spacing: 0.4px;
-    }}
-    .wm-sub {{
-        font-size: 0.66rem;
-        color: #94a3b8;
-        font-weight: 600;
-    }}
-    .wm-close {{
-        width: 28px;
-        height: 28px;
-        border-radius: 8px;
-        background: #070f1d;
-        border: 1.5px solid #00D672;
-        color: #ffffff;
-        font-size: 0.85rem;
-        font-weight: 900;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        cursor: pointer;
-    }}
-
-    /* CARD PRINCIPAL DO CLIMA ATUAL */
-    .wm-now-card {{
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 8px;
-        background: rgba(7, 15, 29, 0.88);
-        border: 1px solid #163252;
-        border-radius: 12px;
-        padding: 10px;
-        margin-bottom: 10px;
-    }}
-    .wm-now-left {{
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        padding-right: 8px;
-        border-right: 1px solid #163252;
-    }}
-    .wm-now-ico {{ font-size: 2.1rem; }}
-    .wm-now-temp {{
-        font-size: 1.75rem;
-        font-weight: 900;
-        color: #ffffff;
-        line-height: 1;
-    }}
-    .wm-now-desc {{
-        font-size: 0.64rem;
-        color: #cbd5e1;
-        margin-top: 3px;
-        font-weight: 600;
-    }}
-    .wm-now-grid {{
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 7px 10px;
-        flex: 1;
-    }}
-    .wm-stat {{
-        display: flex;
-        align-items: center;
-        gap: 5px;
-    }}
-    .wm-stat-ico {{ font-size: 0.85rem; }}
-    .wm-stat-lbl {{ font-size: 0.56rem; color: #94a3b8; }}
-    .wm-stat-val {{ font-size: 0.72rem; color: #ffffff; font-weight: 800; }}
-
-    /* GRADE 5 DIAS */
-    .wm-days {{
-        display: flex;
-        gap: 5px;
-        margin-bottom: 9px;
-    }}
-    .day-card {{
-        flex: 1;
-        min-width: 0;
-        background: #070f1d;
-        border: 1px solid #163252;
-        border-radius: 10px;
-        padding: 7px 3px;
-        text-align: center;
-    }}
-    .d-sem {{ font-size: 0.68rem; font-weight: 800; color: #ffffff; }}
-    .d-dm {{ font-size: 0.56rem; color: #94a3b8; margin-bottom: 4px; }}
-    .d-ico {{ font-size: 1.15rem; margin: 2px 0; }}
-    .d-max {{ font-size: 0.74rem; font-weight: 900; color: #ffffff; margin-top: 3px; }}
-    .d-min {{ font-size: 0.66rem; font-weight: 800; color: #38bdf8; }}
-    .d-desc {{
-        font-size: 0.50rem;
-        color: #94a3b8;
-        margin-top: 3px;
-        line-height: 1.15;
-        display: -webkit-box;
-        -webkit-line-clamp: 2;
-        -webkit-box-orient: vertical;
-        overflow: hidden;
-    }}
-
-    /* RODAPÉ DE ALERTA OPERACIONAL */
-    .wm-foot {{
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 8px;
-        background: #070f1d;
-        border: 1px solid #163252;
-        border-radius: 10px;
-        padding: 7px 10px;
-    }}
-    .wm-foot-txt {{
-        font-size: 0.60rem;
-        color: #cbd5e1;
-        line-height: 1.25;
-        flex: 1;
-    }}
-    .wm-foot-brand {{
-        font-size: 0.68rem;
-        font-weight: 800;
-        color: #00D672;
-        text-align: right;
-        line-height: 1.05;
-        flex-shrink: 0;
+    details.clima-strip[open] > summary .clm-chev {{
+        transform: rotate(180deg);
     }}
 </style>
-</head>
-<body>
+<div style="margin-bottom:12px; border:1.5px solid #00D672; border-radius:13px; background:linear-gradient(180deg, #0b1c33 0%, #070f1d 100%); box-shadow:0 0 14px rgba(0, 214, 114, 0.16); overflow:hidden;">
+    <details class="clima-strip" style="border:none; background:transparent;">
+        <summary style="list-style:none; cursor:pointer; padding:8px 12px; display:flex; align-items:center; justify-content:space-between; gap:8px; outline:none; -webkit-tap-highlight-color:transparent;">
+            <div style="display:flex; align-items:center; gap:7px; min-width:0;">
+                <span style="font-size:0.85rem;">📍</span>
+                <span style="color:#ffffff; font-size:0.78rem; font-weight:800; white-space:nowrap;">Três Lagoas - MS</span>
+                <span style="color:#64748b; font-size:0.72rem; font-weight:600; white-space:nowrap;">• {data_topo_str}</span>
+            </div>
+            <div style="display:flex; align-items:center; gap:8px; flex-shrink:0;">
+                <span style="font-size:1.05rem;">{clima_tl['ico']}</span>
+                <span style="color:#00D672; font-size:0.88rem; font-weight:900; font-family:monospace;">{clima_tl['temp']}</span>
+                <span class="clm-chev" style="color:#00D672; font-size:0.70rem; padding-left:2px;">▼</span>
+            </div>
+        </summary>
 
-<div class="banner-stage">
-    <img class="banner-bg" src="{BANNER_TOPO_URL}" alt="A.L.O.V.E. Eldorado Brasil">
-    <div class="banner-grad"></div>
+        <div style="padding:10px 12px 12px 12px; border-top:1px solid #163252;">
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; background:rgba(5,9,17,0.75); border:1px solid #163252; border-radius:12px; padding:10px; margin-bottom:10px;">
+                <div style="display:flex; align-items:center; gap:8px; padding-right:10px; border-right:1px solid #163252;">
+                    <span style="font-size:2.1rem;">{clima_tl['ico']}</span>
+                    <div>
+                        <div style="font-size:1.75rem; font-weight:900; color:#ffffff; line-height:1;">{clima_tl['temp']}</div>
+                        <div style="font-size:0.65rem; color:#cbd5e1; margin-top:3px; font-weight:600;">{html_lib.escape(clima_tl['desc'])}</div>
+                    </div>
+                </div>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:7px 10px; flex:1;">
+                    <div style="display:flex; align-items:center; gap:5px;">
+                        <span style="font-size:0.85rem;">💧</span>
+                        <div>
+                            <div style="font-size:0.56rem; color:#94a3b8;">Umidade</div>
+                            <div style="font-size:0.72rem; color:#ffffff; font-weight:800;">{clima_tl['umid']}</div>
+                        </div>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:5px;">
+                        <span style="font-size:0.85rem;">💨</span>
+                        <div>
+                            <div style="font-size:0.56rem; color:#94a3b8;">Vento</div>
+                            <div style="font-size:0.72rem; color:#ffffff; font-weight:800;">{clima_tl['vento']} <span style="color:#00D672; font-size:0.60rem;">{clima_tl['vento_dir']}</span></div>
+                        </div>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:5px;">
+                        <span style="font-size:0.85rem;">🌅</span>
+                        <div>
+                            <div style="font-size:0.56rem; color:#94a3b8;">Nascer do Sol</div>
+                            <div style="font-size:0.72rem; color:#ffffff; font-weight:800;">{clima_tl['nascer']}</div>
+                        </div>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:5px;">
+                        <span style="font-size:0.85rem;">🌇</span>
+                        <div>
+                            <div style="font-size:0.56rem; color:#94a3b8;">Pôr do Sol</div>
+                            <div style="font-size:0.72rem; color:#ffffff; font-weight:800;">{clima_tl['por']}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
-    <div class="weather-pill" onclick="togglePrevisao()">
-        <div class="time-col">
-            <div class="loc-txt">📍 Três Lagoas - MS</div>
-            <div class="clock-txt" id="relogio-tl">--:--:--</div>
-            <div class="date-txt" id="data-tl">---</div>
+            <div style="display:flex; gap:5px; margin-bottom:9px;">
+                {cards_5d_html}
+            </div>
+
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; background:#050911; border:1px solid #163252; border-radius:10px; padding:7px 10px;">
+                <span style="color:#00D672; font-size:0.85rem;">ℹ️</span>
+                <div style="font-size:0.62rem; color:#cbd5e1; line-height:1.25; flex:1;">{html_lib.escape(clima_tl['aviso'])}</div>
+                <div style="font-size:0.68rem; font-weight:800; color:#00D672; text-align:right; line-height:1.05; flex-shrink:0;">Eldorado<br><span style="color:#94a3b8; font-size:0.56rem;">Brasil</span></div>
+            </div>
         </div>
-        <div class="weather-col">
-            <div class="w-ico">{clima_tl['ico']}</div>
-            <div class="w-temp">{clima_tl['temp']}</div>
-            <div class="w-hint" id="hint-clima">▼ Clima</div>
-        </div>
-    </div>
+    </details>
 </div>
+"""
+render_html(html_clima_barra)
 
-<div class="weather-modal" id="modal-clima">
-    <div class="wm-head">
-        <div class="wm-title-grp">
-            <div class="wm-big-ico">{clima_tl['ico']}</div>
-            <div>
-                <div class="wm-tit">PREVISÃO DO TEMPO</div>
-                <div class="wm-sub">📍 Três Lagoas - MS</div>
-            </div>
-        </div>
-        <button class="wm-close" onclick="togglePrevisao()">✕</button>
-    </div>
-
-    <div class="wm-now-card">
-        <div class="wm-now-left">
-            <div class="wm-now-ico">{clima_tl['ico']}</div>
-            <div>
-                <div class="wm-now-temp">{clima_tl['temp']}</div>
-                <div class="wm-now-desc">{html_lib.escape(clima_tl['desc'])}</div>
-            </div>
-        </div>
-        <div class="wm-now-grid">
-            <div class="wm-stat">
-                <span class="wm-stat-ico">💧</span>
-                <div>
-                    <div class="wm-stat-lbl">Umidade</div>
-                    <div class="wm-stat-val">{clima_tl['umid']}</div>
-                </div>
-            </div>
-            <div class="wm-stat">
-                <span class="wm-stat-ico">💨</span>
-                <div>
-                    <div class="wm-stat-lbl">Vento</div>
-                    <div class="wm-stat-val">{clima_tl['vento']} <span style="color:#00D672; font-size:0.60rem;">{clima_tl['vento_dir']}</span></div>
-                </div>
-            </div>
-            <div class="wm-stat">
-                <span class="wm-stat-ico">🌅</span>
-                <div>
-                    <div class="wm-stat-lbl">Nascer do Sol</div>
-                    <div class="wm-stat-val">{clima_tl['nascer']}</div>
-                </div>
-            </div>
-            <div class="wm-stat">
-                <span class="wm-stat-ico">🌇</span>
-                <div>
-                    <div class="wm-stat-lbl">Pôr do Sol</div>
-                    <div class="wm-stat-val">{clima_tl['por']}</div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="wm-days">
-        {cards_5d_html}
-    </div>
-
-    <div class="wm-foot">
-        <span style="color:#00D672; font-size:0.85rem;">ℹ️</span>
-        <div class="wm-foot-txt">{html_lib.escape(clima_tl['aviso'])}</div>
-        <div class="wm-foot-brand">Eldorado<br><span style="color:#94a3b8; font-size:0.56rem;">Brasil</span></div>
-    </div>
-</div>
-
-<script>
-    const diasSem = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
-    const meses = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
-
-    function atualizarRelogioTL() {{
-        const agora = new Date();
-        const utcMs = agora.getTime() + (agora.getTimezoneOffset() * 60000);
-        const tl = new Date(utcMs - (4 * 3600000));
-
-        const hh = String(tl.getHours()).padStart(2, '0');
-        const mm = String(tl.getMinutes()).padStart(2, '0');
-        const ss = String(tl.getSeconds()).padStart(2, '0');
-        document.getElementById("relogio-tl").textContent = `${{hh}}:${{mm}}:${{ss}}`;
-
-        const ds = diasSem[tl.getDay()];
-        const dd = String(tl.getDate()).padStart(2, '0');
-        const mes = meses[tl.getMonth()];
-        const aa = tl.getFullYear();
-        document.getElementById("data-tl").innerHTML = `${{ds}}, ${{dd}} de ${{mes}} de <span style="color:#00D672;">${{aa}}</span>`;
-    }}
-
-    function togglePrevisao() {{
-        const modal = document.getElementById("modal-clima");
-        const hint = document.getElementById("hint-clima");
-        const aberto = modal.classList.toggle("open");
-        hint.textContent = aberto ? "▲ Fechar" : "▼ Clima";
-
-        // Ajusta dinamicamente a altura do iframe do Streamlit para não cortar nem deixar buraco
-        if (window.frameElement) {{
-            if (aberto) {{
-                const alturaTotal = document.body.scrollHeight + 8;
-                window.frameElement.style.height = alturaTotal + "px";
-            }} else {{
-                window.frameElement.style.height = "116px";
-            }}
-        }}
-    }}
-
-    atualizarRelogioTL();
-    setInterval(atualizarRelogioTL, 1000);
-</script>
-</body>
-</html>
-""", height=116)
 
 
 
