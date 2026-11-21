@@ -1072,12 +1072,13 @@ html_clima_barra = f"""
                 </div>
             </div>
 
-            <!-- RODAPÉ DE ALERTA OPERACIONAL -->
-            <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; background:#050911; border:1px solid #163252; border-radius:10px; padding:7px 10px;">
-                <span style="color:#00D672; font-size:0.85rem;">ℹ️</span>
-                <div style="font-size:0.62rem; color:#cbd5e1; line-height:1.25; flex:1;">{html_lib.escape(clima_tl['aviso'])}</div>
+            <!-- RODAPÉ DE ALERTA OPERACIONAL DINÂMICO -->
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:9px; background:#050911; border:1px solid #163252; border-left:3.5px solid {clima_tl['aviso_cor']}; border-radius:10px; padding:8px 10px;">
+                <span style="font-size:1.05rem; flex-shrink:0;">{clima_tl['aviso_ico']}</span>
+                <div style="font-size:0.64rem; color:#e2e8f0; line-height:1.3; flex:1;">{html_lib.escape(clima_tl['aviso'])}</div>
                 <div style="font-size:0.68rem; font-weight:800; color:#00D672; text-align:right; line-height:1.05; flex-shrink:0;">Eldorado<br><span style="color:#94a3b8; font-size:0.56rem;">Brasil</span></div>
             </div>
+
         </div>
     </details>
 </div>
