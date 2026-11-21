@@ -107,7 +107,7 @@ st.markdown("""
 
                 /* COLUNA CENTRAL ESTILO APP (COMPENSA O BANNER FIXO SEM BURACO) */
         .block-container {
-            padding-top: calc(env(safe-area-inset-top, 0px) + 38px) !important;
+            padding-top: calc(env(safe-area-inset-top, 0px) + 28px) !important;
             padding-bottom: 3.5rem !important;
             padding-left: 0.8rem !important;
             padding-right: 0.8rem !important;
