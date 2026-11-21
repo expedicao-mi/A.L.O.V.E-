@@ -777,106 +777,60 @@ components.html(f"""
         display: flex;
         align-items: center;
         justify-content: space-between;
-        gap: 8px;
-        padding: 8px 4px 6px 4px;
+        gap: 6px;
+        padding: 4px 2px 4px 2px;
         width: 100%;
+        height: 76px;
     }}
-    .brand-box {{
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        min-width: 0;
+    .logo-col {{
         flex: 1;
-    }}
-    .brand-top {{
+        min-width: 0;
+        height: 100%;
         display: flex;
         align-items: center;
-        gap: 6px;
+        justify-content: flex-start;
     }}
-    .brand-alove {{
-        font-size: 1.32rem;
-        font-weight: 900;
-        color: #00E676;
-        letter-spacing: 1px;
-        text-shadow: 0 0 12px rgba(0, 230, 118, 0.45);
-        white-space: nowrap;
-    }}
-    .brand-sep {{
-        width: 1.5px;
-        height: 20px;
-        background: #1e3a5f;
-    }}
-    .brand-eld {{
-        display: flex;
-        flex-direction: column;
-        line-height: 1.05;
-    }}
-    .brand-eld-main {{
-        font-size: 0.78rem;
-        font-weight: 800;
-        color: #00D672;
-    }}
-    .brand-eld-sub {{
-        font-size: 0.62rem;
-        font-weight: 600;
-        color: #94a3b8;
-        text-align: right;
-    }}
-    .brand-tagline {{
-        font-size: 0.56rem;
-        font-weight: 700;
-        color: #94a3b8;
-        margin-top: 4px;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
+    .logo-col img {{
+        width: 100%;
+        max-height: 70px;
+        object-fit: contain;
+        object-position: left center;
+        mix-blend-mode: lighten;
+        display: block;
     }}
     .widget-box {{
         display: flex;
         align-items: center;
-        gap: 8px;
+        gap: 7px;
         background: linear-gradient(180deg, rgba(11, 24, 48, 0.95) 0%, rgba(6, 13, 26, 0.98) 100%);
         border: 1.5px solid #00D672;
-        border-radius: 12px;
-        padding: 6px 9px;
-        box-shadow: 0 0 14px rgba(0, 214, 114, 0.22);
+        border-radius: 11px;
+        padding: 5px 8px;
+        box-shadow: 0 0 12px rgba(0, 214, 114, 0.22);
         flex-shrink: 0;
-    }}
-    .clock-ico {{
-        width: 24px;
-        height: 24px;
-        border-radius: 50%;
-        border: 1.5px solid #00D672;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: #00D672;
-        font-size: 0.78rem;
-        font-weight: 900;
-        box-shadow: 0 0 8px rgba(0, 214, 114, 0.35);
     }}
     .time-col {{
         display: flex;
         flex-direction: column;
         align-items: center;
-        line-height: 1.1;
+        line-height: 1.12;
     }}
     .loc-txt {{
-        font-size: 0.56rem;
+        font-size: 0.54rem;
         font-weight: 700;
         color: #cbd5e1;
         white-space: nowrap;
     }}
     .clock-txt {{
-        font-size: 1.08rem;
+        font-size: 1.04rem;
         font-weight: 900;
         color: #ffffff;
         font-variant-numeric: tabular-nums;
-        letter-spacing: 0.4px;
+        letter-spacing: 0.3px;
         margin: 1px 0;
     }}
     .date-txt {{
-        font-size: 0.54rem;
+        font-size: 0.52rem;
         font-weight: 700;
         color: #94a3b8;
         white-space: nowrap;
@@ -887,14 +841,14 @@ components.html(f"""
         align-items: center;
         justify-content: center;
         border-left: 1px solid #163252;
-        padding-left: 7px;
+        padding-left: 6px;
         line-height: 1.1;
     }}
     .w-ico {{
-        font-size: 1.05rem;
+        font-size: 0.98rem;
     }}
     .w-temp {{
-        font-size: 0.74rem;
+        font-size: 0.72rem;
         font-weight: 800;
         color: #ffffff;
         margin-top: 2px;
@@ -903,20 +857,11 @@ components.html(f"""
 </head>
 <body>
 <div class="hdr-wrap">
-    <div class="brand-box">
-        <div class="brand-top">
-            <span class="brand-alove">A.L.O.V.E.</span>
-            <span class="brand-sep"></span>
-            <div class="brand-eld">
-                <span class="brand-eld-main">Eldorado</span>
-                <span class="brand-eld-sub">Brasil</span>
-            </div>
-        </div>
-        <div class="brand-tagline">Assistente Virtual da Expedição</div>
+    <div class="logo-col">
+        <img src="{BANNER_TOPO_URL}" alt="A.L.O.V.E. Eldorado Brasil">
     </div>
 
     <div class="widget-box">
-        <div class="clock-ico">🕒</div>
         <div class="time-col">
             <div class="loc-txt">📍 Três Lagoas - MS</div>
             <div class="clock-txt" id="relogio-tl">--:--:--</div>
@@ -957,6 +902,7 @@ components.html(f"""
 </body>
 </html>
 """, height=78)
+
 
 # ==============================================================================
 # 🖨️ RENDERIZAÇÃO 1: STATUS DO SISTEMA (NOC TELEMETRY - SEMPRE FECHADO AO ABRIR)
