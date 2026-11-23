@@ -169,7 +169,7 @@ st.markdown("""
         }
 
 
-                /* COLUNA CENTRAL ESTILO APP (COMPENSA O BANNER FIXO SEM BURACO) */
+        /* COLUNA CENTRAL ESTILO APP (COMPENSA O BANNER FIXO SEM BURACO) */
         .block-container {
             padding-top: calc(env(safe-area-inset-top, 0px) + 28px) !important;
             padding-bottom: 3.5rem !important;
@@ -177,6 +177,11 @@ st.markdown("""
             padding-right: 0.8rem !important;
             max-width: 560px !important;
             margin: 0 auto !important;
+        }
+
+        /* GARANTE QUE OS ATALHOS PAREM ABAIXO DO BANNER FIXO SEM TAMPAR O TÍTULO */
+        [id^="sec-"] {
+            scroll-margin-top: calc(env(safe-area-inset-top, 0px) + 104px) !important;
         }
 
 
@@ -1419,6 +1424,7 @@ if not df_prancheta.empty:
 # 🖨️ RENDERIZAÇÃO 3.5: PREVISÕES DO DIA (PRODUÇÃO & CARREGAMENTO)
 # ==============================================================================
 html_previsoes = f"""
+<div id="sec-prev"></div>
 <div class="card-main" style="margin-bottom: 14px;">
     <div class="card-head" style="margin-bottom: 10px;">
         <div class="icon-sq" style="background: rgba(0, 180, 255, 0.15); border-color: #00b4ff;">📅</div>
@@ -3836,29 +3842,119 @@ with st.expander("🛠️ Console de Telemetria & Logs do Core (Dev)", expanded=
 
 
 # ==============================================================================
-# 🎯 MENU FLUTUANTE DE ATALHOS RÁPIDOS (CANTO INFERIOR DIREITO)
+# 🎯 MENU FLUTUANTE DE ATALHOS (FECHA AO CLICAR + PARA ABAIXO DO BANNER)
 # ==============================================================================
 html_fab_atalhos = """
 <div class="fab-container">
-    <details class="fab-details">
+    <details class="fab-details" id="fabMenuDetails">
         <summary title="Atalhos Rápidos">⚡</summary>
         <div class="fab-menu">
-            <a href="#sec-topo">⬆️ Topo & Clima</a>
-            <a href="#sec-prod">🏭 Produção Celulose</a>
-            <a href="#sec-est">📦 Estoque Armazém</a>
-            <a href="#sec-exp">🚚 Expedição Realizada</a>
-            <a href="#sec-ped">📑 Pedidos ZLE087</a>
-            <a href="#sec-patio">🚛 Pátio da Fábrica</a>
-            <a href="#sec-frota">🚜 Frota & Equipamentos</a>
-            <a href="#sec-manut">🔧 Preventiva & Inspeção</a>
-            <a href="#sec-glp">⛽ Consumo de GLP</a>
-            <a href="#sec-baf">🩺 Auditoria Bafômetro</a>
-            <a href="#sec-print" class="fab-print-link">📸 Gerar Print Executivo</a>
+            <a href="#sec-topo" onclick="this.closest('details').removeAttribute('open')">⬆️ Topo & Clima</a>
+            <a href="#sec-prev" onclick="this.closest('details').removeAttribute('open')">📅 Previsões do Dia</a>
+            <a href="#sec-prod" onclick="this.closest('details').removeAttribute('open')">🏭 Produção Celulose</a>
+            <a href="#sec-est" onclick="this.closest('details').removeAttribute('open')">📦 Estoque Armazém</a>
+            <a href="#sec-exp" onclick="this.closest('details').removeAttribute('open')">🚚 Expedição Realizada</a>
+            <a href="#sec-ped" onclick="this.closest('details').removeAttribute('open')">📑 Pedidos ZLE087</a>
+            <a href="#sec-patio" onclick="this.closest('details').removeAttribute('open')">🚛 Pátio da Fábrica</a>
+            <a href="#sec-frota" onclick="this.closest('details').removeAttribute('open')">🚜 Frota & Equipamentos</a>
+            <a href="#sec-manut" onclick="this.closest('details').removeAttribute('open')">🔧 Preventiva & Inspeção</a>
+            <a href="#sec-glp" onclick="this.closest('details').removeAttribute('open')">⛽ Consumo de GLP</a>
+            <a href="#sec-baf" onclick="this.closest('details').removeAttribute('open')">🩺 Auditoria Bafômetro</a>
+            <a href="?print_modal=1" target="_self" class="fab-print-link" onclick="this.closest('details').removeAttribute('open')">📸 Print de Bloco</a>
         </div>
     </details>
 </div>
 """
 render_html(html_fab_atalhos)
+
+
+# ==============================================================================
+# 📸 MODAL DE PRINT EXECUTIVO (EXIBE O PRÓPRIO CARD REAL DO MOBILE ABERTO)
+# ==============================================================================
+print_modal_flag = st.query_params.get("print_modal", "")
+print_bloco_sel = st.query_params.get("print_bloco", "")
+
+if print_modal_flag == "1" or print_bloco_sel:
+    mapa_blocos_reais = {
+        "prev":  ("📅 Previsões do Dia", html_previsoes),
+        "prod":  ("🏭 Produção de Celulose", html_prod_completo),
+        "est":   ("📦 Estoque Físico no Armazém", html_est),
+        "exp":   ("🚚 Expedição Realizada", html_exp_completo),
+        "ped":   ("📑 Análise de Pedidos (ZLE087)", html_bloco_pedidos),
+        "patio": ("🚛 Pátio da Fábrica", html_patio),
+        "frota": ("🚜 Frota & Equipamentos", html_frota_disp),
+        "manut": ("🔧 Preventiva & Inspeção", html_prev_insp_bloco),
+        "glp":   ("⛽ Consumo de GLP", html_glp_completo),
+        "baf":   ("🩺 Auditoria Bafômetro (H&S)", html_baf_final),
+        "anual": ("📊 Comparativo Anual", h_an),
+    }
+
+    if not print_bloco_sel or print_bloco_sel not in mapa_blocos_reais:
+        # JANELA 1: SELETOR RÁPIDO DE QUAL BLOCO VOCÊ QUER PRINTAR
+        botoes_escolha_html = ""
+        for chave_b, (rotulo_b, _) in mapa_blocos_reais.items():
+            botoes_escolha_html += f"""
+            <a href="?print_bloco={chave_b}" target="_self"
+               style="display:flex; align-items:center; justify-content:space-between; background:#070f1d; border:1.5px solid #163252; border-radius:12px; padding:12px 14px; color:#ffffff; text-decoration:none; font-size:0.88rem; font-weight:800;">
+                <span>{rotulo_b}</span>
+                <span style="color:#00D672; font-size:0.82rem;">Gerar Print ›</span>
+            </a>
+            """
+
+        html_janela_escolha = f"""
+        <div style="position:fixed; inset:0; background:rgba(3,7,14,0.94); backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px); z-index:999995; overflow-y:auto; padding:18px 14px 40px 14px;">
+            <div style="max-width:520px; margin:0 auto; background:linear-gradient(180deg, #0b1c33 0%, #060d18 100%); border:1.5px solid #00D672; border-radius:18px; padding:16px; box-shadow:0 0 28px rgba(0,214,114,0.28);">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; padding-bottom:10px; border-bottom:1px solid #163252;">
+                    <div>
+                        <div style="color:#00D672; font-size:0.95rem; font-weight:900; letter-spacing:0.4px;">📸 GERAR PRINT DO MOBILE</div>
+                        <div style="color:#94a3b8; font-size:0.74rem; margin-top:2px;">Selecione o bloco para abrir o card limpo pronto para captura:</div>
+                    </div>
+                    <a href="?" target="_self" style="width:34px; height:34px; border-radius:10px; background:#070f1d; border:1.5px solid #E74C3C; color:#ffffff; font-weight:900; text-decoration:none; display:flex; align-items:center; justify-content:center;">✕</a>
+                </div>
+                <div style="display:flex; flex-direction:column; gap:8px;">
+                    {botoes_escolha_html}
+                </div>
+            </div>
+        </div>
+        """
+        render_html(html_janela_escolha)
+
+    else:
+        # JANELA 2: EXIBE O PRÓPRIO CARD REAL DO MOBILE ABERTO + CABEÇALHO LIMPO
+        _, html_card_escolhido = mapa_blocos_reais[print_bloco_sel]
+        # Força a abertura automática (<details open>) do card escolhido no modo print
+        html_card_aberto = html_card_escolhido.replace('<details class="master-box"', '<details class="master-box" open', 1)
+
+        html_tela_print_real = f"""
+        <style>
+            .fab-container, .topo-banner, .topo-banner-mask {{ display: none !important; }}
+        </style>
+        <div style="position:fixed; inset:0; background:#050911; z-index:999998; overflow-y:auto; padding:12px 12px 48px 12px;">
+            <div style="max-width:540px; margin:0 auto;">
+                <!-- BARRA DE CONTROLE SUPERIOR (FORA DO CARD DE PRINT) -->
+                <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:10px; background:#091324; border:1px solid #163252; border-radius:12px; padding:8px 12px;">
+                    <a href="?print_modal=1" target="_self" style="color:#38bdf8; font-size:0.78rem; font-weight:800; text-decoration:none;">◀ Trocar Bloco</a>
+                    <span style="color:#94a3b8; font-size:0.70rem; font-weight:600;">Modo Captura Limpa</span>
+                    <a href="?" target="_self" style="color:#ff8080; font-size:0.78rem; font-weight:800; text-decoration:none;">✕ Fechar</a>
+                </div>
+
+                <!-- CABEÇALHO OFICIAL PARA SAIR JUNTO NO PRINT -->
+                <div style="border:1.5px solid #00D672; border-radius:16px; overflow:hidden; margin-bottom:10px; box-shadow:0 0 16px rgba(0,214,114,0.22);">
+                    <img src="{BANNER_TOPO_URL}" style="width:100%; max-height:86px; object-fit:cover; display:block;">
+                </div>
+
+                <!-- O PRÓPRIO CARD REAL DO MOBILE ABERTO -->
+                {html_card_aberto}
+
+                <div style="text-align:center; color:#64748b; font-size:0.68rem; margin-top:6px;">
+                    A.L.O.V.E. Mobile • Gerado em {agora_br.strftime('%d/%m/%Y às %H:%M')}
+                </div>
+            </div>
+        </div>
+        """
+        render_html(html_tela_print_real)
+
+st.markdown("<br><center><span style='color:#64748b; font-size:0.75rem; letter-spacing:0.5px;'>A.L.O.V.E - Mobile / Developed by Cristiano Ciriaco</span></center>", unsafe_allow_html=True)
 
 
 # ==============================================================================
