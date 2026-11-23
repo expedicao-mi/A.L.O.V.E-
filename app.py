@@ -3976,6 +3976,7 @@ render_html(html_fab_e_prints)
 
 # Motor silencioso que gera o PNG completo sem cortar e abre compartilhamento nativo (WhatsApp)
 components.html("""
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 <script>
 (function() {
     const parentDoc = window.parent.document;
@@ -3988,16 +3989,24 @@ components.html("""
             btn.dataset.bound = "1";
             btn.addEventListener('click', async function() {
                 const origTxt = btn.textContent;
+                if (typeof html2canvas === "undefined") {
+                    btn.textContent = "⏳ Carregando motor...";
+                    setTimeout(() => { btn.textContent = origTxt; }, 1200);
+                    return;
+                }
                 btn.textContent = "⏳ Gerando PNG...";
                 btn.disabled = true;
                 try {
                     const overlay = btn.closest('.zero-reload-overlay');
                     const area = overlay.querySelector('.capture-area');
-                    const canvas = await parentWin.html2canvas(area, {
+                    const canvas = await html2canvas(area, {
                         backgroundColor: "#050911",
                         scale: 2,
                         useCORS: true,
                         logging: false,
+                        scrollX: 0,
+                        scrollY: 0,
+                        windowWidth: area.scrollWidth,
                         windowHeight: area.scrollHeight + 40
                     });
                     const nomeArq = (btn.dataset.nome || "ALOVE_Print") + ".png";
@@ -4040,6 +4049,7 @@ components.html("""
                         setTimeout(() => { btn.textContent = origTxt; btn.disabled = false; }, 1600);
                     }, "image/png");
                 } catch (err) {
+                    console.error("Erro captura PNG:", err);
                     btn.textContent = "❌ Erro ao gerar";
                     setTimeout(() => { btn.textContent = origTxt; btn.disabled = false; }, 2000);
                 }
@@ -4047,15 +4057,8 @@ components.html("""
         });
     }
 
-    if (!parentWin.html2canvas) {
-        const sc = parentDoc.createElement('script');
-        sc.src = "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js";
-        sc.onload = vincularBotoes;
-        parentDoc.head.appendChild(sc);
-    } else {
-        vincularBotoes();
-    }
-    setInterval(vincularBotoes, 1500);
+    vincularBotoes();
+    setInterval(vincularBotoes, 1200);
 })();
 </script>
 """, height=0)
