@@ -214,6 +214,77 @@ st.markdown("""
             margin: 0 auto;
         }
 
+        /* 🎯 BOTÃO FLUTUANTE DE ATALHOS & PRINT (CANTO INFERIOR DIREITO) */
+        .fab-container {
+            position: fixed;
+            right: 16px;
+            bottom: calc(env(safe-area-inset-bottom, 0px) + 18px);
+            z-index: 99990;
+        }
+        .fab-details {
+            position: relative;
+        }
+        .fab-details > summary {
+            list-style: none;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #00D672 0%, #0084FF 100%);
+            color: #050911;
+            font-size: 1.35rem;
+            font-weight: 900;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 18px rgba(0, 214, 114, 0.45), 0 4px 12px rgba(0, 0, 0, 0.65);
+            border: 2px solid #ffffff;
+            cursor: pointer;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .fab-details > summary::-webkit-details-marker { display: none; }
+        .fab-menu {
+            position: absolute;
+            right: 0;
+            bottom: 60px;
+            width: 225px;
+            background: rgba(7, 15, 29, 0.96);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1.5px solid #00D672;
+            border-radius: 16px;
+            padding: 8px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.85), 0 0 16px rgba(0, 214, 114, 0.25);
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .fab-menu a {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 10px;
+            border-radius: 9px;
+            color: #e2e8f0;
+            text-decoration: none;
+            font-size: 0.78rem;
+            font-weight: 700;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid transparent;
+        }
+        .fab-menu a:active {
+            background: rgba(0, 214, 114, 0.18);
+            border-color: #00D672;
+            color: #ffffff;
+        }
+        .fab-menu a.fab-print-link {
+            background: linear-gradient(90deg, rgba(0, 214, 114, 0.18) 0%, rgba(0, 132, 255, 0.18) 100%);
+            border: 1px solid #00D672;
+            color: #00FF7F;
+            font-weight: 800;
+            margin-top: 3px;
+        }
+
         /* CARTÕES PADRÃO */
         .card-main {
             background: linear-gradient(180deg, #0b1830 0%, #08111f 100%);
@@ -2306,6 +2377,7 @@ html_bloco_pedidos = f"""
     #tab_mi:checked ~ details .ped-view-mi {{ display: block; }}
 </style>
 
+<div id="sec-ped"></div>
 <div class="ped-wrapper">
     <input type="radio" name="ped_view" id="tab_transf" checked>
     <input type="radio" name="ped_view" id="tab_mi">
@@ -3763,4 +3835,246 @@ with st.expander("🛠️ Console de Telemetria & Logs do Core (Dev)", expanded=
                 )
 
 
-st.markdown("<br><center><span style='color:#64748b; font-size:0.75rem; letter-spacing:0.5px;'>A.L.O.V.E - Mobile / Developed by Cristiano Ciriaco.</span></center>", unsafe_allow_html=True)
+# ==============================================================================
+# 🎯 MENU FLUTUANTE DE ATALHOS RÁPIDOS (CANTO INFERIOR DIREITO)
+# ==============================================================================
+html_fab_atalhos = """
+<div class="fab-container">
+    <details class="fab-details">
+        <summary title="Atalhos Rápidos">⚡</summary>
+        <div class="fab-menu">
+            <a href="#sec-topo">⬆️ Topo & Clima</a>
+            <a href="#sec-prod">🏭 Produção Celulose</a>
+            <a href="#sec-est">📦 Estoque Armazém</a>
+            <a href="#sec-exp">🚚 Expedição Realizada</a>
+            <a href="#sec-ped">📑 Pedidos ZLE087</a>
+            <a href="#sec-patio">🚛 Pátio da Fábrica</a>
+            <a href="#sec-frota">🚜 Frota & Equipamentos</a>
+            <a href="#sec-manut">🔧 Preventiva & Inspeção</a>
+            <a href="#sec-glp">⛽ Consumo de GLP</a>
+            <a href="#sec-baf">🩺 Auditoria Bafômetro</a>
+            <a href="#sec-print" class="fab-print-link">📸 Gerar Print Executivo</a>
+        </div>
+    </details>
+</div>
+"""
+render_html(html_fab_atalhos)
+
+
+# ==============================================================================
+# 📸 GERADOR EXECUTIVO DE PRINT / RELATÓRIO EM IMAGEM PNG
+# ==============================================================================
+def gerar_imagem_bloco_png(bloco_escolhido: str) -> bytes:
+    from PIL import Image, ImageDraw, ImageFont
+    from io import BytesIO
+
+    # Coleta título, cor tema, KPI principal e linhas estruturadas do bloco escolhido
+    cor_destaque = (0, 214, 114)
+    titulo_card = bloco_escolhido.upper()
+    kpi_principal = ""
+    sub_kpi = ""
+    linhas_dados = []
+
+    if bloco_escolhido == "Previsões do Dia":
+        cor_destaque = (0, 180, 255)
+        kpi_principal = f"Prod: {fmt(prev_prod)} t  |  Carr: {fmt(prev_carr)} t"
+        sub_kpi = "Projeção Consolidada 24 Horas"
+        linhas_dados = [
+            ("Previsão de Produção (24h)", f"{fmt(prev_prod)} t", (255, 255, 255)),
+            ("Previsão de Carregamento (24h)", f"{fmt(prev_carr)} t", (0, 230, 118)),
+            ("Produção Realizada até agora", f"{fmt(prod_hoje_calc)} t", (229, 184, 0)),
+            ("Expedição Realizada até agora", f"{fmt(vol_hoje)} t", (56, 189, 248)),
+        ]
+
+    elif bloco_escolhido == "Produção de Celulose":
+        cor_destaque = (229, 184, 0)
+        kpi_principal = f"{fmt(prod_hoje_calc)} TON"
+        sub_kpi = f"Prev. Fechamento 24h: {fmt(prev_prod)} t"
+        for m_k in ["MS1", "MS2"]:
+            qm = dados_maquinas.get(m_k, {})
+            if qm:
+                linhas_dados.append((f"{m_k} — MAT {qm.get('material', '--')} ({qm.get('qualidade_tipo', 'EQ')})", f"{fmt(qm.get('producao', 0))} t", (255, 159, 28)))
+                linhas_dados.append((f"   Linhas {m_k}", f"L1: {fmt(qm.get('l1', 0))} t | L2: {fmt(qm.get('l2', 0))} t", (56, 189, 248)))
+                linhas_dados.append((f"   Qualidade {m_k}", f"Alv: {fmt(qm.get('alvura', 0), 2)}% | Suj: {fmt(qm.get('sujidade', 0), 2)} | Visc: {fmt(qm.get('viscosidade', 0))}", (203, 213, 225)))
+
+    elif bloco_escolhido == "Estoque Físico no Armazém":
+        cor_destaque = (0, 255, 127)
+        kpi_principal = f"{fmt(estoque_total)} TON"
+        sub_kpi = f"Ocupação: {pct_ocupacao_est:.0f}% de 25.000 t | Livre: {fmt(espaco_livre_est)} t"
+        linhas_dados.append(("Material On-Grade (EQ)", f"{fmt(tot_on_grade)} t ({pct_on_grade:.0f}%)", (0, 255, 127)))
+        linhas_dados.append(("Material Off-Grade (SQ/BQ/OS)", f"{fmt(tot_off_grade)} t ({pct_off_grade:.0f}%)", (255, 140, 0)))
+        for it_e in itens_estoque[:10]:
+            cor_cls = (0, 255, 127) if it_e["classe"] == "EQ" else ((255, 214, 0) if it_e["classe"] == "SQ" else (255, 46, 46))
+            linhas_dados.append((f"MAT {it_e['material']} [{it_e['classe']}]", f"{fmt(it_e['ton'])} t", cor_cls))
+
+    elif bloco_escolhido == "Expedição Realizada":
+        cor_destaque = (0, 214, 114)
+        kpi_principal = f"{fmt(vol_hoje)} TON"
+        sub_kpi = f"Ontem (D-1): {fmt(vol_ontem)} t | Prev. 24h: {fmt(prev_carr)} t ({pct_prog:.0f}%)"
+        for t_h in tns_hoje:
+            linhas_dados.append((f"{t_h['letra']} ({t_h['horario']})", t_h.get("str_vol", f"{fmt(t_h['v'])} t"), (255, 255, 255)))
+        if total_expedicao_meta > 0:
+            linhas_dados.append(("Plano Total vs Carregado", f"{fmt(total_expedicao_real)} / {fmt(total_expedicao_meta)} t", (56, 189, 248)))
+            linhas_dados.append(("Saldo Pendente do Dia", f"{fmt(total_expedicao_falta)} t", (255, 159, 28)))
+
+    elif bloco_escolhido == "Análise de Pedidos (ZLE087)":
+        cor_destaque = (0, 132, 255)
+        kpi_principal = f"{fmt(tot_saldo_geral)} TON PENDENTES"
+        sub_kpi = f"Transf: {fmt(tot_saldo_transf)} t ({len(pedidos_transf)} ped.) | MI/LATAM: {fmt(tot_saldo_mi)} t ({len(pedidos_mi)} ped.)"
+        for p_it in (pedidos_transf + pedidos_mi)[:10]:
+            c_p = (255, 46, 46) if p_it["is_fim"] else (56, 189, 248)
+            tag_f = " [FIM]" if p_it["is_fim"] else ""
+            linhas_dados.append((f"{p_it['destino']} ({p_it['material']}){tag_f}", f"Saldo: {fmt(p_it['saldo'])} t", c_p))
+
+    elif bloco_escolhido == "Pátio da Fábrica":
+        cor_destaque = (56, 169, 255)
+        kpi_principal = f"{total_veiculos_fisicos} VEÍCULOS FÍSICOS"
+        sub_kpi = f"Carga Disponível (00 + 01 + FC): {fmt(vol_patio_disponivel)} t"
+        for tit_p, chv_p, _, _, _, _ in mapa_status_colunas:
+            dp = dados_patio.get(chv_p, {"veiculos": 0, "peso": 0})
+            linhas_dados.append((tit_p, f"{dp['veiculos']} veíc.  ({fmt(dp['peso'])} t)", (255, 255, 255)))
+
+    elif bloco_escolhido == "Frota & Equipamentos":
+        cor_destaque = (46, 230, 91)
+        kpi_principal = f"{qtd_total_disp} DISPONÍVEIS"
+        sub_kpi = f"Disponíveis: {qtd_total_disp} | Indisponíveis: {qtd_total_indisp}"
+        for tp_f in tipos_ordenados_frota:
+            lista_tp = equip_por_tipo.get(tp_f, [])
+            disp_tp = sum(1 for x in lista_tp if not x["is_indisponivel"])
+            ind_tp = sum(1 for x in lista_tp if x["is_indisponivel"])
+            c_tp = (231, 76, 60) if ind_tp > 0 else (46, 230, 91)
+            linhas_dados.append((tp_f, f"{disp_tp} Disp. / {ind_tp} Indisp. (Total: {len(lista_tp)})", c_tp))
+
+    elif bloco_escolhido == "Gestão de Preventiva & Inspeção":
+        cor_destaque = (255, 140, 0)
+        kpi_principal = f"{tot_alertas_manut} PENDÊNCIAS"
+        sub_kpi = f"Prev: {qtd_venc_prev} Venc / {qtd_prox_prev} Próx | Insp: {qtd_venc_insp} Venc / {qtd_prox_insp} Próx"
+        criticos = [e for e in todos_equip_lista if e["sev_p"] <= 1 or e["sev_i"] <= 1]
+        for eq_c in criticos[:10]:
+            det_c = []
+            if eq_c["sev_p"] <= 1:
+                det_c.append(f"Prev: {eq_c['txt_saldo_p']} ({eq_c['lbl_p']})")
+            if eq_c["sev_i"] <= 1:
+                det_c.append(f"Insp: {eq_c['txt_saldo_i']} ({eq_c['lbl_i']})")
+            linhas_dados.append((eq_c["tag"], " | ".join(det_c), (255, 46, 46)))
+        if not criticos:
+            linhas_dados.append(("Status Geral da Frota", "Nenhuma preventiva ou inspeção vencida/crítica", (0, 255, 127)))
+
+    elif bloco_escolhido == "Consumo de GLP":
+        cor_destaque = (255, 159, 28)
+        kpi_principal = f"{fmt(kg_mes_atual, 1)} KG ({fmt(litros_mes_atual, 1)} L)"
+        sub_kpi = f"Mês Atual ({rotulo_mes_atual}) — {len(glp_maquinas)} Empilhadeiras"
+        for mq_g in glp_maquinas[:10]:
+            linhas_dados.append((f"{mq_g['equip']} ({mq_g['abast']} abast.)", f"{fmt(mq_g['kg'], 1)} kg  ({fmt(mq_g['litros'], 1)} L)", (255, 159, 28)))
+
+    elif bloco_escolhido == "Auditoria Bafômetro (H&S)":
+        cor_destaque = (231, 76, 60) if len(lista_pendentes) > 0 else (0, 214, 114)
+        kpi_principal = f"{total_registrados_baf} AUDITADOS"
+        sub_kpi = f"{nome_turno_completo} — Pendentes: {len(lista_pendentes)} | Trocas: {len(lista_trocas)} | OK: {len(lista_aprovados)}"
+        linhas_dados.append(("Aprovados / Realizados", f"{len(lista_aprovados)} colaboradores", (0, 214, 114)))
+        linhas_dados.append(("Trocas / Não Cadastrados", f"{len(lista_trocas)} colaboradores", (56, 189, 248)))
+        linhas_dados.append(("Pendentes / Não Realizados", f"{len(lista_pendentes)} colaboradores", (231, 76, 60)))
+        for pend_b in lista_pendentes[:6]:
+            linhas_dados.append((f"   Pendente: {pend_b['nome']}", pend_b["funcao"], (255, 128, 128)))
+
+    else:  # Comparativo Anual
+        cor_destaque = (0, 123, 255)
+        kpi_principal = f"{fmt(ca_at)} t EXPEDIDAS"
+        sub_kpi = f"Meta Diária Necessária: {fmt(mdc)} t/dia"
+        linhas_dados = [
+            ("Expedição Acumulada Ano", f"{fmt(ca_at)} t", (0, 123, 255)),
+            ("Produção Acumulada Ano", f"{fmt(pa_at)} t", (0, 214, 114)),
+            ("Projeção Expedição 31/12", f"{fmt(pcf)} t", (56, 189, 248)),
+            ("Projeção Produção 31/12", f"{fmt(ppf)} t", (167, 243, 208)),
+            ("Estoque Meta Final Ano", f"{fmt(meta_est_ano)} t", (255, 255, 255)),
+        ]
+
+    if not linhas_dados:
+        linhas_dados.append(("Status", "Sem registros detalhados no momento", (148, 163, 184)))
+
+    # Carrega fontes seguras (Linux Streamlit Cloud / Windows)
+    def carregar_fonte(tamanho, bold=True):
+        caminhos = [
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf" if bold else "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+            "C:/Windows/Fonts/arialbd.ttf" if bold else "C:/Windows/Fonts/arial.ttf",
+        ]
+        for c_f in caminhos:
+            try:
+                return ImageFont.truetype(c_f, tamanho)
+            except Exception:
+                pass
+        return ImageFont.load_default()
+
+    f_brand = carregar_fonte(34, True)
+    f_sub_brand = carregar_fonte(18, False)
+    f_tit = carregar_fonte(26, True)
+    f_kpi = carregar_fonte(40, True)
+    f_sub = carregar_fonte(20, False)
+    f_row = carregar_fonte(21, False)
+    f_row_b = carregar_fonte(22, True)
+    f_foot = carregar_fonte(17, False)
+
+    largura = 1080
+    altura = 360 + (len(linhas_dados) * 56)
+    img = Image.new("RGB", (largura, altura), (5, 9, 17))
+    draw = ImageDraw.Draw(img)
+
+    # Moldura externa neon
+    draw.rounded_rectangle([18, 18, largura - 18, altura - 18], radius=24, fill=(10, 20, 38), outline=cor_destaque, width=4)
+
+    # Cabeçalho Institucional A.L.O.V.E. | Eldorado Brasil
+    draw.rounded_rectangle([36, 36, largura - 36, 128], radius=16, fill=(7, 15, 29), outline=(22, 50, 82), width=2)
+    draw.text((58, 52), "A.L.O.V.E.  |  ELDORADO BRASIL", font=f_brand, fill=(0, 230, 118))
+    draw.text((58, 94), f"Assistente Virtual da Expedição  •  Gerado em {agora_br.strftime('%d/%m/%Y às %H:%M')}", font=f_sub_brand, fill=(148, 163, 184))
+
+    # Bloco Título + KPI Principal
+    draw.rectangle([42, 152, 52, 258], fill=cor_destaque)
+    draw.text((68, 150), titulo_card, font=f_tit, fill=cor_destaque)
+    draw.text((68, 186), kpi_principal, font=f_kpi, fill=(255, 255, 255))
+    draw.text((68, 236), sub_kpi, font=f_sub, fill=(203, 213, 225))
+
+    # Tabela de Linhas Detalhadas
+    y_atual = 282
+    for lbl_r, val_r, cor_v in linhas_dados:
+        draw.rounded_rectangle([38, y_atual, largura - 38, y_atual + 46], radius=10, fill=(7, 13, 24), outline=(24, 43, 68), width=1)
+        draw.text((56, y_atual + 11), str(lbl_r)[:44], font=f_row, fill=(226, 232, 240))
+        bbox_v = draw.textbbox((0, 0), str(val_r), font=f_row_b)
+        w_v = bbox_v[2] - bbox_v[0]
+        draw.text((largura - 56 - w_v, y_atual + 10), str(val_r), font=f_row_b, fill=cor_v)
+        y_atual += 56
+
+    # Rodapé
+    draw.text((42, altura - 48), "A.L.O.V.E. Mobile  •  Expedição de Celulose — Três Lagoas / MS", font=f_foot, fill=(100, 116, 139))
+
+    buf = BytesIO()
+    img.save(buf, format="PNG")
+    return buf.getvalue()
+
+st.markdown('<div id="sec-print"></div>', unsafe_allow_html=True)
+with st.expander("📸 Gerar Print Executivo (Compartilhar Imagem)", expanded=False):
+    opcoes_print = [
+        "Previsões do Dia",
+        "Produção de Celulose",
+        "Estoque Físico no Armazém",
+        "Expedição Realizada",
+        "Análise de Pedidos (ZLE087)",
+        "Pátio da Fábrica",
+        "Frota & Equipamentos",
+        "Gestão de Preventiva & Inspeção",
+        "Consumo de GLP",
+        "Auditoria Bafômetro (H&S)",
+        "Comparativo Anual",
+    ]
+    bloco_sel_print = st.selectbox("Selecione o bloco para gerar a imagem:", opcoes_print, key="sel_bloco_print")
+    img_bytes_png = gerar_imagem_bloco_png(bloco_sel_print)
+    st.image(img_bytes_png, use_container_width=True)
+    nome_arq_png = f"ALOVE_{bloco_sel_print.replace(' ', '_').replace('/', '_')}_{agora_br.strftime('%d%m_%H%M')}.png"
+    st.download_button(
+        label="📥 Baixar / Compartilhar Imagem (PNG)",
+        data=img_bytes_png,
+        file_name=nome_arq_png,
+        mime="image/png",
+        use_container_width=True
+    )
+
+st.markdown("<br><center><span style='color:#64748b; font-size:0.75rem; letter-spacing:0.5px;'>A.L.O.V.E - Mobile / Developed by Cristiano Ciriaco</span></center>", unsafe_allow_html=True)
