@@ -4190,6 +4190,12 @@ def gerar_card_mobile_png(chave_bloco: str) -> bytes:
     return buf.getvalue()
 
 
+@st.cache_data(ttl=60)
+def gerar_todos_cards_mobile_b64(carimbo_minuto: str) -> dict:
+    """Gera e cacheia por 60s os 11 cards PNG compactos (~35KB cada) para abertura instantânea zero-reload."""
+    chaves = ["prev", "prod", "est", "exp", "ped", "patio", "frota", "manut", "glp", "baf", "anual"]
+    return {k: base64.b64encode(gerar_card_mobile_png(k)).decode("ascii") for k in chaves}
+
 mapa_blocos_reais = {
     "prev":  "📅 Previsões do Dia",
     "prod":  "🏭 Produção de Celulose",
@@ -4204,11 +4210,12 @@ mapa_blocos_reais = {
     "anual": "📊 Comparativo Anual",
 }
 
-# Modal leve (0KB de peso extra no carregamento inicial do Android!)
+cards_b64_map = gerar_todos_cards_mobile_b64(agora_br.strftime("%Y%m%d_%H%M"))
+
 botoes_escolha_print = ""
 for chave_b, rotulo_b in mapa_blocos_reais.items():
     botoes_escolha_print += f"""
-    <a href="?print_card={chave_b}" target="_self"
+    <a href="#alove-print-modal" class="btn-abrir-card-print" data-chave="{chave_b}" data-nome="ALOVE_{chave_b}_{agora_br.strftime('%d%m_%H%M')}.png"
        style="display:flex; align-items:center; justify-content:space-between; background:#070f1d; border:1.5px solid #163252; border-radius:12px; padding:12px 14px; color:#ffffff; text-decoration:none; font-size:0.86rem; font-weight:800;">
         <span>{rotulo_b}</span>
         <span style="color:#00D672; font-size:0.82rem;">Gerar Print ›</span>
@@ -4236,70 +4243,130 @@ html_seletor_print = f"""
     }}
 </style>
 
+<!-- JANELA 1: SELETOR DE BLOCO -->
 <div id="print-seletor" class="zero-reload-overlay">
     <div class="zero-reload-inner" style="background:linear-gradient(180deg, #0b1c33 0%, #060d18 100%); border:1.5px solid #00D672; border-radius:18px; padding:16px; box-shadow:0 0 28px rgba(0,214,114,0.28);">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; padding-bottom:10px; border-bottom:1px solid #163252;">
             <div>
                 <div style="color:#00D672; font-size:0.95rem; font-weight:900; letter-spacing:0.4px;">📸 GERAR PRINT DO MOBILE</div>
-                <div style="color:#94a3b8; font-size:0.74rem; margin-top:2px;">Toque no bloco para gerar a imagem:</div>
+                <div style="color:#94a3b8; font-size:0.74rem; margin-top:2px;">Toque no bloco para gerar a imagem instantaneamente:</div>
             </div>
-            <a href="#sec-topo" style="width:36px; height:36px; border-radius:10px; background:#070f1d; border:1.5px solid #E74C3C; color:#ffffff; font-weight:900; text-decoration:none; display:flex; align-items:center; justify-content:center; font-size:1rem;">✕</a>
+            <a href="#sec-topo" class="btn-fechar-overlay" style="width:36px; height:36px; border-radius:10px; background:#070f1d; border:1.5px solid #E74C3C; color:#ffffff; font-weight:900; text-decoration:none; display:flex; align-items:center; justify-content:center; font-size:1rem;">✕</a>
         </div>
         <div style="display:flex; flex-direction:column; gap:8px;">
             {botoes_escolha_print}
         </div>
     </div>
 </div>
+
+<!-- JANELA 2: VISUALIZADOR ÚNICO ZERO-RELOAD (ABRE E FECHA EM 0MS SEM RECARREGAR O APP) -->
+<div id="alove-print-modal" style="display:none; position:fixed; inset:0; background:#050911; z-index:999999; overflow-y:auto; -webkit-overflow-scrolling:touch; padding: calc(env(safe-area-inset-top, 10px) + 14px) 12px calc(env(safe-area-inset-bottom, 16px) + 40px) 12px;">
+    <div style="max-width:520px; margin:0 auto;">
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:10px; background:#0b1830; border:1.5px solid #163252; border-radius:12px; padding:9px 12px;">
+            <a href="#print-seletor" id="btnTrocarCardPrint" style="color:#38bdf8; font-size:0.80rem; font-weight:800; text-decoration:none;">◀ Trocar</a>
+            <button type="button" id="btnShareSinglePng" data-nome="ALOVE_Print.png"
+                    style="background:linear-gradient(90deg, #00D672 0%, #00b4ff 100%); color:#050911; border:none; border-radius:8px; padding:8px 14px; font-size:0.82rem; font-weight:900; cursor:pointer; box-shadow:0 0 12px rgba(0,214,114,0.35);">
+                📲 Enviar no WhatsApp
+            </button>
+            <a href="#sec-topo" id="btnFecharCardPrint" style="color:#ff8080; font-size:0.80rem; font-weight:800; text-decoration:none;">✕ Fechar</a>
+        </div>
+        <img id="imgSinglePng" src="" style="width:100%; display:block; border-radius:16px; box-shadow:0 8px 28px rgba(0,0,0,0.85);">
+    </div>
+</div>
 """
 render_html(html_seletor_print)
 
-# Renderiza APENAS a imagem solicitada quando clicada (0ms de peso no resto do tempo)
-card_req = st.query_params.get("print_card", "")
-if card_req in mapa_blocos_reais:
-    png_bytes = gerar_card_mobile_png(card_req)
-    png_b64 = base64.b64encode(png_bytes).decode("ascii")
-    nome_arq_png = f"ALOVE_{card_req}_{agora_br.strftime('%d%m_%H%M')}.png"
+# Controlador único zero-reload: fecha menu flutuante, abre print instantâneo, troca e fecha sem recarregar página
+components.html(f"""
+<script>
+(function() {{
+    const parentDoc = window.parent.document;
+    const parentWin = window.parent;
+    const CARDS_B64 = {json.dumps(cards_b64_map)};
 
-    html_view_unica = f"""
-    <div style="position:fixed; inset:0; background:#050911; z-index:999999; overflow-y:auto; -webkit-overflow-scrolling:touch; padding: calc(env(safe-area-inset-top, 10px) + 14px) 12px calc(env(safe-area-inset-bottom, 16px) + 40px) 12px;">
-        <div style="max-width:520px; margin:0 auto;">
-            <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:10px; background:#0b1830; border:1.5px solid #163252; border-radius:12px; padding:9px 12px;">
-                <a href="?#print-seletor" target="_self" style="color:#38bdf8; font-size:0.80rem; font-weight:800; text-decoration:none;">◀ Trocar</a>
-                <button type="button" id="btnShareSinglePng" data-nome="{nome_arq_png}"
-                        style="background:linear-gradient(90deg, #00D672 0%, #00b4ff 100%); color:#050911; border:none; border-radius:8px; padding:8px 14px; font-size:0.82rem; font-weight:900; cursor:pointer; box-shadow:0 0 12px rgba(0,214,114,0.35);">
-                    📲 Enviar no WhatsApp
-                </button>
-                <a href="?" target="_self" style="color:#ff8080; font-size:0.80rem; font-weight:800; text-decoration:none;">✕ Fechar</a>
-            </div>
-            <img id="imgSinglePng" src="data:image/png;base64,{png_b64}" style="width:100%; display:block; border-radius:16px; box-shadow:0 8px 28px rgba(0,0,0,0.85);">
-        </div>
-    </div>
-    """
-    render_html(html_view_unica)
+    function inicializarControles() {{
+        // 1. Menu flutuante fecha sozinho ao clicar em qualquer atalho ou fora dele
+        const fab = parentDoc.getElementById('fabMenuDetails');
+        if (fab) {{
+            fab.querySelectorAll('.fab-menu a').forEach(link => {{
+                if (link.dataset.closeBound === "1") return;
+                link.dataset.closeBound = "1";
+                link.addEventListener('click', function() {{
+                    fab.removeAttribute('open');
+                }});
+            }});
+            if (parentDoc.body.dataset.fabOutsideBound !== "1") {{
+                parentDoc.body.dataset.fabOutsideBound = "1";
+                parentDoc.addEventListener('click', function(ev) {{
+                    const fabAtual = parentDoc.getElementById('fabMenuDetails');
+                    if (fabAtual && fabAtual.hasAttribute('open') && !fabAtual.contains(ev.target)) {{
+                        fabAtual.removeAttribute('open');
+                    }}
+                }});
+            }}
+        }}
 
-    components.html("""
-    <script>
-    (function() {
-        const parentDoc = window.parent.document;
-        const parentWin = window.parent;
-        const btn = parentDoc.getElementById('btnShareSinglePng');
-        if (btn && btn.dataset.bound !== "1") {
-            btn.dataset.bound = "1";
-            btn.addEventListener('click', async function() {
-                try {
-                    const imgEl = parentDoc.getElementById('imgSinglePng');
-                    const b64Data = imgEl.src.split(',')[1];
+        // 2. Abre qualquer card de print em 0ms sem recarregar a página
+        const modalPrint = parentDoc.getElementById('alove-print-modal');
+        const imgPrint = parentDoc.getElementById('imgSinglePng');
+        const btnShare = parentDoc.getElementById('btnShareSinglePng');
+
+        parentDoc.querySelectorAll('.btn-abrir-card-print').forEach(btnCard => {{
+            if (btnCard.dataset.printBound === "1") return;
+            btnCard.dataset.printBound = "1";
+            btnCard.addEventListener('click', function(ev) {{
+                ev.preventDefault();
+                const chave = btnCard.dataset.chave;
+                const nomeArq = btnCard.dataset.nome || 'ALOVE_Print.png';
+                if (CARDS_B64[chave] && modalPrint && imgPrint) {{
+                    imgPrint.src = 'data:image/png;base64,' + CARDS_B64[chave];
+                    if (btnShare) btnShare.dataset.nome = nomeArq;
+                    modalPrint.style.display = 'block';
+                    modalPrint.scrollTop = 0;
+                    try {{ parentWin.history.replaceState(null, '', '#alove-print-modal'); }} catch (e) {{}}
+                }}
+            }});
+        }});
+
+        // 3. Trocar bloco ou Fechar print em 0ms sem recarregar a página
+        const btnTrocar = parentDoc.getElementById('btnTrocarCardPrint');
+        if (btnTrocar && btnTrocar.dataset.bound !== "1") {{
+            btnTrocar.dataset.bound = "1";
+            btnTrocar.addEventListener('click', function(ev) {{
+                ev.preventDefault();
+                if (modalPrint) modalPrint.style.display = 'none';
+                try {{ parentWin.history.replaceState(null, '', '#print-seletor'); }} catch (e) {{}}
+            }});
+        }}
+
+        const btnFechar = parentDoc.getElementById('btnFecharCardPrint');
+        if (btnFechar && btnFechar.dataset.bound !== "1") {{
+            btnFechar.dataset.bound = "1";
+            btnFechar.addEventListener('click', function(ev) {{
+                ev.preventDefault();
+                if (modalPrint) modalPrint.style.display = 'none';
+                try {{ parentWin.history.replaceState(null, '', '#sec-topo'); }} catch (e) {{}}
+            }});
+        }}
+
+        // 4. Botão Enviar no WhatsApp síncrono
+        if (btnShare && btnShare.dataset.bound !== "1") {{
+            btnShare.dataset.bound = "1";
+            btnShare.addEventListener('click', async function() {{
+                try {{
+                    if (!imgPrint || !imgPrint.src.includes(',')) return;
+                    const b64Data = imgPrint.src.split(',')[1];
                     const byteChars = atob(b64Data);
                     const byteNums = new Array(byteChars.length);
-                    for (let i = 0; i < byteChars.length; i++) {
+                    for (let i = 0; i < byteChars.length; i++) {{
                         byteNums[i] = byteChars.charCodeAt(i);
-                    }
-                    const blob = new Blob([new Uint8Array(byteNums)], { type: 'image/png' });
-                    const nomeArq = btn.dataset.nome || 'ALOVE_Print.png';
-                    const file = new File([blob], nomeArq, { type: 'image/png' });
-                    if (parentWin.navigator.canShare && parentWin.navigator.canShare({ files: [file] })) {
-                        await parentWin.navigator.share({ files: [file], title: 'A.L.O.V.E. Mobile' });
-                    } else {
+                    }}
+                    const blob = new Blob([new Uint8Array(byteNums)], {{ type: 'image/png' }});
+                    const nomeArq = btnShare.dataset.nome || 'ALOVE_Print.png';
+                    const file = new File([blob], nomeArq, {{ type: 'image/png' }});
+                    if (parentWin.navigator.canShare && parentWin.navigator.canShare({{ files: [file] }})) {{
+                        await parentWin.navigator.share({{ files: [file], title: 'A.L.O.V.E. Mobile' }});
+                    }} else {{
                         const url = URL.createObjectURL(blob);
                         const a = parentDoc.createElement('a');
                         a.href = url;
@@ -4308,49 +4375,15 @@ if card_req in mapa_blocos_reais:
                         a.click();
                         a.remove();
                         URL.revokeObjectURL(url);
-                    }
-                } catch (e) {}
-            });
-        }
-    })();
-    </script>
-    """, height=0)
+                    }}
+                }} catch (e) {{}}
+            }});
+        }}
+    }}
 
-# Controlador global do menu flutuante (fecha automaticamente ao tocar em qualquer atalho ou fora do menu)
-components.html("""
-<script>
-(function() {
-    const parentDoc = window.parent.document;
-
-    function configurarMenuFlutuante() {
-        const fab = parentDoc.getElementById('fabMenuDetails');
-        if (!fab) return;
-
-        // Fecha ao clicar em qualquer link de atalho dentro do menu
-        const links = fab.querySelectorAll('.fab-menu a');
-        links.forEach(link => {
-            if (link.dataset.closeBound === "1") return;
-            link.dataset.closeBound = "1";
-            link.addEventListener('click', function() {
-                fab.removeAttribute('open');
-            });
-        });
-
-        // Fecha ao tocar em qualquer área fora do botão flutuante
-        if (parentDoc.body.dataset.fabOutsideBound !== "1") {
-            parentDoc.body.dataset.fabOutsideBound = "1";
-            parentDoc.addEventListener('click', function(ev) {
-                const fabAtual = parentDoc.getElementById('fabMenuDetails');
-                if (fabAtual && fabAtual.hasAttribute('open') && !fabAtual.contains(ev.target)) {
-                    fabAtual.removeAttribute('open');
-                }
-            });
-        }
-    }
-
-    configurarMenuFlutuante();
-    setInterval(configurarMenuFlutuante, 1000);
-})();
+    inicializarControles();
+    setInterval(inicializarControles, 1000);
+}})();
 </script>
 """, height=0)
 
