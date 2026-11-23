@@ -9,6 +9,7 @@ from io import StringIO
 import ast
 import re
 import html as html_lib
+import streamlit.components.v1 as components
 from streamlit_autorefresh import st_autorefresh
 import gspread
 
@@ -3842,7 +3843,7 @@ with st.expander("🛠️ Console de Telemetria & Logs do Core (Dev)", expanded=
 
 
 # ==============================================================================
-# 🎯 MENU FLUTUANTE DE ATALHOS + MODAL DE PRINT ZERO-RELOAD (SEM RECARREGAR APP)
+# 🎯 MENU FLUTUANTE DE ATALHOS + MODAL DE PRINT ZERO-RELOAD COM GERADOR PNG REAL
 # ==============================================================================
 mapa_blocos_reais = {
     "prev":  ("📅 Previsões do Dia", html_previsoes),
@@ -3870,37 +3871,41 @@ for chave_b, (rotulo_b, html_b_orig) in mapa_blocos_reais.items():
     </a>
     """
 
-    # Força abertura automática (<details open>) mantendo wrappers internos intactos
     html_b_aberto = html_b_orig.replace('<details class="master-box"', '<details class="master-box" open', 1)
 
     telas_print_individuais += f"""
     <div id="print-view-{chave_b}" class="zero-reload-overlay">
         <div class="zero-reload-inner">
-            <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:12px; background:#0b1830; border:1.5px solid #163252; border-radius:12px; padding:10px 14px;">
-                <a href="#print-seletor" style="color:#38bdf8; font-size:0.82rem; font-weight:800; text-decoration:none;">◀ Trocar Bloco</a>
-                <span style="color:#cbd5e1; font-size:0.72rem; font-weight:700;">📸 Modo Print Limpo</span>
-                <a href="#sec-topo" style="color:#ff8080; font-size:0.82rem; font-weight:800; text-decoration:none;">✕ Fechar</a>
+            <!-- BARRA SUPERIOR DE CONTROLE (FORA DA ÁREA CAPTURADA NA FOTO) -->
+            <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:10px; background:#0b1830; border:1.5px solid #163252; border-radius:12px; padding:9px 12px;">
+                <a href="#print-seletor" style="color:#38bdf8; font-size:0.80rem; font-weight:800; text-decoration:none;">◀ Trocar</a>
+                <button type="button" class="btn-capturar-png" data-nome="ALOVE_{chave_b}"
+                        style="background:linear-gradient(90deg, #00D672 0%, #00b4ff 100%); color:#050911; border:none; border-radius:8px; padding:7px 14px; font-size:0.80rem; font-weight:900; cursor:pointer; box-shadow:0 0 12px rgba(0,214,114,0.35);">
+                    📲 Gerar / Enviar WhatsApp
+                </button>
+                <a href="#sec-topo" style="color:#ff8080; font-size:0.80rem; font-weight:800; text-decoration:none;">✕ Fechar</a>
             </div>
 
-            <!-- CABEÇALHO EXECUTIVO LIMPO PARA O PRINT -->
-            <div style="background:linear-gradient(90deg, #071324 0%, #0b2239 100%); border:1.5px solid #00D672; border-radius:14px; padding:10px 14px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center; box-shadow:0 0 14px rgba(0,214,114,0.22);">
-                <div>
-                    <div style="color:#00E676; font-size:1.05rem; font-weight:900; letter-spacing:0.8px;">A.L.O.V.E. <span style="color:#334155;">|</span> <span style="color:#00D672; font-size:0.88rem;">Eldorado Brasil</span></div>
-                    <div style="color:#94a3b8; font-size:0.65rem; font-weight:600; margin-top:2px;">Assistente Logístico Virtual da Expedição</div>
+            <!-- ÁREA EXATA QUE VIRA IMAGEM PNG COMPLETA SEM CORTAR -->
+            <div class="capture-area" style="background:#050911; padding:12px; border-radius:18px; border:1px solid #12304a;">
+                <div style="background:linear-gradient(90deg, #071324 0%, #0b2239 100%); border:1.5px solid #00D672; border-radius:14px; padding:10px 14px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center;">
+                    <div>
+                        <div style="color:#00E676; font-size:1.05rem; font-weight:900; letter-spacing:0.8px;">A.L.O.V.E. <span style="color:#334155;">|</span> <span style="color:#00D672; font-size:0.88rem;">Eldorado Brasil</span></div>
+                        <div style="color:#94a3b8; font-size:0.65rem; font-weight:600; margin-top:2px;">Assistente Logístico Virtual da Expedição</div>
+                    </div>
+                    <div style="text-align:right;">
+                        <div style="color:#ffffff; font-size:0.74rem; font-weight:800;">📍 Três Lagoas - MS</div>
+                        <div style="color:#00D672; font-size:0.68rem; font-weight:700; font-family:monospace;">{agora_br.strftime('%d/%m/%Y • %H:%M')}</div>
+                    </div>
                 </div>
-                <div style="text-align:right;">
-                    <div style="color:#ffffff; font-size:0.74rem; font-weight:800;">📍 Três Lagoas - MS</div>
-                    <div style="color:#00D672; font-size:0.68rem; font-weight:700; font-family:monospace;">{agora_br.strftime('%d/%m/%Y • %H:%M')}</div>
+
+                <div class="print-card-stage">
+                    {html_b_aberto}
                 </div>
-            </div>
 
-            <!-- O PRÓPRIO CARD REAL DO MOBILE ABERTO -->
-            <div class="print-card-stage">
-                {html_b_aberto}
-            </div>
-
-            <div style="text-align:center; color:#64748b; font-size:0.68rem; margin-top:8px;">
-                Tire o print da tela agora • A.L.O.V.E. Mobile
+                <div style="text-align:right; color:#64748b; font-size:0.62rem; margin-top:4px; padding-right:4px;">
+                    A.L.O.V.E. Mobile • Expedição de Celulose
+                </div>
             </div>
         </div>
     </div>
@@ -3908,7 +3913,6 @@ for chave_b, (rotulo_b, html_b_orig) in mapa_blocos_reais.items():
 
 html_fab_e_prints = f"""
 <style>
-    /* OVERLAYS ZERO-RELOAD VIA :target (NÃO RECARREGA PÁGINA NEM DISPARA SPLASH) */
     .zero-reload-overlay {{
         display: none;
         position: fixed;
@@ -3917,7 +3921,7 @@ html_fab_e_prints = f"""
         z-index: 999998;
         overflow-y: auto;
         -webkit-overflow-scrolling: touch;
-        padding: calc(env(safe-area-inset-top, 10px) + 14px) 12px calc(env(safe-area-inset-bottom, 16px) + 40px) 12px;
+        padding: calc(env(safe-area-inset-top, 10px) + 14px) 10px calc(env(safe-area-inset-bottom, 16px) + 40px) 10px;
     }}
     .zero-reload-overlay:target {{
         display: block;
@@ -3926,13 +3930,11 @@ html_fab_e_prints = f"""
         max-width: 540px;
         margin: 0 auto;
     }}
-    /* Esconde a setinha de fechar accordion dentro do modo print */
     .print-card-stage details.master-box > summary::after {{
         display: none !important;
     }}
 </style>
 
-<!-- BOTÃO FLUTUANTE DE ATALHOS -->
 <div class="fab-container">
     <details class="fab-details" id="fabMenuDetails">
         <summary title="Atalhos Rápidos">⚡</summary>
@@ -3953,7 +3955,6 @@ html_fab_e_prints = f"""
     </details>
 </div>
 
-<!-- JANELA 1: SELETOR INSTANTÂNEO DE QUAL BLOCO PRINTAR -->
 <div id="print-seletor" class="zero-reload-overlay" style="background: rgba(3, 7, 14, 0.96);">
     <div class="zero-reload-inner" style="background:linear-gradient(180deg, #0b1c33 0%, #060d18 100%); border:1.5px solid #00D672; border-radius:18px; padding:16px; box-shadow:0 0 28px rgba(0,214,114,0.28);">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; padding-bottom:10px; border-bottom:1px solid #163252;">
@@ -3969,9 +3970,94 @@ html_fab_e_prints = f"""
     </div>
 </div>
 
-<!-- JANELAS 2: CADA BLOCO REAL DO MOBILE ABERTO PRONTO PARA CAPTURA -->
 {telas_print_individuais}
 """
 render_html(html_fab_e_prints)
+
+# Motor silencioso que gera o PNG completo sem cortar e abre compartilhamento nativo (WhatsApp)
+components.html("""
+<script>
+(function() {
+    const parentDoc = window.parent.document;
+    const parentWin = window.parent;
+
+    function vincularBotoes() {
+        const botoes = parentDoc.querySelectorAll('.btn-capturar-png');
+        botoes.forEach(btn => {
+            if (btn.dataset.bound === "1") return;
+            btn.dataset.bound = "1";
+            btn.addEventListener('click', async function() {
+                const origTxt = btn.textContent;
+                btn.textContent = "⏳ Gerando PNG...";
+                btn.disabled = true;
+                try {
+                    const overlay = btn.closest('.zero-reload-overlay');
+                    const area = overlay.querySelector('.capture-area');
+                    const canvas = await parentWin.html2canvas(area, {
+                        backgroundColor: "#050911",
+                        scale: 2,
+                        useCORS: true,
+                        logging: false,
+                        windowHeight: area.scrollHeight + 40
+                    });
+                    const nomeArq = (btn.dataset.nome || "ALOVE_Print") + ".png";
+                    const dataUrl = canvas.toDataURL("image/png");
+
+                    canvas.toBlob(async function(blob) {
+                        let compartilhou = false;
+                        try {
+                            const file = new File([blob], nomeArq, { type: "image/png" });
+                            if (parentWin.navigator.canShare && parentWin.navigator.canShare({ files: [file] })) {
+                                await parentWin.navigator.share({
+                                    files: [file],
+                                    title: "A.L.O.V.E. Mobile"
+                                });
+                                compartilhou = true;
+                            }
+                        } catch (e) {
+                            compartilhou = false;
+                        }
+
+                        if (!compartilhou) {
+                            const antigo = parentDoc.getElementById("alove-img-preview-modal");
+                            if (antigo) antigo.remove();
+                            const modalDiv = parentDoc.createElement("div");
+                            modalDiv.id = "alove-img-preview-modal";
+                            modalDiv.style.cssText = "position:fixed;inset:0;background:rgba(3,7,14,0.96);z-index:9999999;overflow-y:auto;padding:24px 14px 50px 14px;text-align:center;";
+                            modalDiv.innerHTML = `
+                                <div style="max-width:520px;margin:0 auto;">
+                                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;background:#0b1830;border:1.5px solid #00D672;border-radius:12px;padding:10px 14px;">
+                                        <span style="color:#00E676;font-size:0.80rem;font-weight:800;">📲 Segure na imagem p/ enviar no WhatsApp</span>
+                                        <button type="button" onclick="this.closest('#alove-img-preview-modal').remove()" style="background:#E74C3C;color:#fff;border:none;border-radius:8px;padding:5px 10px;font-weight:900;cursor:pointer;">✕</button>
+                                    </div>
+                                    <img src="${dataUrl}" style="width:100%;border-radius:14px;border:1.5px solid #163252;box-shadow:0 8px 24px rgba(0,0,0,0.8);">
+                                </div>
+                            `;
+                            parentDoc.body.appendChild(modalDiv);
+                        }
+
+                        btn.textContent = "✅ Pronto!";
+                        setTimeout(() => { btn.textContent = origTxt; btn.disabled = false; }, 1600);
+                    }, "image/png");
+                } catch (err) {
+                    btn.textContent = "❌ Erro ao gerar";
+                    setTimeout(() => { btn.textContent = origTxt; btn.disabled = false; }, 2000);
+                }
+            });
+        });
+    }
+
+    if (!parentWin.html2canvas) {
+        const sc = parentDoc.createElement('script');
+        sc.src = "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js";
+        sc.onload = vincularBotoes;
+        parentDoc.head.appendChild(sc);
+    } else {
+        vincularBotoes();
+    }
+    setInterval(vincularBotoes, 1500);
+})();
+</script>
+""", height=0)
 
 st.markdown("<br><center><span style='color:#64748b; font-size:0.75rem; letter-spacing:0.5px;'>A.L.O.V.E - Mobile / Developed by Cristiano Ciriaco</span></center>", unsafe_allow_html=True)
