@@ -4217,11 +4217,18 @@ cards_b64_map = gerar_todos_cards_mobile_b64(agora_br.strftime("%Y%m%d_%H%M"))
 
 botoes_escolha_print = ""
 for chave_b, rotulo_b in mapa_blocos_reais.items():
+    partes_rot = rotulo_b.split(" ", 1)
+    ico_b = partes_rot[0] if len(partes_rot) > 1 else "📊"
+    txt_b = partes_rot[1] if len(partes_rot) > 1 else rotulo_b
+
     botoes_escolha_print += f"""
     <a href="#alove-print-modal" class="btn-abrir-card-print" data-chave="{chave_b}" data-nome="ALOVE_{chave_b}_{agora_br.strftime('%d%m_%H%M')}.png"
-       style="display:flex; align-items:center; justify-content:space-between; background:#070f1d; border:1.5px solid #163252; border-radius:12px; padding:12px 14px; color:#ffffff; text-decoration:none; font-size:0.86rem; font-weight:800;">
-        <span>{rotulo_b}</span>
-        <span style="color:#00D672; font-size:0.82rem;">Gerar Print ›</span>
+       style="display:flex; align-items:center; justify-content:space-between; gap:12px; background:linear-gradient(90deg, #081224 0%, #0b1b34 100%); border:1.5px solid #1a3b5c; border-radius:14px; padding:13px 15px; color:#ffffff; text-decoration:none; box-shadow:0 4px 12px rgba(0,0,0,0.35);">
+        <div style="display:flex; align-items:center; gap:13px; min-width:0;">
+            <span style="width:36px; height:36px; border-radius:10px; background:#0c223d; border:1px solid #1e4b75; display:flex; align-items:center; justify-content:center; font-size:1.15rem; flex-shrink:0;">{ico_b}</span>
+            <span style="font-size:0.86rem; font-weight:800; text-transform:uppercase; letter-spacing:0.5px; color:#f8fafc; line-height:1.25;">{txt_b}</span>
+        </div>
+        <span style="background:rgba(0, 214, 114, 0.14); border:1px solid #00D672; color:#00FF7F; font-size:0.72rem; font-weight:900; text-transform:uppercase; letter-spacing:0.4px; padding:5px 10px; border-radius:8px; white-space:nowrap; flex-shrink:0;">Print ›</span>
     </a>
     """
 
@@ -4248,15 +4255,15 @@ html_seletor_print = f"""
 
 <!-- JANELA 1: SELETOR DE BLOCO -->
 <div id="print-seletor" class="zero-reload-overlay">
-    <div class="zero-reload-inner" style="background:linear-gradient(180deg, #0b1c33 0%, #060d18 100%); border:1.5px solid #00D672; border-radius:18px; padding:16px; box-shadow:0 0 28px rgba(0,214,114,0.28);">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; padding-bottom:10px; border-bottom:1px solid #163252;">
+    <div class="zero-reload-inner" style="background:linear-gradient(180deg, #0b1c33 0%, #060d18 100%); border:1.5px solid #00D672; border-radius:18px; padding:18px; box-shadow:0 0 28px rgba(0,214,114,0.28);">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; padding-bottom:12px; border-bottom:1px solid #163252;">
             <div>
-                <div style="color:#00D672; font-size:0.95rem; font-weight:900; letter-spacing:0.4px;">📸 GERAR PRINT DO MOBILE</div>
-                <div style="color:#94a3b8; font-size:0.74rem; margin-top:2px;">Toque no bloco para gerar a imagem instantaneamente:</div>
+                <div style="color:#00D672; font-size:0.98rem; font-weight:900; letter-spacing:0.6px; text-transform:uppercase;">📸 GERAR PRINT DO MOBILE</div>
+                <div style="color:#94a3b8; font-size:0.75rem; margin-top:3px;">Selecione o módulo abaixo para gerar a imagem:</div>
             </div>
-            <a href="#sec-topo" class="btn-fechar-overlay" style="width:36px; height:36px; border-radius:10px; background:#070f1d; border:1.5px solid #E74C3C; color:#ffffff; font-weight:900; text-decoration:none; display:flex; align-items:center; justify-content:center; font-size:1rem;">✕</a>
+            <a href="#sec-topo" class="btn-fechar-overlay" style="width:38px; height:38px; border-radius:10px; background:#070f1d; border:1.5px solid #E74C3C; color:#ffffff; font-weight:900; text-decoration:none; display:flex; align-items:center; justify-content:center; font-size:1.05rem;">✕</a>
         </div>
-        <div style="display:flex; flex-direction:column; gap:8px;">
+        <div style="display:flex; flex-direction:column; gap:11px;">
             {botoes_escolha_print}
         </div>
     </div>
