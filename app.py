@@ -3843,70 +3843,345 @@ with st.expander("🛠️ Console de Telemetria & Logs do Core (Dev)", expanded=
 
 
 # ==============================================================================
-# 🎯 MENU FLUTUANTE DE ATALHOS + MODAL DE PRINT ZERO-RELOAD COM GERADOR PNG REAL
+# 🎯 MENU FLUTUANTE DE ATALHOS + GERADOR DE PRINT EXECUTIVO PNG (100% PYTHON)
 # ==============================================================================
+import base64
+from io import BytesIO
+from PIL import Image, ImageDraw, ImageFont
+
+def _carregar_fonte_png(tamanho, bold=True):
+    caminhos = [
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf" if bold else "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+        "C:/Windows/Fonts/arialbd.ttf" if bold else "C:/Windows/Fonts/arial.ttf",
+    ]
+    for c_f in caminhos:
+        try:
+            return ImageFont.truetype(c_f, tamanho)
+        except Exception:
+            pass
+    return ImageFont.load_default()
+
+def gerar_card_executivo_b64(chave_bloco: str) -> str:
+    """Desenha o card executivo completo em PNG 1080px no servidor (nunca corta e nunca dá erro no Safari)."""
+    cor_tema = (0, 214, 114)
+    titulo = ""
+    kpi_big = ""
+    kpi_unit = ""
+    sub_1 = ""
+    sub_2 = ""
+    pct_barra = None
+    secoes = []  # lista de tuplas: ("TIPO", texto_esq, texto_dir, cor_rgb)
+
+    if chave_bloco == "prev":
+        cor_tema = (0, 180, 255)
+        titulo = "PREVISÕES DO DIA (24 HORAS)"
+        kpi_big = f"{fmt(prev_prod)} t  |  {fmt(prev_carr)} t"
+        kpi_unit = "PROD. / CARR."
+        sub_1 = "Projeção consolidada de fechamento para o turno de 24h"
+        secoes = [
+            ("SEC", "PROJEÇÃO DE PRODUÇÃO", "", (0, 180, 255)),
+            ("ROW", "Previsão Fechamento Produção (24h)", f"{fmt(prev_prod)} t", (255, 255, 255)),
+            ("ROW", "Produção Realizada até agora", f"{fmt(prod_hoje_calc)} t", (229, 184, 0)),
+            ("SEC", "PROJEÇÃO DE EXPEDIÇÃO", "", (0, 230, 118)),
+            ("ROW", "Previsão Fechamento Carregamento (24h)", f"{fmt(prev_carr)} t", (0, 230, 118)),
+            ("ROW", "Expedição Realizada até agora", f"{fmt(vol_hoje)} t", (56, 189, 248)),
+        ]
+
+    elif chave_bloco == "prod":
+        cor_tema = (229, 184, 0)
+        titulo = "PRODUÇÃO DE CELULOSE"
+        kpi_big = fmt(prod_hoje_calc)
+        kpi_unit = "TONELADAS"
+        sub_1 = f"MS1: {fmt(dados_maquinas['MS1'].get('producao', 0))} t  |  MS2: {fmt(dados_maquinas['MS2'].get('producao', 0))} t"
+        sub_2 = f"Prev. Fechamento 24h: {fmt(prev_prod)} t"
+        for m_k in ["MS1", "MS2"]:
+            qm = dados_maquinas.get(m_k, {})
+            if qm:
+                qt = qm.get("qualidade_tipo", "EQ")
+                c_q = (231, 76, 60) if qt in ["OS", "BQ"] else ((255, 214, 0) if qt == "SQ" else (0, 214, 114))
+                info_v = viradas_info.get(m_k, {})
+                secoes.append(("SEC", f"MÁQUINA {m_k}  •  MAT: {qm.get('material', '--')} [{qt}]", f"{fmt(qm.get('producao', 0))} t", c_q))
+                secoes.append(("ROW", f"Linhas Individuais ({'A / B' if m_k == 'MS1' else 'C / D'})", f"{fmt(qm.get('l1', 0))} t  |  {fmt(qm.get('l2', 0))} t", (56, 189, 248)))
+                secoes.append(("ROW", "Alvura / Sujidade", f"{fmt(qm.get('alvura', 0), 2)}%  |  {fmt(qm.get('sujidade', 0), 2)}", (226, 232, 240)))
+                secoes.append(("ROW", "Viscosidade / pH", f"{fmt(qm.get('viscosidade', 0))}  |  pH {fmt(qm.get('ph', 0), 1)}", (226, 232, 240)))
+                secoes.append(("ROW", "Próxima Virada", f"MAT {info_v.get('prox_mat', '--')} • {info_v.get('prev_virada', '--')}", (255, 159, 28)))
+
+    elif chave_bloco == "est":
+        cor_tema = (0, 255, 127)
+        titulo = "ESTOQUE FÍSICO NO ARMAZÉM"
+        kpi_big = fmt(estoque_total)
+        kpi_unit = "TONELADAS"
+        sub_1 = f"Ocupação: {fmt(estoque_total)} t de 25.000 t ({pct_ocupacao_est:.0f}%)"
+        sub_2 = f"Espaço Livre: {fmt(espaco_livre_est)} t  |  Capacidade: 25.000 t"
+        pct_barra = pct_ocupacao_est
+        secoes.append(("SEC", "RESUMO POR CLASSE DE QUALIDADE", "", (0, 255, 127)))
+        secoes.append(("ROW", "Material On-Grade (EQ)", f"{fmt(tot_on_grade)} t ({pct_on_grade:.0f}%)", (0, 255, 127)))
+        secoes.append(("ROW", "Material Off-Grade (SQ / BQ / OS)", f"{fmt(tot_off_grade)} t ({pct_off_grade:.0f}%)", (255, 140, 0)))
+        secoes.append(("SEC", "DETALHAMENTO POR MATERIAL", "QTD. TON", (56, 189, 248)))
+        for it_e in itens_estoque:
+            c_cls = (0, 255, 127) if it_e["classe"] == "EQ" else ((255, 214, 0) if it_e["classe"] == "SQ" else ((255, 140, 0) if it_e["classe"] == "BQ" else (255, 46, 46)))
+            secoes.append(("ROW", f"MAT {it_e['material']}   [{it_e['classe']}]", f"{fmt(it_e['ton'])} t", c_cls))
+
+    elif chave_bloco == "exp":
+        cor_tema = (0, 214, 114)
+        titulo = "EXPEDIÇÃO REALIZADA"
+        kpi_big = fmt(vol_hoje)
+        kpi_unit = "TONELADAS"
+        sub_1 = f"Consolidado Ontem (D-1): {fmt(vol_ontem)} t"
+        sub_2 = f"Progresso: {fmt(vol_hoje)} t de {fmt(prev_carr)} t ({pct_prog:.0f}%)"
+        pct_barra = pct_prog
+        secoes.append(("SEC", "TURNOS EM OPERAÇÃO HOJE", "", (0, 214, 114)))
+        for th in tns_hoje:
+            v_s = th.get("str_vol", f"{fmt(th['v'])} t")
+            c_t = (231, 76, 60) if v_s == "EM FOLGA" else (255, 255, 255)
+            secoes.append(("ROW", f"{th['letra']} ({th['horario']})", v_s, c_t))
+        if balanco_destinos:
+            secoes.append(("SEC", "PLANO VS EXPEDIDO POR DESTINO", "CARR. / PLANO", (56, 189, 248)))
+            for bd in balanco_destinos:
+                c_bd = (0, 214, 114) if bd["atingimento"] >= 100 else (56, 189, 248)
+                secoes.append(("ROW", f"{bd['destino']} ({bd['atingimento']:.0f}%)", f"{fmt(bd['realizado'])} / {fmt(bd['meta'])} t", c_bd))
+            secoes.append(("ROW", "TOTAL GERAL (PENDENTE)", f"{fmt(total_expedicao_real)} / {fmt(total_expedicao_meta)} t (Falta: {fmt(total_expedicao_falta)} t)", (255, 159, 28)))
+
+    elif chave_bloco == "ped":
+        cor_tema = (0, 132, 255)
+        titulo = "ANÁLISE DE PEDIDOS (ZLE087)"
+        kpi_big = fmt(tot_saldo_geral)
+        kpi_unit = "TON PENDENTES"
+        sub_1 = f"Transferência: {fmt(tot_saldo_transf)} t ({len(pedidos_transf)} ped.)"
+        sub_2 = f"MI / LATAM: {fmt(tot_saldo_mi)} t ({len(pedidos_mi)} ped.)"
+        if pedidos_transf:
+            secoes.append(("SEC", f"TRANSFERÊNCIA ({len(pedidos_transf)} PEDIDOS)", "SALDO ATUAL", (0, 132, 255)))
+            for pt in pedidos_transf:
+                c_p = (255, 46, 46) if pt["is_fim"] else (56, 189, 248)
+                al_p = " [FIM]" if pt["is_fim"] else ""
+                secoes.append(("ROW", f"{pt['destino']} • MAT {pt['material']}{al_p}", f"{fmt(pt['saldo'])} t", c_p))
+        if pedidos_mi:
+            secoes.append(("SEC", f"MI / LATAM ({len(pedidos_mi)} PEDIDOS)", "SALDO ATUAL", (0, 214, 114)))
+            for pm in pedidos_mi:
+                c_m = (255, 46, 46) if pm["is_fim"] else (0, 214, 114)
+                al_m = " [FIM]" if pm["is_fim"] else ""
+                secoes.append(("ROW", f"{pm['destino']} • MAT {pm['material']}{al_m}", f"{fmt(pm['saldo'])} t", c_m))
+
+    elif chave_bloco == "patio":
+        cor_tema = (56, 169, 255)
+        titulo = "PÁTIO DA FÁBRICA (TEMPO REAL)"
+        kpi_big = str(total_veiculos_fisicos)
+        kpi_unit = "VEÍCULOS FÍSICOS"
+        sub_1 = f"Carga Disponível (Checklist + Apoio + Fila): {fmt(vol_patio_disponivel)} t"
+        secoes.append(("SEC", "DISTRIBUIÇÃO POR ETAPA DO PÁTIO", "VEÍC. / TON", (56, 169, 255)))
+        for tit_p, chv_p, _, _, _, _ in mapa_status_colunas:
+            dp = dados_patio.get(chv_p, {"veiculos": 0, "peso": 0})
+            secoes.append(("ROW", tit_p, f"{dp['veiculos']} veíc.  ({fmt(dp['peso'])} t)", (255, 255, 255)))
+
+    elif chave_bloco == "frota":
+        cor_tema = (46, 230, 91)
+        titulo = "FROTA & EQUIPAMENTOS"
+        kpi_big = str(qtd_total_disp)
+        kpi_unit = "DISPONÍVEIS"
+        sub_1 = f"Disponíveis: {qtd_total_disp}  |  Indisponíveis: {qtd_total_indisp}"
+        secoes.append(("SEC", "DISPONIBILIDADE POR CATEGORIA", "DISP. / INDISP.", (46, 230, 91)))
+        for tp_f in tipos_ordenados_frota:
+            ltp = equip_por_tipo.get(tp_f, [])
+            d_c = sum(1 for x in ltp if not x["is_indisponivel"])
+            i_c = sum(1 for x in ltp if x["is_indisponivel"])
+            c_f = (231, 76, 60) if i_c > 0 else (46, 230, 91)
+            secoes.append(("ROW", tp_f, f"{d_c} Disp.  |  {i_c} Indisp.", c_f))
+
+    elif chave_bloco == "manut":
+        cor_tema = (255, 46, 46) if tot_alertas_manut > 0 else (230, 126, 34)
+        titulo = "PREVENTIVA & INSPEÇÃO"
+        kpi_big = str(tot_alertas_manut)
+        kpi_unit = "PENDÊNCIAS"
+        sub_1 = f"Preventiva: {qtd_venc_prev} Vencidas • {qtd_prox_prev} Próx. Vencimento"
+        sub_2 = f"Inspeção: {qtd_venc_insp} Vencidas • {qtd_prox_insp} Próx. Vencimento"
+        criticos = [e for e in todos_equip_lista if e["sev_p"] <= 1 or e["sev_i"] <= 1]
+        secoes.append(("SEC", "EQUIPAMENTOS VENCIDOS OU PRÓXIMOS AO VENCIMENTO", "SALDO / STATUS", (255, 140, 0)))
+        for eq_c in criticos:
+            pts = []
+            if eq_c["sev_p"] <= 1:
+                pts.append(f"Prev: {eq_c['txt_saldo_p']} ({eq_c['lbl_p']})")
+            if eq_c["sev_i"] <= 1:
+                pts.append(f"Insp: {eq_c['txt_saldo_i']} ({eq_c['lbl_i']})")
+            secoes.append(("ROW", eq_c["tag"], " | ".join(pts), (255, 46, 46)))
+        if not criticos:
+            secoes.append(("ROW", "Status Geral da Frota", "Nenhuma pendência crítica", (0, 255, 127)))
+
+    elif chave_bloco == "glp":
+        cor_tema = (255, 159, 28)
+        titulo = "CONSUMO DE GLP — FROTA"
+        kpi_big = f"{fmt(kg_mes_atual, 1)} KG"
+        kpi_unit = f"({fmt(litros_mes_atual, 1)} L)"
+        sub_1 = f"Mês Atual ({rotulo_mes_atual}) • {len(glp_maquinas)} Empilhadeiras Monitoradas"
+        if mes_atual_obj:
+            secoes.append(("SEC", f"DISTRIBUIÇÃO POR TURNO ({rotulo_mes_atual})", "CONSUMO", (0, 255, 127)))
+            secoes.append(("ROW", "Turno 00h às 08h", f"{fmt(mes_atual_obj['t1'], 1)} kg", (56, 189, 248)))
+            secoes.append(("ROW", "Turno 08h às 16h", f"{fmt(mes_atual_obj['t2'], 1)} kg", (0, 255, 127)))
+            secoes.append(("ROW", "Turno 16h às 00h", f"{fmt(mes_atual_obj['t3'], 1)} kg", (255, 159, 28)))
+        secoes.append(("SEC", "CONSUMO POR EMPILHADEIRA", "KG / LITROS", (255, 159, 28)))
+        for mq_g in glp_maquinas:
+            secoes.append(("ROW", f"{mq_g['equip']} ({mq_g['abast']} abast.)", f"{fmt(mq_g['kg'], 1)} kg ({fmt(mq_g['litros'], 1)} L)", (255, 255, 255)))
+
+    elif chave_bloco == "baf":
+        cor_tema = (231, 76, 60) if len(lista_pendentes) > 0 else (0, 214, 114)
+        titulo = "AUDITORIA BAFÔMETRO (H&S)"
+        kpi_big = str(total_registrados_baf)
+        kpi_unit = "AUDITADOS"
+        sub_1 = f"{nome_turno_completo}  •  Pendentes: {len(lista_pendentes)} | Trocas: {len(lista_trocas)} | OK: {len(lista_aprovados)}"
+        secoes.append(("SEC", "RESUMO DO TURNO", "COLABORADORES", cor_tema))
+        secoes.append(("ROW", "Aprovados / Realizados", f"{len(lista_aprovados)}", (0, 214, 114)))
+        secoes.append(("ROW", "Trocas / Não Cadastrados", f"{len(lista_trocas)}", (56, 189, 248)))
+        secoes.append(("ROW", "Não Realizados / Pendentes", f"{len(lista_pendentes)}", (231, 76, 60)))
+        if lista_pendentes:
+            secoes.append(("SEC", "COLABORADORES PENDENTES", "FUNÇÃO", (231, 76, 60)))
+            for pb in lista_pendentes:
+                secoes.append(("ROW", pb["nome"], pb["funcao"], (255, 128, 128)))
+
+    else:
+        cor_tema = (0, 123, 255)
+        titulo = "COMPARATIVO ANUAL (PROD. VS EXP.)"
+        kpi_big = f"{fmt(ca_at)} t"
+        kpi_unit = "EXPEDIDAS"
+        sub_1 = f"Meta Diária Necessária: {fmt(mdc)} t/dia"
+        sub_2 = f"Variação: {tv}"
+        secoes = [
+            ("SEC", "CONSOLIDADO ACUMULADO NO ANO", "", (0, 123, 255)),
+            ("ROW", "Expedição Acumulada Ano", f"{fmt(ca_at)} t", (0, 123, 255)),
+            ("ROW", "Produção Acumulada Ano", f"{fmt(pa_at)} t", (0, 214, 114)),
+            ("SEC", "PROJEÇÃO DE FECHAMENTO (31/12)", "", (56, 189, 248)),
+            ("ROW", "Projeção Expedição 31/12", f"{fmt(pcf)} t", (56, 189, 248)),
+            ("ROW", "Projeção Produção 31/12", f"{fmt(ppf)} t", (167, 243, 208)),
+            ("ROW", "Estoque Meta Final Ano", f"{fmt(meta_est_ano)} t", (255, 255, 255)),
+        ]
+
+    if not secoes:
+        secoes.append(("ROW", "Status", "Aguardando dados atualizados", (148, 163, 184)))
+
+    f_brand = _carregar_fonte_png(32, True)
+    f_brand_sub = _carregar_fonte_png(17, False)
+    f_tit = _carregar_fonte_png(24, True)
+    f_kpi = _carregar_fonte_png(52, True)
+    f_unit = _carregar_fonte_png(22, True)
+    f_sub = _carregar_fonte_png(19, False)
+    f_sec = _carregar_fonte_png(17, True)
+    f_row = _carregar_fonte_png(20, False)
+    f_row_b = _carregar_fonte_png(21, True)
+    f_foot = _carregar_fonte_png(16, False)
+
+    # Calcula altura exata sem cortar nenhuma linha
+    alt_cab = 310 + (28 if sub_2 else 0) + (24 if pct_barra is not None else 0)
+    alt_linhas = sum(44 if s[0] == "SEC" else 52 for s in secoes)
+    largura = 1080
+    altura = alt_cab + alt_linhas + 70
+
+    img = Image.new("RGB", (largura, altura), (5, 9, 17))
+    draw = ImageDraw.Draw(img)
+
+    # Moldura principal neon
+    draw.rounded_rectangle([16, 16, largura - 16, altura - 16], radius=24, fill=(10, 20, 38), outline=cor_tema, width=4)
+
+    # Cabeçalho Institucional A.L.O.V.E. | Eldorado Brasil
+    draw.rounded_rectangle([34, 34, largura - 34, 122], radius=16, fill=(7, 15, 29), outline=(22, 50, 82), width=2)
+    draw.text((54, 48), "A.L.O.V.E.  |  Eldorado Brasil", font=f_brand, fill=(0, 230, 118))
+    draw.text((54, 88), "Assistente Logístico Virtual da Expedição", font=f_brand_sub, fill=(148, 163, 184))
+
+    dt_txt = agora_br.strftime("%d/%m/%Y • %H:%M")
+    bbox_dt = draw.textbbox((0, 0), dt_txt, font=f_brand_sub)
+    draw.text((largura - 54 - (bbox_dt[2] - bbox_dt[0]), 88), dt_txt, font=f_brand_sub, fill=(0, 214, 114))
+    loc_txt = "Três Lagoas - MS"
+    bbox_loc = draw.textbbox((0, 0), loc_txt, font=f_sec)
+    draw.text((largura - 54 - (bbox_loc[2] - bbox_loc[0]), 54), loc_txt, font=f_sec, fill=(255, 255, 255))
+
+    # Bloco KPI Principal
+    y_cursor = 144
+    draw.rounded_rectangle([34, y_cursor, 44, y_cursor + 120], radius=4, fill=cor_tema)
+    draw.text((62, y_cursor), titulo, font=f_tit, fill=cor_tema)
+    draw.text((62, y_cursor + 34), kpi_big, font=f_kpi, fill=(255, 255, 255))
+    bbox_k = draw.textbbox((0, 0), kpi_big, font=f_kpi)
+    draw.text((62 + (bbox_k[2] - bbox_k[0]) + 14, y_cursor + 56), kpi_unit, font=f_unit, fill=(148, 163, 184))
+
+    y_cursor += 102
+    if sub_1:
+        draw.text((62, y_cursor), sub_1, font=f_sub, fill=(203, 213, 225))
+        y_cursor += 28
+    if sub_2:
+        draw.text((62, y_cursor), sub_2, font=f_sub, fill=(148, 163, 184))
+        y_cursor += 28
+    if pct_barra is not None:
+        y_cursor += 6
+        draw.rounded_rectangle([62, y_cursor, largura - 54, y_cursor + 12], radius=6, fill=(20, 36, 59))
+        w_fill = int(((largura - 116) * min(100.0, max(2.0, pct_barra))) / 100.0)
+        draw.rounded_rectangle([62, y_cursor, 62 + w_fill, y_cursor + 12], radius=6, fill=cor_tema)
+        y_cursor += 22
+
+    y_cursor += 16
+    for tipo_s, esq_s, dir_s, cor_s in secoes:
+        if tipo_s == "SEC":
+            y_cursor += 6
+            draw.text((40, y_cursor + 6), str(esq_s), font=f_sec, fill=cor_s)
+            if dir_s:
+                bbox_d = draw.textbbox((0, 0), str(dir_s), font=f_sec)
+                draw.text((largura - 46 - (bbox_d[2] - bbox_d[0]), y_cursor + 6), str(dir_s), font=f_sec, fill=(148, 163, 184))
+            y_cursor += 38
+        else:
+            draw.rounded_rectangle([34, y_cursor, largura - 34, y_cursor + 44], radius=10, fill=(7, 13, 24), outline=(24, 43, 68), width=1)
+            draw.text((52, y_cursor + 10), str(esq_s)[:48], font=f_row, fill=(226, 232, 240))
+            bbox_r = draw.textbbox((0, 0), str(dir_s), font=f_row_b)
+            draw.text((largura - 52 - (bbox_r[2] - bbox_r[0]), y_cursor + 9), str(dir_s), font=f_row_b, fill=cor_s)
+            y_cursor += 52
+
+    draw.text((40, altura - 46), "A.L.O.V.E. Mobile  •  Expedição de Celulose — Três Lagoas / MS", font=f_foot, fill=(100, 116, 139))
+
+    buf = BytesIO()
+    img.save(buf, format="PNG")
+    return base64.b64encode(buf.getvalue()).decode("ascii")
+
+
 mapa_blocos_reais = {
-    "prev":  ("📅 Previsões do Dia", html_previsoes),
-    "prod":  ("🏭 Produção de Celulose", html_prod_completo),
-    "est":   ("📦 Estoque Físico no Armazém", html_est),
-    "exp":   ("🚚 Expedição Realizada", html_exp_completo),
-    "ped":   ("📑 Análise de Pedidos (ZLE087)", html_bloco_pedidos),
-    "patio": ("🚛 Pátio da Fábrica", html_patio),
-    "frota": ("🚜 Frota & Equipamentos", html_frota_disp),
-    "manut": ("🔧 Preventiva & Inspeção", html_prev_insp_bloco),
-    "glp":   ("⛽ Consumo de GLP", html_glp_completo),
-    "baf":   ("🩺 Auditoria Bafômetro (H&S)", html_baf_final),
-    "anual": ("📊 Comparativo Anual", h_an),
+    "prev":  "📅 Previsões do Dia",
+    "prod":  "🏭 Produção de Celulose",
+    "est":   "📦 Estoque Físico no Armazém",
+    "exp":   "🚚 Expedição Realizada",
+    "ped":   "📑 Análise de Pedidos (ZLE087)",
+    "patio": "🚛 Pátio da Fábrica",
+    "frota": "🚜 Frota & Equipamentos",
+    "manut": "🔧 Preventiva & Inspeção",
+    "glp":   "⛽ Consumo de GLP",
+    "baf":   "🩺 Auditoria Bafômetro (H&S)",
+    "anual": "📊 Comparativo Anual",
 }
 
 botoes_escolha_print = ""
 telas_print_individuais = ""
 
-for chave_b, (rotulo_b, html_b_orig) in mapa_blocos_reais.items():
+for chave_b, rotulo_b in mapa_blocos_reais.items():
+    img_b64 = gerar_card_executivo_b64(chave_b)
+    data_uri = f"data:image/png;base64,{img_b64}"
+
     botoes_escolha_print += f"""
     <a href="#print-view-{chave_b}"
        style="display:flex; align-items:center; justify-content:space-between; background:#070f1d; border:1.5px solid #163252; border-radius:12px; padding:12px 14px; color:#ffffff; text-decoration:none; font-size:0.86rem; font-weight:800;">
         <span>{rotulo_b}</span>
-        <span style="color:#00D672; font-size:0.82rem;">Abrir Card ›</span>
+        <span style="color:#00D672; font-size:0.82rem;">Gerar Print ›</span>
     </a>
     """
-
-    html_b_aberto = html_b_orig.replace('<details class="master-box"', '<details class="master-box" open', 1)
 
     telas_print_individuais += f"""
     <div id="print-view-{chave_b}" class="zero-reload-overlay">
         <div class="zero-reload-inner">
-            <!-- BARRA SUPERIOR DE CONTROLE (FORA DA ÁREA CAPTURADA NA FOTO) -->
             <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:10px; background:#0b1830; border:1.5px solid #163252; border-radius:12px; padding:9px 12px;">
                 <a href="#print-seletor" style="color:#38bdf8; font-size:0.80rem; font-weight:800; text-decoration:none;">◀ Trocar</a>
-                <button type="button" class="btn-capturar-png" data-nome="ALOVE_{chave_b}"
+                <button type="button" class="btn-share-b64" data-nome="ALOVE_{chave_b}.png"
                         style="background:linear-gradient(90deg, #00D672 0%, #00b4ff 100%); color:#050911; border:none; border-radius:8px; padding:7px 14px; font-size:0.80rem; font-weight:900; cursor:pointer; box-shadow:0 0 12px rgba(0,214,114,0.35);">
-                    📲 Gerar / Enviar WhatsApp
+                    📲 Enviar no WhatsApp
                 </button>
                 <a href="#sec-topo" style="color:#ff8080; font-size:0.80rem; font-weight:800; text-decoration:none;">✕ Fechar</a>
             </div>
 
-            <!-- ÁREA EXATA QUE VIRA IMAGEM PNG COMPLETA SEM CORTAR -->
-            <div class="capture-area" style="background:#050911; padding:12px; border-radius:18px; border:1px solid #12304a;">
-                <div style="background:linear-gradient(90deg, #071324 0%, #0b2239 100%); border:1.5px solid #00D672; border-radius:14px; padding:10px 14px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center;">
-                    <div>
-                        <div style="color:#00E676; font-size:1.05rem; font-weight:900; letter-spacing:0.8px;">A.L.O.V.E. <span style="color:#334155;">|</span> <span style="color:#00D672; font-size:0.88rem;">Eldorado Brasil</span></div>
-                        <div style="color:#94a3b8; font-size:0.65rem; font-weight:600; margin-top:2px;">Assistente Logístico Virtual da Expedição</div>
-                    </div>
-                    <div style="text-align:right;">
-                        <div style="color:#ffffff; font-size:0.74rem; font-weight:800;">📍 Três Lagoas - MS</div>
-                        <div style="color:#00D672; font-size:0.68rem; font-weight:700; font-family:monospace;">{agora_br.strftime('%d/%m/%Y • %H:%M')}</div>
-                    </div>
-                </div>
-
-                <div class="print-card-stage">
-                    {html_b_aberto}
-                </div>
-
-                <div style="text-align:right; color:#64748b; font-size:0.62rem; margin-top:4px; padding-right:4px;">
-                    A.L.O.V.E. Mobile • Expedição de Celulose
-                </div>
+            <div style="text-align:center; color:#94a3b8; font-size:0.70rem; margin-bottom:8px;">
+                Toque em <b>Enviar no WhatsApp</b> acima ou segure na imagem abaixo para compartilhar:
             </div>
+
+            <img class="img-pronta-png" src="{data_uri}" style="width:100%; display:block; border-radius:16px; box-shadow:0 8px 28px rgba(0,0,0,0.85);">
         </div>
     </div>
     """
@@ -3921,7 +4196,7 @@ html_fab_e_prints = f"""
         z-index: 999998;
         overflow-y: auto;
         -webkit-overflow-scrolling: touch;
-        padding: calc(env(safe-area-inset-top, 10px) + 14px) 10px calc(env(safe-area-inset-bottom, 16px) + 40px) 10px;
+        padding: calc(env(safe-area-inset-top, 10px) + 14px) 12px calc(env(safe-area-inset-bottom, 16px) + 40px) 12px;
     }}
     .zero-reload-overlay:target {{
         display: block;
@@ -3929,9 +4204,6 @@ html_fab_e_prints = f"""
     .zero-reload-inner {{
         max-width: 540px;
         margin: 0 auto;
-    }}
-    .print-card-stage details.master-box > summary::after {{
-        display: none !important;
     }}
 </style>
 
@@ -3960,7 +4232,7 @@ html_fab_e_prints = f"""
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; padding-bottom:10px; border-bottom:1px solid #163252;">
             <div>
                 <div style="color:#00D672; font-size:0.95rem; font-weight:900; letter-spacing:0.4px;">📸 GERAR PRINT DO MOBILE</div>
-                <div style="color:#94a3b8; font-size:0.74rem; margin-top:2px;">Toque no bloco para abrir instantaneamente:</div>
+                <div style="color:#94a3b8; font-size:0.74rem; margin-top:2px;">Toque no bloco para abrir a imagem pronta:</div>
             </div>
             <a href="#sec-topo" style="width:36px; height:36px; border-radius:10px; background:#070f1d; border:1.5px solid #E74C3C; color:#ffffff; font-weight:900; text-decoration:none; display:flex; align-items:center; justify-content:center; font-size:1rem;">✕</a>
         </div>
@@ -3974,91 +4246,54 @@ html_fab_e_prints = f"""
 """
 render_html(html_fab_e_prints)
 
-# Motor silencioso que gera o PNG completo sem cortar e abre compartilhamento nativo (WhatsApp)
+# Compartilhamento nativo síncrono (converte o Base64 já pronto e abre gaveta do WhatsApp em 2ms)
 components.html("""
-<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 <script>
 (function() {
     const parentDoc = window.parent.document;
     const parentWin = window.parent;
 
-    function vincularBotoes() {
-        const botoes = parentDoc.querySelectorAll('.btn-capturar-png');
+    function vincularShare() {
+        const botoes = parentDoc.querySelectorAll('.btn-share-b64');
         botoes.forEach(btn => {
             if (btn.dataset.bound === "1") return;
             btn.dataset.bound = "1";
             btn.addEventListener('click', async function() {
-                const origTxt = btn.textContent;
-                if (typeof html2canvas === "undefined") {
-                    btn.textContent = "⏳ Carregando motor...";
-                    setTimeout(() => { btn.textContent = origTxt; }, 1200);
-                    return;
-                }
-                btn.textContent = "⏳ Gerando PNG...";
-                btn.disabled = true;
                 try {
                     const overlay = btn.closest('.zero-reload-overlay');
-                    const area = overlay.querySelector('.capture-area');
-                    const canvas = await html2canvas(area, {
-                        backgroundColor: "#050911",
-                        scale: 2,
-                        useCORS: true,
-                        logging: false,
-                        scrollX: 0,
-                        scrollY: 0,
-                        windowWidth: area.scrollWidth,
-                        windowHeight: area.scrollHeight + 40
-                    });
-                    const nomeArq = (btn.dataset.nome || "ALOVE_Print") + ".png";
-                    const dataUrl = canvas.toDataURL("image/png");
+                    const imgEl = overlay.querySelector('.img-pronta-png');
+                    const b64Data = imgEl.src.split(',')[1];
+                    const byteChars = atob(b64Data);
+                    const byteNums = new Array(byteChars.length);
+                    for (let i = 0; i < byteChars.length; i++) {
+                        byteNums[i] = byteChars.charCodeAt(i);
+                    }
+                    const blob = new Blob([new Uint8Array(byteNums)], { type: 'image/png' });
+                    const nomeArq = btn.dataset.nome || 'ALOVE_Print.png';
+                    const file = new File([blob], nomeArq, { type: 'image/png' });
 
-                    canvas.toBlob(async function(blob) {
-                        let compartilhou = false;
-                        try {
-                            const file = new File([blob], nomeArq, { type: "image/png" });
-                            if (parentWin.navigator.canShare && parentWin.navigator.canShare({ files: [file] })) {
-                                await parentWin.navigator.share({
-                                    files: [file],
-                                    title: "A.L.O.V.E. Mobile"
-                                });
-                                compartilhou = true;
-                            }
-                        } catch (e) {
-                            compartilhou = false;
-                        }
-
-                        if (!compartilhou) {
-                            const antigo = parentDoc.getElementById("alove-img-preview-modal");
-                            if (antigo) antigo.remove();
-                            const modalDiv = parentDoc.createElement("div");
-                            modalDiv.id = "alove-img-preview-modal";
-                            modalDiv.style.cssText = "position:fixed;inset:0;background:rgba(3,7,14,0.96);z-index:9999999;overflow-y:auto;padding:24px 14px 50px 14px;text-align:center;";
-                            modalDiv.innerHTML = `
-                                <div style="max-width:520px;margin:0 auto;">
-                                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;background:#0b1830;border:1.5px solid #00D672;border-radius:12px;padding:10px 14px;">
-                                        <span style="color:#00E676;font-size:0.80rem;font-weight:800;">📲 Segure na imagem p/ enviar no WhatsApp</span>
-                                        <button type="button" onclick="this.closest('#alove-img-preview-modal').remove()" style="background:#E74C3C;color:#fff;border:none;border-radius:8px;padding:5px 10px;font-weight:900;cursor:pointer;">✕</button>
-                                    </div>
-                                    <img src="${dataUrl}" style="width:100%;border-radius:14px;border:1.5px solid #163252;box-shadow:0 8px 24px rgba(0,0,0,0.8);">
-                                </div>
-                            `;
-                            parentDoc.body.appendChild(modalDiv);
-                        }
-
-                        btn.textContent = "✅ Pronto!";
-                        setTimeout(() => { btn.textContent = origTxt; btn.disabled = false; }, 1600);
-                    }, "image/png");
-                } catch (err) {
-                    console.error("Erro captura PNG:", err);
-                    btn.textContent = "❌ Erro ao gerar";
-                    setTimeout(() => { btn.textContent = origTxt; btn.disabled = false; }, 2000);
-                }
+                    if (parentWin.navigator.canShare && parentWin.navigator.canShare({ files: [file] })) {
+                        await parentWin.navigator.share({
+                            files: [file],
+                            title: 'A.L.O.V.E. Mobile'
+                        });
+                    } else {
+                        const url = URL.createObjectURL(blob);
+                        const a = parentDoc.createElement('a');
+                        a.href = url;
+                        a.download = nomeArq;
+                        parentDoc.body.appendChild(a);
+                        a.click();
+                        a.remove();
+                        URL.revokeObjectURL(url);
+                    }
+                } catch (e) {}
             });
         });
     }
 
-    vincularBotoes();
-    setInterval(vincularBotoes, 1200);
+    vincularShare();
+    setInterval(vincularShare, 1200);
 })();
 </script>
 """, height=0)
