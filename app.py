@@ -4285,14 +4285,37 @@ components.html(f"""
     const CARDS_B64 = {json.dumps(cards_b64_map)};
 
     function inicializarControles() {{
-        // 1. Menu flutuante fecha sozinho ao clicar em qualquer atalho ou fora dele
+        // 1. Menu flutuante fecha sozinho, pula p/ o bloco abaixo do banner e abre o card automaticamente
         const fab = parentDoc.getElementById('fabMenuDetails');
         if (fab) {{
             fab.querySelectorAll('.fab-menu a').forEach(link => {{
                 if (link.dataset.closeBound === "1") return;
                 link.dataset.closeBound = "1";
-                link.addEventListener('click', function() {{
+                link.addEventListener('click', function(ev) {{
                     fab.removeAttribute('open');
+                    const href = link.getAttribute('href') || '';
+                    if (href.startsWith('#sec-')) {{
+                        const secEl = parentDoc.getElementById(href.slice(1));
+                        if (secEl) {{
+                            ev.preventDefault();
+                            let irmao = secEl.nextElementSibling;
+                            while (irmao) {{
+                                if (irmao.matches && irmao.matches('details.master-box')) {{
+                                    irmao.setAttribute('open', '');
+                                    break;
+                                }}
+                                const interno = irmao.querySelector ? irmao.querySelector('details.master-box') : null;
+                                if (interno) {{
+                                    interno.setAttribute('open', '');
+                                    break;
+                                }}
+                                if (irmao.id && irmao.id.startsWith('sec-')) break;
+                                irmao = irmao.nextElementSibling;
+                            }}
+                            secEl.scrollIntoView({{ behavior: 'smooth', block: 'start' }});
+                            try {{ parentWin.history.replaceState(null, '', href); }} catch (e) {{}}
+                        }}
+                    }}
                 }});
             }});
             if (parentDoc.body.dataset.fabOutsideBound !== "1") {{
