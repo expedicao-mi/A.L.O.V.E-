@@ -3842,9 +3842,97 @@ with st.expander("🛠️ Console de Telemetria & Logs do Core (Dev)", expanded=
 
 
 # ==============================================================================
-# 🎯 MENU FLUTUANTE DE ATALHOS (FECHA AO CLICAR + PARA ABAIXO DO BANNER)
+# 🎯 MENU FLUTUANTE DE ATALHOS + MODAL DE PRINT ZERO-RELOAD (SEM RECARREGAR APP)
 # ==============================================================================
-html_fab_atalhos = """
+mapa_blocos_reais = {
+    "prev":  ("📅 Previsões do Dia", html_previsoes),
+    "prod":  ("🏭 Produção de Celulose", html_prod_completo),
+    "est":   ("📦 Estoque Físico no Armazém", html_est),
+    "exp":   ("🚚 Expedição Realizada", html_exp_completo),
+    "ped":   ("📑 Análise de Pedidos (ZLE087)", html_bloco_pedidos),
+    "patio": ("🚛 Pátio da Fábrica", html_patio),
+    "frota": ("🚜 Frota & Equipamentos", html_frota_disp),
+    "manut": ("🔧 Preventiva & Inspeção", html_prev_insp_bloco),
+    "glp":   ("⛽ Consumo de GLP", html_glp_completo),
+    "baf":   ("🩺 Auditoria Bafômetro (H&S)", html_baf_final),
+    "anual": ("📊 Comparativo Anual", h_an),
+}
+
+botoes_escolha_print = ""
+telas_print_individuais = ""
+
+for chave_b, (rotulo_b, html_b_orig) in mapa_blocos_reais.items():
+    botoes_escolha_print += f"""
+    <a href="#print-view-{chave_b}"
+       style="display:flex; align-items:center; justify-content:space-between; background:#070f1d; border:1.5px solid #163252; border-radius:12px; padding:12px 14px; color:#ffffff; text-decoration:none; font-size:0.86rem; font-weight:800;">
+        <span>{rotulo_b}</span>
+        <span style="color:#00D672; font-size:0.82rem;">Abrir Card ›</span>
+    </a>
+    """
+
+    # Força abertura automática (<details open>) mantendo wrappers internos intactos
+    html_b_aberto = html_b_orig.replace('<details class="master-box"', '<details class="master-box" open', 1)
+
+    telas_print_individuais += f"""
+    <div id="print-view-{chave_b}" class="zero-reload-overlay">
+        <div class="zero-reload-inner">
+            <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:12px; background:#0b1830; border:1.5px solid #163252; border-radius:12px; padding:10px 14px;">
+                <a href="#print-seletor" style="color:#38bdf8; font-size:0.82rem; font-weight:800; text-decoration:none;">◀ Trocar Bloco</a>
+                <span style="color:#cbd5e1; font-size:0.72rem; font-weight:700;">📸 Modo Print Limpo</span>
+                <a href="#sec-topo" style="color:#ff8080; font-size:0.82rem; font-weight:800; text-decoration:none;">✕ Fechar</a>
+            </div>
+
+            <!-- CABEÇALHO EXECUTIVO LIMPO PARA O PRINT -->
+            <div style="background:linear-gradient(90deg, #071324 0%, #0b2239 100%); border:1.5px solid #00D672; border-radius:14px; padding:10px 14px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center; box-shadow:0 0 14px rgba(0,214,114,0.22);">
+                <div>
+                    <div style="color:#00E676; font-size:1.05rem; font-weight:900; letter-spacing:0.8px;">A.L.O.V.E. <span style="color:#334155;">|</span> <span style="color:#00D672; font-size:0.88rem;">Eldorado Brasil</span></div>
+                    <div style="color:#94a3b8; font-size:0.65rem; font-weight:600; margin-top:2px;">Assistente Logístico Virtual da Expedição</div>
+                </div>
+                <div style="text-align:right;">
+                    <div style="color:#ffffff; font-size:0.74rem; font-weight:800;">📍 Três Lagoas - MS</div>
+                    <div style="color:#00D672; font-size:0.68rem; font-weight:700; font-family:monospace;">{agora_br.strftime('%d/%m/%Y • %H:%M')}</div>
+                </div>
+            </div>
+
+            <!-- O PRÓPRIO CARD REAL DO MOBILE ABERTO -->
+            <div class="print-card-stage">
+                {html_b_aberto}
+            </div>
+
+            <div style="text-align:center; color:#64748b; font-size:0.68rem; margin-top:8px;">
+                Tire o print da tela agora • A.L.O.V.E. Mobile
+            </div>
+        </div>
+    </div>
+    """
+
+html_fab_e_prints = f"""
+<style>
+    /* OVERLAYS ZERO-RELOAD VIA :target (NÃO RECARREGA PÁGINA NEM DISPARA SPLASH) */
+    .zero-reload-overlay {{
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: #050911;
+        z-index: 999998;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        padding: calc(env(safe-area-inset-top, 10px) + 14px) 12px calc(env(safe-area-inset-bottom, 16px) + 40px) 12px;
+    }}
+    .zero-reload-overlay:target {{
+        display: block;
+    }}
+    .zero-reload-inner {{
+        max-width: 540px;
+        margin: 0 auto;
+    }}
+    /* Esconde a setinha de fechar accordion dentro do modo print */
+    .print-card-stage details.master-box > summary::after {{
+        display: none !important;
+    }}
+</style>
+
+<!-- BOTÃO FLUTUANTE DE ATALHOS -->
 <div class="fab-container">
     <details class="fab-details" id="fabMenuDetails">
         <summary title="Atalhos Rápidos">⚡</summary>
@@ -3860,317 +3948,30 @@ html_fab_atalhos = """
             <a href="#sec-manut" onclick="this.closest('details').removeAttribute('open')">🔧 Preventiva & Inspeção</a>
             <a href="#sec-glp" onclick="this.closest('details').removeAttribute('open')">⛽ Consumo de GLP</a>
             <a href="#sec-baf" onclick="this.closest('details').removeAttribute('open')">🩺 Auditoria Bafômetro</a>
-            <a href="?print_modal=1" target="_self" class="fab-print-link" onclick="this.closest('details').removeAttribute('open')">📸 Print de Bloco</a>
+            <a href="#print-seletor" class="fab-print-link" onclick="this.closest('details').removeAttribute('open')">📸 Print de Bloco</a>
         </div>
     </details>
 </div>
+
+<!-- JANELA 1: SELETOR INSTANTÂNEO DE QUAL BLOCO PRINTAR -->
+<div id="print-seletor" class="zero-reload-overlay" style="background: rgba(3, 7, 14, 0.96);">
+    <div class="zero-reload-inner" style="background:linear-gradient(180deg, #0b1c33 0%, #060d18 100%); border:1.5px solid #00D672; border-radius:18px; padding:16px; box-shadow:0 0 28px rgba(0,214,114,0.28);">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; padding-bottom:10px; border-bottom:1px solid #163252;">
+            <div>
+                <div style="color:#00D672; font-size:0.95rem; font-weight:900; letter-spacing:0.4px;">📸 GERAR PRINT DO MOBILE</div>
+                <div style="color:#94a3b8; font-size:0.74rem; margin-top:2px;">Toque no bloco para abrir instantaneamente:</div>
+            </div>
+            <a href="#sec-topo" style="width:36px; height:36px; border-radius:10px; background:#070f1d; border:1.5px solid #E74C3C; color:#ffffff; font-weight:900; text-decoration:none; display:flex; align-items:center; justify-content:center; font-size:1rem;">✕</a>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:8px;">
+            {botoes_escolha_print}
+        </div>
+    </div>
+</div>
+
+<!-- JANELAS 2: CADA BLOCO REAL DO MOBILE ABERTO PRONTO PARA CAPTURA -->
+{telas_print_individuais}
 """
-render_html(html_fab_atalhos)
-
-
-# ==============================================================================
-# 📸 MODAL DE PRINT EXECUTIVO (EXIBE O PRÓPRIO CARD REAL DO MOBILE ABERTO)
-# ==============================================================================
-print_modal_flag = st.query_params.get("print_modal", "")
-print_bloco_sel = st.query_params.get("print_bloco", "")
-
-if print_modal_flag == "1" or print_bloco_sel:
-    mapa_blocos_reais = {
-        "prev":  ("📅 Previsões do Dia", html_previsoes),
-        "prod":  ("🏭 Produção de Celulose", html_prod_completo),
-        "est":   ("📦 Estoque Físico no Armazém", html_est),
-        "exp":   ("🚚 Expedição Realizada", html_exp_completo),
-        "ped":   ("📑 Análise de Pedidos (ZLE087)", html_bloco_pedidos),
-        "patio": ("🚛 Pátio da Fábrica", html_patio),
-        "frota": ("🚜 Frota & Equipamentos", html_frota_disp),
-        "manut": ("🔧 Preventiva & Inspeção", html_prev_insp_bloco),
-        "glp":   ("⛽ Consumo de GLP", html_glp_completo),
-        "baf":   ("🩺 Auditoria Bafômetro (H&S)", html_baf_final),
-        "anual": ("📊 Comparativo Anual", h_an),
-    }
-
-    if not print_bloco_sel or print_bloco_sel not in mapa_blocos_reais:
-        # JANELA 1: SELETOR RÁPIDO DE QUAL BLOCO VOCÊ QUER PRINTAR
-        botoes_escolha_html = ""
-        for chave_b, (rotulo_b, _) in mapa_blocos_reais.items():
-            botoes_escolha_html += f"""
-            <a href="?print_bloco={chave_b}" target="_self"
-               style="display:flex; align-items:center; justify-content:space-between; background:#070f1d; border:1.5px solid #163252; border-radius:12px; padding:12px 14px; color:#ffffff; text-decoration:none; font-size:0.88rem; font-weight:800;">
-                <span>{rotulo_b}</span>
-                <span style="color:#00D672; font-size:0.82rem;">Gerar Print ›</span>
-            </a>
-            """
-
-        html_janela_escolha = f"""
-        <div style="position:fixed; inset:0; background:rgba(3,7,14,0.94); backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px); z-index:999995; overflow-y:auto; padding:18px 14px 40px 14px;">
-            <div style="max-width:520px; margin:0 auto; background:linear-gradient(180deg, #0b1c33 0%, #060d18 100%); border:1.5px solid #00D672; border-radius:18px; padding:16px; box-shadow:0 0 28px rgba(0,214,114,0.28);">
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; padding-bottom:10px; border-bottom:1px solid #163252;">
-                    <div>
-                        <div style="color:#00D672; font-size:0.95rem; font-weight:900; letter-spacing:0.4px;">📸 GERAR PRINT DO MOBILE</div>
-                        <div style="color:#94a3b8; font-size:0.74rem; margin-top:2px;">Selecione o bloco para abrir o card limpo pronto para captura:</div>
-                    </div>
-                    <a href="?" target="_self" style="width:34px; height:34px; border-radius:10px; background:#070f1d; border:1.5px solid #E74C3C; color:#ffffff; font-weight:900; text-decoration:none; display:flex; align-items:center; justify-content:center;">✕</a>
-                </div>
-                <div style="display:flex; flex-direction:column; gap:8px;">
-                    {botoes_escolha_html}
-                </div>
-            </div>
-        </div>
-        """
-        render_html(html_janela_escolha)
-
-    else:
-        # JANELA 2: EXIBE O PRÓPRIO CARD REAL DO MOBILE ABERTO + CABEÇALHO LIMPO
-        _, html_card_escolhido = mapa_blocos_reais[print_bloco_sel]
-        # Força a abertura automática (<details open>) do card escolhido no modo print
-        html_card_aberto = html_card_escolhido.replace('<details class="master-box"', '<details class="master-box" open', 1)
-
-        html_tela_print_real = f"""
-        <style>
-            .fab-container, .topo-banner, .topo-banner-mask {{ display: none !important; }}
-        </style>
-        <div style="position:fixed; inset:0; background:#050911; z-index:999998; overflow-y:auto; padding:12px 12px 48px 12px;">
-            <div style="max-width:540px; margin:0 auto;">
-                <!-- BARRA DE CONTROLE SUPERIOR (FORA DO CARD DE PRINT) -->
-                <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:10px; background:#091324; border:1px solid #163252; border-radius:12px; padding:8px 12px;">
-                    <a href="?print_modal=1" target="_self" style="color:#38bdf8; font-size:0.78rem; font-weight:800; text-decoration:none;">◀ Trocar Bloco</a>
-                    <span style="color:#94a3b8; font-size:0.70rem; font-weight:600;">Modo Captura Limpa</span>
-                    <a href="?" target="_self" style="color:#ff8080; font-size:0.78rem; font-weight:800; text-decoration:none;">✕ Fechar</a>
-                </div>
-
-                <!-- CABEÇALHO OFICIAL PARA SAIR JUNTO NO PRINT -->
-                <div style="border:1.5px solid #00D672; border-radius:16px; overflow:hidden; margin-bottom:10px; box-shadow:0 0 16px rgba(0,214,114,0.22);">
-                    <img src="{BANNER_TOPO_URL}" style="width:100%; max-height:86px; object-fit:cover; display:block;">
-                </div>
-
-                <!-- O PRÓPRIO CARD REAL DO MOBILE ABERTO -->
-                {html_card_aberto}
-
-                <div style="text-align:center; color:#64748b; font-size:0.68rem; margin-top:6px;">
-                    A.L.O.V.E. Mobile • Gerado em {agora_br.strftime('%d/%m/%Y às %H:%M')}
-                </div>
-            </div>
-        </div>
-        """
-        render_html(html_tela_print_real)
-
-st.markdown("<br><center><span style='color:#64748b; font-size:0.75rem; letter-spacing:0.5px;'>A.L.O.V.E - Mobile / Developed by Cristiano Ciriaco</span></center>", unsafe_allow_html=True)
-
-
-# ==============================================================================
-# 📸 GERADOR EXECUTIVO DE PRINT / RELATÓRIO EM IMAGEM PNG
-# ==============================================================================
-def gerar_imagem_bloco_png(bloco_escolhido: str) -> bytes:
-    from PIL import Image, ImageDraw, ImageFont
-    from io import BytesIO
-
-    # Coleta título, cor tema, KPI principal e linhas estruturadas do bloco escolhido
-    cor_destaque = (0, 214, 114)
-    titulo_card = bloco_escolhido.upper()
-    kpi_principal = ""
-    sub_kpi = ""
-    linhas_dados = []
-
-    if bloco_escolhido == "Previsões do Dia":
-        cor_destaque = (0, 180, 255)
-        kpi_principal = f"Prod: {fmt(prev_prod)} t  |  Carr: {fmt(prev_carr)} t"
-        sub_kpi = "Projeção Consolidada 24 Horas"
-        linhas_dados = [
-            ("Previsão de Produção (24h)", f"{fmt(prev_prod)} t", (255, 255, 255)),
-            ("Previsão de Carregamento (24h)", f"{fmt(prev_carr)} t", (0, 230, 118)),
-            ("Produção Realizada até agora", f"{fmt(prod_hoje_calc)} t", (229, 184, 0)),
-            ("Expedição Realizada até agora", f"{fmt(vol_hoje)} t", (56, 189, 248)),
-        ]
-
-    elif bloco_escolhido == "Produção de Celulose":
-        cor_destaque = (229, 184, 0)
-        kpi_principal = f"{fmt(prod_hoje_calc)} TON"
-        sub_kpi = f"Prev. Fechamento 24h: {fmt(prev_prod)} t"
-        for m_k in ["MS1", "MS2"]:
-            qm = dados_maquinas.get(m_k, {})
-            if qm:
-                linhas_dados.append((f"{m_k} — MAT {qm.get('material', '--')} ({qm.get('qualidade_tipo', 'EQ')})", f"{fmt(qm.get('producao', 0))} t", (255, 159, 28)))
-                linhas_dados.append((f"   Linhas {m_k}", f"L1: {fmt(qm.get('l1', 0))} t | L2: {fmt(qm.get('l2', 0))} t", (56, 189, 248)))
-                linhas_dados.append((f"   Qualidade {m_k}", f"Alv: {fmt(qm.get('alvura', 0), 2)}% | Suj: {fmt(qm.get('sujidade', 0), 2)} | Visc: {fmt(qm.get('viscosidade', 0))}", (203, 213, 225)))
-
-    elif bloco_escolhido == "Estoque Físico no Armazém":
-        cor_destaque = (0, 255, 127)
-        kpi_principal = f"{fmt(estoque_total)} TON"
-        sub_kpi = f"Ocupação: {pct_ocupacao_est:.0f}% de 25.000 t | Livre: {fmt(espaco_livre_est)} t"
-        linhas_dados.append(("Material On-Grade (EQ)", f"{fmt(tot_on_grade)} t ({pct_on_grade:.0f}%)", (0, 255, 127)))
-        linhas_dados.append(("Material Off-Grade (SQ/BQ/OS)", f"{fmt(tot_off_grade)} t ({pct_off_grade:.0f}%)", (255, 140, 0)))
-        for it_e in itens_estoque[:10]:
-            cor_cls = (0, 255, 127) if it_e["classe"] == "EQ" else ((255, 214, 0) if it_e["classe"] == "SQ" else (255, 46, 46))
-            linhas_dados.append((f"MAT {it_e['material']} [{it_e['classe']}]", f"{fmt(it_e['ton'])} t", cor_cls))
-
-    elif bloco_escolhido == "Expedição Realizada":
-        cor_destaque = (0, 214, 114)
-        kpi_principal = f"{fmt(vol_hoje)} TON"
-        sub_kpi = f"Ontem (D-1): {fmt(vol_ontem)} t | Prev. 24h: {fmt(prev_carr)} t ({pct_prog:.0f}%)"
-        for t_h in tns_hoje:
-            linhas_dados.append((f"{t_h['letra']} ({t_h['horario']})", t_h.get("str_vol", f"{fmt(t_h['v'])} t"), (255, 255, 255)))
-        if total_expedicao_meta > 0:
-            linhas_dados.append(("Plano Total vs Carregado", f"{fmt(total_expedicao_real)} / {fmt(total_expedicao_meta)} t", (56, 189, 248)))
-            linhas_dados.append(("Saldo Pendente do Dia", f"{fmt(total_expedicao_falta)} t", (255, 159, 28)))
-
-    elif bloco_escolhido == "Análise de Pedidos (ZLE087)":
-        cor_destaque = (0, 132, 255)
-        kpi_principal = f"{fmt(tot_saldo_geral)} TON PENDENTES"
-        sub_kpi = f"Transf: {fmt(tot_saldo_transf)} t ({len(pedidos_transf)} ped.) | MI/LATAM: {fmt(tot_saldo_mi)} t ({len(pedidos_mi)} ped.)"
-        for p_it in (pedidos_transf + pedidos_mi)[:10]:
-            c_p = (255, 46, 46) if p_it["is_fim"] else (56, 189, 248)
-            tag_f = " [FIM]" if p_it["is_fim"] else ""
-            linhas_dados.append((f"{p_it['destino']} ({p_it['material']}){tag_f}", f"Saldo: {fmt(p_it['saldo'])} t", c_p))
-
-    elif bloco_escolhido == "Pátio da Fábrica":
-        cor_destaque = (56, 169, 255)
-        kpi_principal = f"{total_veiculos_fisicos} VEÍCULOS FÍSICOS"
-        sub_kpi = f"Carga Disponível (00 + 01 + FC): {fmt(vol_patio_disponivel)} t"
-        for tit_p, chv_p, _, _, _, _ in mapa_status_colunas:
-            dp = dados_patio.get(chv_p, {"veiculos": 0, "peso": 0})
-            linhas_dados.append((tit_p, f"{dp['veiculos']} veíc.  ({fmt(dp['peso'])} t)", (255, 255, 255)))
-
-    elif bloco_escolhido == "Frota & Equipamentos":
-        cor_destaque = (46, 230, 91)
-        kpi_principal = f"{qtd_total_disp} DISPONÍVEIS"
-        sub_kpi = f"Disponíveis: {qtd_total_disp} | Indisponíveis: {qtd_total_indisp}"
-        for tp_f in tipos_ordenados_frota:
-            lista_tp = equip_por_tipo.get(tp_f, [])
-            disp_tp = sum(1 for x in lista_tp if not x["is_indisponivel"])
-            ind_tp = sum(1 for x in lista_tp if x["is_indisponivel"])
-            c_tp = (231, 76, 60) if ind_tp > 0 else (46, 230, 91)
-            linhas_dados.append((tp_f, f"{disp_tp} Disp. / {ind_tp} Indisp. (Total: {len(lista_tp)})", c_tp))
-
-    elif bloco_escolhido == "Gestão de Preventiva & Inspeção":
-        cor_destaque = (255, 140, 0)
-        kpi_principal = f"{tot_alertas_manut} PENDÊNCIAS"
-        sub_kpi = f"Prev: {qtd_venc_prev} Venc / {qtd_prox_prev} Próx | Insp: {qtd_venc_insp} Venc / {qtd_prox_insp} Próx"
-        criticos = [e for e in todos_equip_lista if e["sev_p"] <= 1 or e["sev_i"] <= 1]
-        for eq_c in criticos[:10]:
-            det_c = []
-            if eq_c["sev_p"] <= 1:
-                det_c.append(f"Prev: {eq_c['txt_saldo_p']} ({eq_c['lbl_p']})")
-            if eq_c["sev_i"] <= 1:
-                det_c.append(f"Insp: {eq_c['txt_saldo_i']} ({eq_c['lbl_i']})")
-            linhas_dados.append((eq_c["tag"], " | ".join(det_c), (255, 46, 46)))
-        if not criticos:
-            linhas_dados.append(("Status Geral da Frota", "Nenhuma preventiva ou inspeção vencida/crítica", (0, 255, 127)))
-
-    elif bloco_escolhido == "Consumo de GLP":
-        cor_destaque = (255, 159, 28)
-        kpi_principal = f"{fmt(kg_mes_atual, 1)} KG ({fmt(litros_mes_atual, 1)} L)"
-        sub_kpi = f"Mês Atual ({rotulo_mes_atual}) — {len(glp_maquinas)} Empilhadeiras"
-        for mq_g in glp_maquinas[:10]:
-            linhas_dados.append((f"{mq_g['equip']} ({mq_g['abast']} abast.)", f"{fmt(mq_g['kg'], 1)} kg  ({fmt(mq_g['litros'], 1)} L)", (255, 159, 28)))
-
-    elif bloco_escolhido == "Auditoria Bafômetro (H&S)":
-        cor_destaque = (231, 76, 60) if len(lista_pendentes) > 0 else (0, 214, 114)
-        kpi_principal = f"{total_registrados_baf} AUDITADOS"
-        sub_kpi = f"{nome_turno_completo} — Pendentes: {len(lista_pendentes)} | Trocas: {len(lista_trocas)} | OK: {len(lista_aprovados)}"
-        linhas_dados.append(("Aprovados / Realizados", f"{len(lista_aprovados)} colaboradores", (0, 214, 114)))
-        linhas_dados.append(("Trocas / Não Cadastrados", f"{len(lista_trocas)} colaboradores", (56, 189, 248)))
-        linhas_dados.append(("Pendentes / Não Realizados", f"{len(lista_pendentes)} colaboradores", (231, 76, 60)))
-        for pend_b in lista_pendentes[:6]:
-            linhas_dados.append((f"   Pendente: {pend_b['nome']}", pend_b["funcao"], (255, 128, 128)))
-
-    else:  # Comparativo Anual
-        cor_destaque = (0, 123, 255)
-        kpi_principal = f"{fmt(ca_at)} t EXPEDIDAS"
-        sub_kpi = f"Meta Diária Necessária: {fmt(mdc)} t/dia"
-        linhas_dados = [
-            ("Expedição Acumulada Ano", f"{fmt(ca_at)} t", (0, 123, 255)),
-            ("Produção Acumulada Ano", f"{fmt(pa_at)} t", (0, 214, 114)),
-            ("Projeção Expedição 31/12", f"{fmt(pcf)} t", (56, 189, 248)),
-            ("Projeção Produção 31/12", f"{fmt(ppf)} t", (167, 243, 208)),
-            ("Estoque Meta Final Ano", f"{fmt(meta_est_ano)} t", (255, 255, 255)),
-        ]
-
-    if not linhas_dados:
-        linhas_dados.append(("Status", "Sem registros detalhados no momento", (148, 163, 184)))
-
-    # Carrega fontes seguras (Linux Streamlit Cloud / Windows)
-    def carregar_fonte(tamanho, bold=True):
-        caminhos = [
-            "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf" if bold else "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-            "C:/Windows/Fonts/arialbd.ttf" if bold else "C:/Windows/Fonts/arial.ttf",
-        ]
-        for c_f in caminhos:
-            try:
-                return ImageFont.truetype(c_f, tamanho)
-            except Exception:
-                pass
-        return ImageFont.load_default()
-
-    f_brand = carregar_fonte(34, True)
-    f_sub_brand = carregar_fonte(18, False)
-    f_tit = carregar_fonte(26, True)
-    f_kpi = carregar_fonte(40, True)
-    f_sub = carregar_fonte(20, False)
-    f_row = carregar_fonte(21, False)
-    f_row_b = carregar_fonte(22, True)
-    f_foot = carregar_fonte(17, False)
-
-    largura = 1080
-    altura = 360 + (len(linhas_dados) * 56)
-    img = Image.new("RGB", (largura, altura), (5, 9, 17))
-    draw = ImageDraw.Draw(img)
-
-    # Moldura externa neon
-    draw.rounded_rectangle([18, 18, largura - 18, altura - 18], radius=24, fill=(10, 20, 38), outline=cor_destaque, width=4)
-
-    # Cabeçalho Institucional A.L.O.V.E. | Eldorado Brasil
-    draw.rounded_rectangle([36, 36, largura - 36, 128], radius=16, fill=(7, 15, 29), outline=(22, 50, 82), width=2)
-    draw.text((58, 52), "A.L.O.V.E.  |  ELDORADO BRASIL", font=f_brand, fill=(0, 230, 118))
-    draw.text((58, 94), f"Assistente Virtual da Expedição  •  Gerado em {agora_br.strftime('%d/%m/%Y às %H:%M')}", font=f_sub_brand, fill=(148, 163, 184))
-
-    # Bloco Título + KPI Principal
-    draw.rectangle([42, 152, 52, 258], fill=cor_destaque)
-    draw.text((68, 150), titulo_card, font=f_tit, fill=cor_destaque)
-    draw.text((68, 186), kpi_principal, font=f_kpi, fill=(255, 255, 255))
-    draw.text((68, 236), sub_kpi, font=f_sub, fill=(203, 213, 225))
-
-    # Tabela de Linhas Detalhadas
-    y_atual = 282
-    for lbl_r, val_r, cor_v in linhas_dados:
-        draw.rounded_rectangle([38, y_atual, largura - 38, y_atual + 46], radius=10, fill=(7, 13, 24), outline=(24, 43, 68), width=1)
-        draw.text((56, y_atual + 11), str(lbl_r)[:44], font=f_row, fill=(226, 232, 240))
-        bbox_v = draw.textbbox((0, 0), str(val_r), font=f_row_b)
-        w_v = bbox_v[2] - bbox_v[0]
-        draw.text((largura - 56 - w_v, y_atual + 10), str(val_r), font=f_row_b, fill=cor_v)
-        y_atual += 56
-
-    # Rodapé
-    draw.text((42, altura - 48), "A.L.O.V.E. Mobile  •  Expedição de Celulose — Três Lagoas / MS", font=f_foot, fill=(100, 116, 139))
-
-    buf = BytesIO()
-    img.save(buf, format="PNG")
-    return buf.getvalue()
-
-st.markdown('<div id="sec-print"></div>', unsafe_allow_html=True)
-with st.expander("📸 Gerar Print Executivo (Compartilhar Imagem)", expanded=False):
-    opcoes_print = [
-        "Previsões do Dia",
-        "Produção de Celulose",
-        "Estoque Físico no Armazém",
-        "Expedição Realizada",
-        "Análise de Pedidos (ZLE087)",
-        "Pátio da Fábrica",
-        "Frota & Equipamentos",
-        "Gestão de Preventiva & Inspeção",
-        "Consumo de GLP",
-        "Auditoria Bafômetro (H&S)",
-        "Comparativo Anual",
-    ]
-    bloco_sel_print = st.selectbox("Selecione o bloco para gerar a imagem:", opcoes_print, key="sel_bloco_print")
-    img_bytes_png = gerar_imagem_bloco_png(bloco_sel_print)
-    st.image(img_bytes_png, use_container_width=True)
-    nome_arq_png = f"ALOVE_{bloco_sel_print.replace(' ', '_').replace('/', '_')}_{agora_br.strftime('%d%m_%H%M')}.png"
-    st.download_button(
-        label="📥 Baixar / Compartilhar Imagem (PNG)",
-        data=img_bytes_png,
-        file_name=nome_arq_png,
-        mime="image/png",
-        use_container_width=True
-    )
+render_html(html_fab_e_prints)
 
 st.markdown("<br><center><span style='color:#64748b; font-size:0.75rem; letter-spacing:0.5px;'>A.L.O.V.E - Mobile / Developed by Cristiano Ciriaco</span></center>", unsafe_allow_html=True)
