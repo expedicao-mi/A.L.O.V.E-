@@ -3881,18 +3881,38 @@ from io import BytesIO
 import PIL
 from PIL import Image, ImageDraw, ImageFont
 
-def _carregar_fonte_png(tamanho, bold=True):
-    pil_dir = os.path.dirname(PIL.__file__)
-    caminhos = [
-        os.path.join(pil_dir, "DejaVuSans-Bold.ttf" if bold else "DejaVuSans.ttf"),
-        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf" if bold else "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-        "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf" if bold else "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
-        "C:/Windows/Fonts/arialbd.ttf" if bold else "C:/Windows/Fonts/arial.ttf",
-    ]
-    for c_f in caminhos:
-        if os.path.exists(c_f):
+@st.cache_resource
+def _obter_caminhos_fontes_roboto():
+    """Garante fontes TrueType Roboto reais (UTF-8 completo com Ç, Ã, Õ, É, Í, •) no servidor."""
+    caminho_bold = "/tmp/Roboto-Bold.ttf"
+    caminho_reg = "/tmp/Roboto-Regular.ttf"
+    urls = {
+        caminho_bold: "https://github.com/googlefonts/roboto/raw/main/src/hinted/Roboto-Bold.ttf",
+        caminho_reg: "https://github.com/googlefonts/roboto/raw/main/src/hinted/Roboto-Regular.ttf",
+    }
+    for dest, url_f in urls.items():
+        if not os.path.exists(dest) or os.path.getsize(dest) < 10000:
             try:
-                return ImageFont.truetype(c_f, tamanho)
+                r = requests.get(url_f, timeout=6)
+                if r.status_code == 200 and len(r.content) > 10000:
+                    with open(dest, "wb") as f_out:
+                        f_out.write(r.content)
+            except Exception:
+                pass
+    return caminho_bold, caminho_reg
+
+def _carregar_fonte_png(tamanho, bold=True):
+    c_bold, c_reg = _obter_caminhos_fontes_roboto()
+    alvo = c_bold if bold else c_reg
+    if os.path.exists(alvo):
+        try:
+            return ImageFont.truetype(alvo, tamanho)
+        except Exception:
+            pass
+    for c_win in ["C:/Windows/Fonts/arialbd.ttf" if bold else "C:/Windows/Fonts/arial.ttf"]:
+        if os.path.exists(c_win):
+            try:
+                return ImageFont.truetype(c_win, tamanho)
             except Exception:
                 pass
     try:
@@ -4295,5 +4315,43 @@ if card_req in mapa_blocos_reais:
     })();
     </script>
     """, height=0)
+
+# Controlador global do menu flutuante (fecha automaticamente ao tocar em qualquer atalho ou fora do menu)
+components.html("""
+<script>
+(function() {
+    const parentDoc = window.parent.document;
+
+    function configurarMenuFlutuante() {
+        const fab = parentDoc.getElementById('fabMenuDetails');
+        if (!fab) return;
+
+        // Fecha ao clicar em qualquer link de atalho dentro do menu
+        const links = fab.querySelectorAll('.fab-menu a');
+        links.forEach(link => {
+            if (link.dataset.closeBound === "1") return;
+            link.dataset.closeBound = "1";
+            link.addEventListener('click', function() {
+                fab.removeAttribute('open');
+            });
+        });
+
+        // Fecha ao tocar em qualquer área fora do botão flutuante
+        if (parentDoc.body.dataset.fabOutsideBound !== "1") {
+            parentDoc.body.dataset.fabOutsideBound = "1";
+            parentDoc.addEventListener('click', function(ev) {
+                const fabAtual = parentDoc.getElementById('fabMenuDetails');
+                if (fabAtual && fabAtual.hasAttribute('open') && !fabAtual.contains(ev.target)) {
+                    fabAtual.removeAttribute('open');
+                }
+            });
+        }
+    }
+
+    configurarMenuFlutuante();
+    setInterval(configurarMenuFlutuante, 1000);
+})();
+</script>
+""", height=0)
 
 st.markdown("<br><center><span style='color:#64748b; font-size:0.75rem; letter-spacing:0.5px;'>A.L.O.V.E - Mobile / Developed by Cristiano Ciriaco</span></center>", unsafe_allow_html=True)
