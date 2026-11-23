@@ -232,21 +232,27 @@ st.markdown("""
         }
         .fab-details > summary {
             list-style: none;
-            width: 50px;
-            height: 50px;
+            width: 54px;
+            height: 54px;
             border-radius: 50%;
-            background: linear-gradient(135deg, #00D672 0%, #0084FF 100%);
-            color: #050911;
-            font-size: 1.35rem;
-            font-weight: 900;
+            background: #050911;
+            padding: 3px;
             display: flex;
             align-items: center;
             justify-content: center;
-            box-shadow: 0 4px 18px rgba(0, 214, 114, 0.45), 0 4px 12px rgba(0, 0, 0, 0.65);
-            border: 2px solid #ffffff;
+            box-shadow: 0 4px 18px rgba(0, 214, 114, 0.55), 0 4px 14px rgba(0, 0, 0, 0.85);
+            border: 2px solid #00D672;
             cursor: pointer;
             user-select: none;
             -webkit-tap-highlight-color: transparent;
+            overflow: hidden;
+        }
+        .fab-details > summary img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 50%;
+            display: block;
         }
         .fab-details > summary::-webkit-details-marker { display: none; }
         .fab-menu {
@@ -1066,6 +1072,30 @@ if not cards_5d_html:
 
 # 1. Banner Oficial Persistente no Topo (Arredondado + Neon Verde)
 st.markdown(f'<div id="sec-topo"></div><div class="topo-banner-mask"></div><div class="topo-banner"><img src="{BANNER_TOPO_URL}"></div>', unsafe_allow_html=True)
+
+# 1.5 Botão Flutuante com Ícone Oficial A.L.O.V.E. (Renderizado no topo p/ abrir instantâneo no Android)
+html_fab_topo = f"""
+<div class="fab-container">
+    <details class="fab-details" id="fabMenuDetails">
+        <summary title="Atalhos Rápidos"><img src="{LOGO_ALOVE_URL}" alt="A.L.O.V.E."></summary>
+        <div class="fab-menu">
+            <a href="#sec-topo" onclick="this.closest('details').removeAttribute('open')">⬆️ Topo & Clima</a>
+            <a href="#sec-prev" onclick="this.closest('details').removeAttribute('open')">📅 Previsões do Dia</a>
+            <a href="#sec-prod" onclick="this.closest('details').removeAttribute('open')">🏭 Produção Celulose</a>
+            <a href="#sec-est" onclick="this.closest('details').removeAttribute('open')">📦 Estoque Armazém</a>
+            <a href="#sec-exp" onclick="this.closest('details').removeAttribute('open')">🚚 Expedição Realizada</a>
+            <a href="#sec-ped" onclick="this.closest('details').removeAttribute('open')">📑 Pedidos ZLE087</a>
+            <a href="#sec-patio" onclick="this.closest('details').removeAttribute('open')">🚛 Pátio da Fábrica</a>
+            <a href="#sec-frota" onclick="this.closest('details').removeAttribute('open')">🚜 Frota & Equipamentos</a>
+            <a href="#sec-manut" onclick="this.closest('details').removeAttribute('open')">🔧 Preventiva & Inspeção</a>
+            <a href="#sec-glp" onclick="this.closest('details').removeAttribute('open')">⛽ Consumo de GLP</a>
+            <a href="#sec-baf" onclick="this.closest('details').removeAttribute('open')">🩺 Auditoria Bafômetro</a>
+            <a href="#print-seletor" class="fab-print-link" onclick="this.closest('details').removeAttribute('open')">📸 Print de Bloco</a>
+        </div>
+    </details>
+</div>
+"""
+render_html(html_fab_topo)
 
 # 2. Faixa Fina Expansível de Clima com Pílulas (Por Horário vs Por Dia)
 html_clima_barra = f"""
@@ -3843,26 +3873,35 @@ with st.expander("🛠️ Console de Telemetria & Logs do Core (Dev)", expanded=
 
 
 # ==============================================================================
-# 🎯 MENU FLUTUANTE DE ATALHOS + GERADOR DE PRINT EXECUTIVO PNG (100% PYTHON)
+# 📸 GERADOR DE PRINT RETRATO MOBILE (LETRAS GRANDES + ZERO PESO NO ANDROID)
 # ==============================================================================
+import os
 import base64
 from io import BytesIO
+import PIL
 from PIL import Image, ImageDraw, ImageFont
 
 def _carregar_fonte_png(tamanho, bold=True):
+    pil_dir = os.path.dirname(PIL.__file__)
     caminhos = [
+        os.path.join(pil_dir, "DejaVuSans-Bold.ttf" if bold else "DejaVuSans.ttf"),
         "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf" if bold else "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+        "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf" if bold else "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
         "C:/Windows/Fonts/arialbd.ttf" if bold else "C:/Windows/Fonts/arial.ttf",
     ]
     for c_f in caminhos:
-        try:
-            return ImageFont.truetype(c_f, tamanho)
-        except Exception:
-            pass
-    return ImageFont.load_default()
+        if os.path.exists(c_f):
+            try:
+                return ImageFont.truetype(c_f, tamanho)
+            except Exception:
+                pass
+    try:
+        return ImageFont.load_default(size=tamanho)
+    except Exception:
+        return ImageFont.load_default()
 
-def gerar_card_executivo_b64(chave_bloco: str) -> str:
-    """Desenha o card executivo completo em PNG 1080px no servidor (nunca corta e nunca dá erro no Safari)."""
+def gerar_card_mobile_png(chave_bloco: str) -> bytes:
+    """Gera imagem vertical 720px (formato celular) com tipografia grande e visual idêntico ao Mobile."""
     cor_tema = (0, 214, 114)
     titulo = ""
     kpi_big = ""
@@ -3870,108 +3909,107 @@ def gerar_card_executivo_b64(chave_bloco: str) -> str:
     sub_1 = ""
     sub_2 = ""
     pct_barra = None
-    secoes = []  # lista de tuplas: ("TIPO", texto_esq, texto_dir, cor_rgb)
+    secoes = []
 
     if chave_bloco == "prev":
         cor_tema = (0, 180, 255)
-        titulo = "PREVISÕES DO DIA (24 HORAS)"
-        kpi_big = f"{fmt(prev_prod)} t  |  {fmt(prev_carr)} t"
-        kpi_unit = "PROD. / CARR."
-        sub_1 = "Projeção consolidada de fechamento para o turno de 24h"
+        titulo = "PREVISÕES DO DIA (24H)"
+        kpi_big = f"{fmt(prev_prod)} t | {fmt(prev_carr)} t"
+        kpi_unit = ""
+        sub_1 = "Projeção Consolidada de Fechamento 24 Horas"
         secoes = [
-            ("SEC", "PROJEÇÃO DE PRODUÇÃO", "", (0, 180, 255)),
-            ("ROW", "Previsão Fechamento Produção (24h)", f"{fmt(prev_prod)} t", (255, 255, 255)),
-            ("ROW", "Produção Realizada até agora", f"{fmt(prod_hoje_calc)} t", (229, 184, 0)),
-            ("SEC", "PROJEÇÃO DE EXPEDIÇÃO", "", (0, 230, 118)),
-            ("ROW", "Previsão Fechamento Carregamento (24h)", f"{fmt(prev_carr)} t", (0, 230, 118)),
-            ("ROW", "Expedição Realizada até agora", f"{fmt(vol_hoje)} t", (56, 189, 248)),
+            ("SEC", "PROJEÇÃO DE PRODUÇÃO", (0, 180, 255)),
+            ("ROW", "Prev. Fechamento (24h)", f"{fmt(prev_prod)} t", (255, 255, 255)),
+            ("ROW", "Realizado até agora", f"{fmt(prod_hoje_calc)} t", (229, 184, 0)),
+            ("SEC", "PROJEÇÃO DE CARREGAMENTO", (0, 230, 118)),
+            ("ROW", "Prev. Fechamento (24h)", f"{fmt(prev_carr)} t", (0, 230, 118)),
+            ("ROW", "Expedido até agora", f"{fmt(vol_hoje)} t", (56, 189, 248)),
         ]
 
     elif chave_bloco == "prod":
         cor_tema = (229, 184, 0)
         titulo = "PRODUÇÃO DE CELULOSE"
         kpi_big = fmt(prod_hoje_calc)
-        kpi_unit = "TONELADAS"
+        kpi_unit = "TON"
         sub_1 = f"MS1: {fmt(dados_maquinas['MS1'].get('producao', 0))} t  |  MS2: {fmt(dados_maquinas['MS2'].get('producao', 0))} t"
-        sub_2 = f"Prev. Fechamento 24h: {fmt(prev_prod)} t"
+        sub_2 = f"Prev. Fechamento: {fmt(prev_prod)} t"
         for m_k in ["MS1", "MS2"]:
             qm = dados_maquinas.get(m_k, {})
             if qm:
                 qt = qm.get("qualidade_tipo", "EQ")
                 c_q = (231, 76, 60) if qt in ["OS", "BQ"] else ((255, 214, 0) if qt == "SQ" else (0, 214, 114))
                 info_v = viradas_info.get(m_k, {})
-                secoes.append(("SEC", f"MÁQUINA {m_k}  •  MAT: {qm.get('material', '--')} [{qt}]", f"{fmt(qm.get('producao', 0))} t", c_q))
-                secoes.append(("ROW", f"Linhas Individuais ({'A / B' if m_k == 'MS1' else 'C / D'})", f"{fmt(qm.get('l1', 0))} t  |  {fmt(qm.get('l2', 0))} t", (56, 189, 248)))
-                secoes.append(("ROW", "Alvura / Sujidade", f"{fmt(qm.get('alvura', 0), 2)}%  |  {fmt(qm.get('sujidade', 0), 2)}", (226, 232, 240)))
-                secoes.append(("ROW", "Viscosidade / pH", f"{fmt(qm.get('viscosidade', 0))}  |  pH {fmt(qm.get('ph', 0), 1)}", (226, 232, 240)))
+                secoes.append(("SEC", f"{m_k} • MAT {qm.get('material', '--')} [{qt}] — {fmt(qm.get('producao', 0))} t", c_q))
+                secoes.append(("ROW", "Linhas A/B ou C/D", f"{fmt(qm.get('l1', 0))} t  |  {fmt(qm.get('l2', 0))} t", (56, 189, 248)))
+                secoes.append(("ROW", "Alvura  /  Sujidade", f"{fmt(qm.get('alvura', 0), 2)}%  |  {fmt(qm.get('sujidade', 0), 2)}", (255, 255, 255)))
+                secoes.append(("ROW", "Viscosidade  /  pH", f"{fmt(qm.get('viscosidade', 0))}  |  pH {fmt(qm.get('ph', 0), 1)}", (255, 255, 255)))
                 secoes.append(("ROW", "Próxima Virada", f"MAT {info_v.get('prox_mat', '--')} • {info_v.get('prev_virada', '--')}", (255, 159, 28)))
 
     elif chave_bloco == "est":
         cor_tema = (0, 255, 127)
         titulo = "ESTOQUE FÍSICO NO ARMAZÉM"
         kpi_big = fmt(estoque_total)
-        kpi_unit = "TONELADAS"
+        kpi_unit = "TON"
         sub_1 = f"Ocupação: {fmt(estoque_total)} t de 25.000 t ({pct_ocupacao_est:.0f}%)"
-        sub_2 = f"Espaço Livre: {fmt(espaco_livre_est)} t  |  Capacidade: 25.000 t"
+        sub_2 = f"Espaço Livre: {fmt(espaco_livre_est)} t  |  Cap.: 25.000 t"
         pct_barra = pct_ocupacao_est
-        secoes.append(("SEC", "RESUMO POR CLASSE DE QUALIDADE", "", (0, 255, 127)))
-        secoes.append(("ROW", "Material On-Grade (EQ)", f"{fmt(tot_on_grade)} t ({pct_on_grade:.0f}%)", (0, 255, 127)))
-        secoes.append(("ROW", "Material Off-Grade (SQ / BQ / OS)", f"{fmt(tot_off_grade)} t ({pct_off_grade:.0f}%)", (255, 140, 0)))
-        secoes.append(("SEC", "DETALHAMENTO POR MATERIAL", "QTD. TON", (56, 189, 248)))
+        secoes.append(("SEC", "CLASSE DE QUALIDADE", (0, 255, 127)))
+        secoes.append(("ROW", "On-Grade (EQ)", f"{fmt(tot_on_grade)} t ({pct_on_grade:.0f}%)", (0, 255, 127)))
+        secoes.append(("ROW", "Off-Grade (SQ/BQ/OS)", f"{fmt(tot_off_grade)} t ({pct_off_grade:.0f}%)", (255, 140, 0)))
+        secoes.append(("SEC", "MATERIAIS EM ESTOQUE", (56, 189, 248)))
         for it_e in itens_estoque:
             c_cls = (0, 255, 127) if it_e["classe"] == "EQ" else ((255, 214, 0) if it_e["classe"] == "SQ" else ((255, 140, 0) if it_e["classe"] == "BQ" else (255, 46, 46)))
-            secoes.append(("ROW", f"MAT {it_e['material']}   [{it_e['classe']}]", f"{fmt(it_e['ton'])} t", c_cls))
+            secoes.append(("ROW", f"MAT {it_e['material']}  [{it_e['classe']}]", f"{fmt(it_e['ton'])} t", c_cls))
 
     elif chave_bloco == "exp":
         cor_tema = (0, 214, 114)
         titulo = "EXPEDIÇÃO REALIZADA"
         kpi_big = fmt(vol_hoje)
-        kpi_unit = "TONELADAS"
+        kpi_unit = "TON"
         sub_1 = f"Consolidado Ontem (D-1): {fmt(vol_ontem)} t"
         sub_2 = f"Progresso: {fmt(vol_hoje)} t de {fmt(prev_carr)} t ({pct_prog:.0f}%)"
         pct_barra = pct_prog
-        secoes.append(("SEC", "TURNOS EM OPERAÇÃO HOJE", "", (0, 214, 114)))
+        secoes.append(("SEC", "TURNOS EM OPERAÇÃO HOJE", (0, 214, 114)))
         for th in tns_hoje:
             v_s = th.get("str_vol", f"{fmt(th['v'])} t")
             c_t = (231, 76, 60) if v_s == "EM FOLGA" else (255, 255, 255)
             secoes.append(("ROW", f"{th['letra']} ({th['horario']})", v_s, c_t))
         if balanco_destinos:
-            secoes.append(("SEC", "PLANO VS EXPEDIDO POR DESTINO", "CARR. / PLANO", (56, 189, 248)))
+            secoes.append(("SEC", "PLANO VS EXPEDIDO POR DESTINO", (56, 189, 248)))
             for bd in balanco_destinos:
                 c_bd = (0, 214, 114) if bd["atingimento"] >= 100 else (56, 189, 248)
-                secoes.append(("ROW", f"{bd['destino']} ({bd['atingimento']:.0f}%)", f"{fmt(bd['realizado'])} / {fmt(bd['meta'])} t", c_bd))
-            secoes.append(("ROW", "TOTAL GERAL (PENDENTE)", f"{fmt(total_expedicao_real)} / {fmt(total_expedicao_meta)} t (Falta: {fmt(total_expedicao_falta)} t)", (255, 159, 28)))
+                nome_d_curto = bd["destino"][:24]
+                secoes.append(("ROW", f"{nome_d_curto} ({bd['atingimento']:.0f}%)", f"{fmt(bd['realizado'])}/{fmt(bd['meta'])} t", c_bd))
+            secoes.append(("ROW", "TOTAL PENDENTE", f"{fmt(total_expedicao_falta)} t", (255, 159, 28)))
 
     elif chave_bloco == "ped":
         cor_tema = (0, 132, 255)
         titulo = "ANÁLISE DE PEDIDOS (ZLE087)"
         kpi_big = fmt(tot_saldo_geral)
         kpi_unit = "TON PENDENTES"
-        sub_1 = f"Transferência: {fmt(tot_saldo_transf)} t ({len(pedidos_transf)} ped.)"
+        sub_1 = f"Transf.: {fmt(tot_saldo_transf)} t ({len(pedidos_transf)} ped.)"
         sub_2 = f"MI / LATAM: {fmt(tot_saldo_mi)} t ({len(pedidos_mi)} ped.)"
         if pedidos_transf:
-            secoes.append(("SEC", f"TRANSFERÊNCIA ({len(pedidos_transf)} PEDIDOS)", "SALDO ATUAL", (0, 132, 255)))
+            secoes.append(("SEC", f"TRANSFERÊNCIA ({len(pedidos_transf)} PED.)", (0, 132, 255)))
             for pt in pedidos_transf:
                 c_p = (255, 46, 46) if pt["is_fim"] else (56, 189, 248)
-                al_p = " [FIM]" if pt["is_fim"] else ""
-                secoes.append(("ROW", f"{pt['destino']} • MAT {pt['material']}{al_p}", f"{fmt(pt['saldo'])} t", c_p))
+                secoes.append(("ROW", f"{pt['destino'][:20]} • {pt['material']}", f"{fmt(pt['saldo'])} t", c_p))
         if pedidos_mi:
-            secoes.append(("SEC", f"MI / LATAM ({len(pedidos_mi)} PEDIDOS)", "SALDO ATUAL", (0, 214, 114)))
+            secoes.append(("SEC", f"MI / LATAM ({len(pedidos_mi)} PED.)", (0, 214, 114)))
             for pm in pedidos_mi:
                 c_m = (255, 46, 46) if pm["is_fim"] else (0, 214, 114)
-                al_m = " [FIM]" if pm["is_fim"] else ""
-                secoes.append(("ROW", f"{pm['destino']} • MAT {pm['material']}{al_m}", f"{fmt(pm['saldo'])} t", c_m))
+                secoes.append(("ROW", f"{pm['destino'][:20]} • {pm['material']}", f"{fmt(pm['saldo'])} t", c_m))
 
     elif chave_bloco == "patio":
         cor_tema = (56, 169, 255)
         titulo = "PÁTIO DA FÁBRICA (TEMPO REAL)"
         kpi_big = str(total_veiculos_fisicos)
         kpi_unit = "VEÍCULOS FÍSICOS"
-        sub_1 = f"Carga Disponível (Checklist + Apoio + Fila): {fmt(vol_patio_disponivel)} t"
-        secoes.append(("SEC", "DISTRIBUIÇÃO POR ETAPA DO PÁTIO", "VEÍC. / TON", (56, 169, 255)))
+        sub_1 = f"Carga Disponível: {fmt(vol_patio_disponivel)} t"
+        secoes.append(("SEC", "VEÍCULOS POR ETAPA", (56, 169, 255)))
         for tit_p, chv_p, _, _, _, _ in mapa_status_colunas:
             dp = dados_patio.get(chv_p, {"veiculos": 0, "peso": 0})
-            secoes.append(("ROW", tit_p, f"{dp['veiculos']} veíc.  ({fmt(dp['peso'])} t)", (255, 255, 255)))
+            secoes.append(("ROW", tit_p, f"{dp['veiculos']} veíc. ({fmt(dp['peso'])} t)", (255, 255, 255)))
 
     elif chave_bloco == "frota":
         cor_tema = (46, 230, 91)
@@ -3979,161 +4017,153 @@ def gerar_card_executivo_b64(chave_bloco: str) -> str:
         kpi_big = str(qtd_total_disp)
         kpi_unit = "DISPONÍVEIS"
         sub_1 = f"Disponíveis: {qtd_total_disp}  |  Indisponíveis: {qtd_total_indisp}"
-        secoes.append(("SEC", "DISPONIBILIDADE POR CATEGORIA", "DISP. / INDISP.", (46, 230, 91)))
+        secoes.append(("SEC", "STATUS POR CATEGORIA", (46, 230, 91)))
         for tp_f in tipos_ordenados_frota:
             ltp = equip_por_tipo.get(tp_f, [])
             d_c = sum(1 for x in ltp if not x["is_indisponivel"])
             i_c = sum(1 for x in ltp if x["is_indisponivel"])
             c_f = (231, 76, 60) if i_c > 0 else (46, 230, 91)
-            secoes.append(("ROW", tp_f, f"{d_c} Disp.  |  {i_c} Indisp.", c_f))
+            secoes.append(("ROW", tp_f, f"{d_c} Disp. / {i_c} Indisp.", c_f))
 
     elif chave_bloco == "manut":
         cor_tema = (255, 46, 46) if tot_alertas_manut > 0 else (230, 126, 34)
         titulo = "PREVENTIVA & INSPEÇÃO"
         kpi_big = str(tot_alertas_manut)
         kpi_unit = "PENDÊNCIAS"
-        sub_1 = f"Preventiva: {qtd_venc_prev} Vencidas • {qtd_prox_prev} Próx. Vencimento"
-        sub_2 = f"Inspeção: {qtd_venc_insp} Vencidas • {qtd_prox_insp} Próx. Vencimento"
+        sub_1 = f"Prev.: {qtd_venc_prev} Venc. • {qtd_prox_prev} Próx. Venc."
+        sub_2 = f"Insp.: {qtd_venc_insp} Venc. • {qtd_prox_insp} Próx. Venc."
         criticos = [e for e in todos_equip_lista if e["sev_p"] <= 1 or e["sev_i"] <= 1]
-        secoes.append(("SEC", "EQUIPAMENTOS VENCIDOS OU PRÓXIMOS AO VENCIMENTO", "SALDO / STATUS", (255, 140, 0)))
+        secoes.append(("SEC", "EQUIPAMENTOS CRÍTICOS", (255, 140, 0)))
         for eq_c in criticos:
             pts = []
             if eq_c["sev_p"] <= 1:
-                pts.append(f"Prev: {eq_c['txt_saldo_p']} ({eq_c['lbl_p']})")
+                pts.append(f"Prev: {eq_c['txt_saldo_p']}")
             if eq_c["sev_i"] <= 1:
-                pts.append(f"Insp: {eq_c['txt_saldo_i']} ({eq_c['lbl_i']})")
+                pts.append(f"Insp: {eq_c['txt_saldo_i']}")
             secoes.append(("ROW", eq_c["tag"], " | ".join(pts), (255, 46, 46)))
         if not criticos:
-            secoes.append(("ROW", "Status Geral da Frota", "Nenhuma pendência crítica", (0, 255, 127)))
+            secoes.append(("ROW", "Status Geral", "Nenhuma pendência crítica", (0, 255, 127)))
 
     elif chave_bloco == "glp":
         cor_tema = (255, 159, 28)
         titulo = "CONSUMO DE GLP — FROTA"
-        kpi_big = f"{fmt(kg_mes_atual, 1)} KG"
-        kpi_unit = f"({fmt(litros_mes_atual, 1)} L)"
-        sub_1 = f"Mês Atual ({rotulo_mes_atual}) • {len(glp_maquinas)} Empilhadeiras Monitoradas"
+        kpi_big = f"{fmt(kg_mes_atual, 1)}"
+        kpi_unit = f"KG ({fmt(litros_mes_atual, 1)} L)"
+        sub_1 = f"Mês Atual ({rotulo_mes_atual}) • {len(glp_maquinas)} Empilhadeiras"
         if mes_atual_obj:
-            secoes.append(("SEC", f"DISTRIBUIÇÃO POR TURNO ({rotulo_mes_atual})", "CONSUMO", (0, 255, 127)))
-            secoes.append(("ROW", "Turno 00h às 08h", f"{fmt(mes_atual_obj['t1'], 1)} kg", (56, 189, 248)))
-            secoes.append(("ROW", "Turno 08h às 16h", f"{fmt(mes_atual_obj['t2'], 1)} kg", (0, 255, 127)))
-            secoes.append(("ROW", "Turno 16h às 00h", f"{fmt(mes_atual_obj['t3'], 1)} kg", (255, 159, 28)))
-        secoes.append(("SEC", "CONSUMO POR EMPILHADEIRA", "KG / LITROS", (255, 159, 28)))
+            secoes.append(("SEC", f"POR TURNO ({rotulo_mes_atual})", (0, 255, 127)))
+            secoes.append(("ROW", "00h às 08h", f"{fmt(mes_atual_obj['t1'], 1)} kg", (56, 189, 248)))
+            secoes.append(("ROW", "08h às 16h", f"{fmt(mes_atual_obj['t2'], 1)} kg", (0, 255, 127)))
+            secoes.append(("ROW", "16h às 00h", f"{fmt(mes_atual_obj['t3'], 1)} kg", (255, 159, 28)))
+        secoes.append(("SEC", "POR EMPILHADEIRA", (255, 159, 28)))
         for mq_g in glp_maquinas:
-            secoes.append(("ROW", f"{mq_g['equip']} ({mq_g['abast']} abast.)", f"{fmt(mq_g['kg'], 1)} kg ({fmt(mq_g['litros'], 1)} L)", (255, 255, 255)))
+            secoes.append(("ROW", f"{mq_g['equip']} ({mq_g['abast']} ab.)", f"{fmt(mq_g['kg'], 1)} kg", (255, 255, 255)))
 
     elif chave_bloco == "baf":
         cor_tema = (231, 76, 60) if len(lista_pendentes) > 0 else (0, 214, 114)
         titulo = "AUDITORIA BAFÔMETRO (H&S)"
         kpi_big = str(total_registrados_baf)
         kpi_unit = "AUDITADOS"
-        sub_1 = f"{nome_turno_completo}  •  Pendentes: {len(lista_pendentes)} | Trocas: {len(lista_trocas)} | OK: {len(lista_aprovados)}"
-        secoes.append(("SEC", "RESUMO DO TURNO", "COLABORADORES", cor_tema))
-        secoes.append(("ROW", "Aprovados / Realizados", f"{len(lista_aprovados)}", (0, 214, 114)))
-        secoes.append(("ROW", "Trocas / Não Cadastrados", f"{len(lista_trocas)}", (56, 189, 248)))
-        secoes.append(("ROW", "Não Realizados / Pendentes", f"{len(lista_pendentes)}", (231, 76, 60)))
+        sub_1 = f"{nome_turno_completo}"
+        sub_2 = f"Pendentes: {len(lista_pendentes)} | Trocas: {len(lista_trocas)} | OK: {len(lista_aprovados)}"
+        secoes.append(("SEC", "RESUMO DO TURNO", cor_tema))
+        secoes.append(("ROW", "Aprovados / Realizados", f"{len(lista_aprovados)} colab.", (0, 214, 114)))
+        secoes.append(("ROW", "Trocas / Não Cadastrados", f"{len(lista_trocas)} colab.", (56, 189, 248)))
+        secoes.append(("ROW", "Não Realizados / Pendentes", f"{len(lista_pendentes)} colab.", (231, 76, 60)))
         if lista_pendentes:
-            secoes.append(("SEC", "COLABORADORES PENDENTES", "FUNÇÃO", (231, 76, 60)))
+            secoes.append(("SEC", "COLABORADORES PENDENTES", (231, 76, 60)))
             for pb in lista_pendentes:
-                secoes.append(("ROW", pb["nome"], pb["funcao"], (255, 128, 128)))
+                secoes.append(("ROW", pb["nome"][:24], pb["funcao"][:18], (255, 128, 128)))
 
     else:
         cor_tema = (0, 123, 255)
-        titulo = "COMPARATIVO ANUAL (PROD. VS EXP.)"
-        kpi_big = f"{fmt(ca_at)} t"
-        kpi_unit = "EXPEDIDAS"
+        titulo = "COMPARATIVO ANUAL"
+        kpi_big = f"{fmt(ca_at)}"
+        kpi_unit = "t EXPEDIDAS"
         sub_1 = f"Meta Diária Necessária: {fmt(mdc)} t/dia"
-        sub_2 = f"Variação: {tv}"
+        sub_2 = tv
         secoes = [
-            ("SEC", "CONSOLIDADO ACUMULADO NO ANO", "", (0, 123, 255)),
-            ("ROW", "Expedição Acumulada Ano", f"{fmt(ca_at)} t", (0, 123, 255)),
-            ("ROW", "Produção Acumulada Ano", f"{fmt(pa_at)} t", (0, 214, 114)),
-            ("SEC", "PROJEÇÃO DE FECHAMENTO (31/12)", "", (56, 189, 248)),
-            ("ROW", "Projeção Expedição 31/12", f"{fmt(pcf)} t", (56, 189, 248)),
-            ("ROW", "Projeção Produção 31/12", f"{fmt(ppf)} t", (167, 243, 208)),
-            ("ROW", "Estoque Meta Final Ano", f"{fmt(meta_est_ano)} t", (255, 255, 255)),
+            ("SEC", "ACUMULADO NO ANO", (0, 123, 255)),
+            ("ROW", "Expedição Anual", f"{fmt(ca_at)} t", (0, 123, 255)),
+            ("ROW", "Produção Anual", f"{fmt(pa_at)} t", (0, 214, 114)),
+            ("SEC", "PROJEÇÃO 31/12", (56, 189, 248)),
+            ("ROW", "Proj. Expedição", f"{fmt(pcf)} t", (56, 189, 248)),
+            ("ROW", "Proj. Produção", f"{fmt(ppf)} t", (167, 243, 208)),
+            ("ROW", "Estoque Meta Ano", f"{fmt(meta_est_ano)} t", (255, 255, 255)),
         ]
 
     if not secoes:
-        secoes.append(("ROW", "Status", "Aguardando dados atualizados", (148, 163, 184)))
+        secoes.append(("ROW", "Status", "Aguardando dados", (148, 163, 184)))
 
-    f_brand = _carregar_fonte_png(32, True)
+    # Fontes GRANDES calibradas para 720px de largura (leitura perfeita no WhatsApp do celular)
+    f_brand = _carregar_fonte_png(30, True)
     f_brand_sub = _carregar_fonte_png(17, False)
-    f_tit = _carregar_fonte_png(24, True)
-    f_kpi = _carregar_fonte_png(52, True)
-    f_unit = _carregar_fonte_png(22, True)
-    f_sub = _carregar_fonte_png(19, False)
-    f_sec = _carregar_fonte_png(17, True)
-    f_row = _carregar_fonte_png(20, False)
-    f_row_b = _carregar_fonte_png(21, True)
+    f_tit = _carregar_fonte_png(23, True)
+    f_kpi = _carregar_fonte_png(64 if len(kpi_big) <= 8 else 44, True)
+    f_unit = _carregar_fonte_png(24, True)
+    f_sub = _carregar_fonte_png(20, False)
+    f_sec = _carregar_fonte_png(19, True)
+    f_row = _carregar_fonte_png(22, False)
+    f_row_b = _carregar_fonte_png(23, True)
     f_foot = _carregar_fonte_png(16, False)
 
-    # Calcula altura exata sem cortar nenhuma linha
-    alt_cab = 310 + (28 if sub_2 else 0) + (24 if pct_barra is not None else 0)
-    alt_linhas = sum(44 if s[0] == "SEC" else 52 for s in secoes)
-    largura = 1080
-    altura = alt_cab + alt_linhas + 70
+    largura = 720
+    alt_cab = 320 + (32 if sub_2 else 0) + (28 if pct_barra is not None else 0)
+    alt_linhas = sum(46 if s[0] == "SEC" else 60 for s in secoes)
+    altura = alt_cab + alt_linhas + 64
 
     img = Image.new("RGB", (largura, altura), (5, 9, 17))
     draw = ImageDraw.Draw(img)
 
-    # Moldura principal neon
-    draw.rounded_rectangle([16, 16, largura - 16, altura - 16], radius=24, fill=(10, 20, 38), outline=cor_tema, width=4)
+    # Moldura externa neon arredondada
+    draw.rounded_rectangle([12, 12, largura - 12, altura - 12], radius=24, fill=(11, 24, 48), outline=cor_tema, width=4)
 
     # Cabeçalho Institucional A.L.O.V.E. | Eldorado Brasil
-    draw.rounded_rectangle([34, 34, largura - 34, 122], radius=16, fill=(7, 15, 29), outline=(22, 50, 82), width=2)
-    draw.text((54, 48), "A.L.O.V.E.  |  Eldorado Brasil", font=f_brand, fill=(0, 230, 118))
-    draw.text((54, 88), "Assistente Logístico Virtual da Expedição", font=f_brand_sub, fill=(148, 163, 184))
+    draw.rounded_rectangle([26, 26, largura - 26, 118], radius=16, fill=(7, 15, 29), outline=(22, 50, 82), width=2)
+    draw.text((44, 40), "A.L.O.V.E. | Eldorado Brasil", font=f_brand, fill=(0, 230, 118))
+    draw.text((44, 82), "Três Lagoas - MS  •  " + agora_br.strftime("%d/%m/%Y às %H:%M"), font=f_brand_sub, fill=(148, 163, 184))
 
-    dt_txt = agora_br.strftime("%d/%m/%Y • %H:%M")
-    bbox_dt = draw.textbbox((0, 0), dt_txt, font=f_brand_sub)
-    draw.text((largura - 54 - (bbox_dt[2] - bbox_dt[0]), 88), dt_txt, font=f_brand_sub, fill=(0, 214, 114))
-    loc_txt = "Três Lagoas - MS"
-    bbox_loc = draw.textbbox((0, 0), loc_txt, font=f_sec)
-    draw.text((largura - 54 - (bbox_loc[2] - bbox_loc[0]), 54), loc_txt, font=f_sec, fill=(255, 255, 255))
+    # Bloco KPI Gigante estilo Mobile
+    y_c = 138
+    draw.rounded_rectangle([26, y_c, 36, y_c + 128], radius=5, fill=cor_tema)
+    draw.text((52, y_c), titulo, font=f_tit, fill=cor_tema)
+    draw.text((52, y_c + 34), kpi_big, font=f_kpi, fill=(255, 255, 255))
+    if kpi_unit:
+        bbox_k = draw.textbbox((0, 0), kpi_big, font=f_kpi)
+        draw.text((52 + (bbox_k[2] - bbox_k[0]) + 12, y_c + 68), kpi_unit, font=f_unit, fill=(148, 163, 184))
 
-    # Bloco KPI Principal
-    y_cursor = 144
-    draw.rounded_rectangle([34, y_cursor, 44, y_cursor + 120], radius=4, fill=cor_tema)
-    draw.text((62, y_cursor), titulo, font=f_tit, fill=cor_tema)
-    draw.text((62, y_cursor + 34), kpi_big, font=f_kpi, fill=(255, 255, 255))
-    bbox_k = draw.textbbox((0, 0), kpi_big, font=f_kpi)
-    draw.text((62 + (bbox_k[2] - bbox_k[0]) + 14, y_cursor + 56), kpi_unit, font=f_unit, fill=(148, 163, 184))
-
-    y_cursor += 102
+    y_c += 116
     if sub_1:
-        draw.text((62, y_cursor), sub_1, font=f_sub, fill=(203, 213, 225))
-        y_cursor += 28
+        draw.text((52, y_c), sub_1, font=f_sub, fill=(226, 232, 240))
+        y_c += 30
     if sub_2:
-        draw.text((62, y_cursor), sub_2, font=f_sub, fill=(148, 163, 184))
-        y_cursor += 28
+        draw.text((52, y_c), sub_2, font=f_sub, fill=(148, 163, 184))
+        y_c += 30
     if pct_barra is not None:
-        y_cursor += 6
-        draw.rounded_rectangle([62, y_cursor, largura - 54, y_cursor + 12], radius=6, fill=(20, 36, 59))
-        w_fill = int(((largura - 116) * min(100.0, max(2.0, pct_barra))) / 100.0)
-        draw.rounded_rectangle([62, y_cursor, 62 + w_fill, y_cursor + 12], radius=6, fill=cor_tema)
-        y_cursor += 22
+        y_c += 6
+        draw.rounded_rectangle([52, y_c, largura - 38, y_c + 14], radius=7, fill=(20, 36, 59))
+        w_fill = int(((largura - 90) * min(100.0, max(3.0, pct_barra))) / 100.0)
+        draw.rounded_rectangle([52, y_c, 52 + w_fill, y_c + 14], radius=7, fill=cor_tema)
+        y_c += 26
 
-    y_cursor += 16
+    y_c += 14
     for tipo_s, esq_s, dir_s, cor_s in secoes:
         if tipo_s == "SEC":
-            y_cursor += 6
-            draw.text((40, y_cursor + 6), str(esq_s), font=f_sec, fill=cor_s)
-            if dir_s:
-                bbox_d = draw.textbbox((0, 0), str(dir_s), font=f_sec)
-                draw.text((largura - 46 - (bbox_d[2] - bbox_d[0]), y_cursor + 6), str(dir_s), font=f_sec, fill=(148, 163, 184))
-            y_cursor += 38
+            y_c += 6
+            draw.text((30, y_c + 6), str(esq_s), font=f_sec, fill=cor_s)
+            y_c += 40
         else:
-            draw.rounded_rectangle([34, y_cursor, largura - 34, y_cursor + 44], radius=10, fill=(7, 13, 24), outline=(24, 43, 68), width=1)
-            draw.text((52, y_cursor + 10), str(esq_s)[:48], font=f_row, fill=(226, 232, 240))
+            draw.rounded_rectangle([26, y_c, largura - 26, y_c + 52], radius=12, fill=(7, 13, 24), outline=(26, 49, 77), width=1)
+            draw.text((42, y_c + 13), str(esq_s)[:30], font=f_row, fill=(226, 232, 240))
             bbox_r = draw.textbbox((0, 0), str(dir_s), font=f_row_b)
-            draw.text((largura - 52 - (bbox_r[2] - bbox_r[0]), y_cursor + 9), str(dir_s), font=f_row_b, fill=cor_s)
-            y_cursor += 52
+            draw.text((largura - 42 - (bbox_r[2] - bbox_r[0]), y_c + 12), str(dir_s), font=f_row_b, fill=cor_s)
+            y_c += 60
 
-    draw.text((40, altura - 46), "A.L.O.V.E. Mobile  •  Expedição de Celulose — Três Lagoas / MS", font=f_foot, fill=(100, 116, 139))
+    draw.text((30, altura - 42), "A.L.O.V.E. Mobile  •  Expedição de Celulose", font=f_foot, fill=(100, 116, 139))
 
     buf = BytesIO()
     img.save(buf, format="PNG")
-    return base64.b64encode(buf.getvalue()).decode("ascii")
+    return buf.getvalue()
 
 
 mapa_blocos_reais = {
@@ -4150,49 +4180,24 @@ mapa_blocos_reais = {
     "anual": "📊 Comparativo Anual",
 }
 
+# Modal leve (0KB de peso extra no carregamento inicial do Android!)
 botoes_escolha_print = ""
-telas_print_individuais = ""
-
 for chave_b, rotulo_b in mapa_blocos_reais.items():
-    img_b64 = gerar_card_executivo_b64(chave_b)
-    data_uri = f"data:image/png;base64,{img_b64}"
-
     botoes_escolha_print += f"""
-    <a href="#print-view-{chave_b}"
+    <a href="?print_card={chave_b}" target="_self"
        style="display:flex; align-items:center; justify-content:space-between; background:#070f1d; border:1.5px solid #163252; border-radius:12px; padding:12px 14px; color:#ffffff; text-decoration:none; font-size:0.86rem; font-weight:800;">
         <span>{rotulo_b}</span>
         <span style="color:#00D672; font-size:0.82rem;">Gerar Print ›</span>
     </a>
     """
 
-    telas_print_individuais += f"""
-    <div id="print-view-{chave_b}" class="zero-reload-overlay">
-        <div class="zero-reload-inner">
-            <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:10px; background:#0b1830; border:1.5px solid #163252; border-radius:12px; padding:9px 12px;">
-                <a href="#print-seletor" style="color:#38bdf8; font-size:0.80rem; font-weight:800; text-decoration:none;">◀ Trocar</a>
-                <button type="button" class="btn-share-b64" data-nome="ALOVE_{chave_b}.png"
-                        style="background:linear-gradient(90deg, #00D672 0%, #00b4ff 100%); color:#050911; border:none; border-radius:8px; padding:7px 14px; font-size:0.80rem; font-weight:900; cursor:pointer; box-shadow:0 0 12px rgba(0,214,114,0.35);">
-                    📲 Enviar no WhatsApp
-                </button>
-                <a href="#sec-topo" style="color:#ff8080; font-size:0.80rem; font-weight:800; text-decoration:none;">✕ Fechar</a>
-            </div>
-
-            <div style="text-align:center; color:#94a3b8; font-size:0.70rem; margin-bottom:8px;">
-                Toque em <b>Enviar no WhatsApp</b> acima ou segure na imagem abaixo para compartilhar:
-            </div>
-
-            <img class="img-pronta-png" src="{data_uri}" style="width:100%; display:block; border-radius:16px; box-shadow:0 8px 28px rgba(0,0,0,0.85);">
-        </div>
-    </div>
-    """
-
-html_fab_e_prints = f"""
+html_seletor_print = f"""
 <style>
     .zero-reload-overlay {{
         display: none;
         position: fixed;
         inset: 0;
-        background: #050911;
+        background: rgba(3, 7, 14, 0.96);
         z-index: 999998;
         overflow-y: auto;
         -webkit-overflow-scrolling: touch;
@@ -4207,32 +4212,12 @@ html_fab_e_prints = f"""
     }}
 </style>
 
-<div class="fab-container">
-    <details class="fab-details" id="fabMenuDetails">
-        <summary title="Atalhos Rápidos">⚡</summary>
-        <div class="fab-menu">
-            <a href="#sec-topo" onclick="this.closest('details').removeAttribute('open')">⬆️ Topo & Clima</a>
-            <a href="#sec-prev" onclick="this.closest('details').removeAttribute('open')">📅 Previsões do Dia</a>
-            <a href="#sec-prod" onclick="this.closest('details').removeAttribute('open')">🏭 Produção Celulose</a>
-            <a href="#sec-est" onclick="this.closest('details').removeAttribute('open')">📦 Estoque Armazém</a>
-            <a href="#sec-exp" onclick="this.closest('details').removeAttribute('open')">🚚 Expedição Realizada</a>
-            <a href="#sec-ped" onclick="this.closest('details').removeAttribute('open')">📑 Pedidos ZLE087</a>
-            <a href="#sec-patio" onclick="this.closest('details').removeAttribute('open')">🚛 Pátio da Fábrica</a>
-            <a href="#sec-frota" onclick="this.closest('details').removeAttribute('open')">🚜 Frota & Equipamentos</a>
-            <a href="#sec-manut" onclick="this.closest('details').removeAttribute('open')">🔧 Preventiva & Inspeção</a>
-            <a href="#sec-glp" onclick="this.closest('details').removeAttribute('open')">⛽ Consumo de GLP</a>
-            <a href="#sec-baf" onclick="this.closest('details').removeAttribute('open')">🩺 Auditoria Bafômetro</a>
-            <a href="#print-seletor" class="fab-print-link" onclick="this.closest('details').removeAttribute('open')">📸 Print de Bloco</a>
-        </div>
-    </details>
-</div>
-
-<div id="print-seletor" class="zero-reload-overlay" style="background: rgba(3, 7, 14, 0.96);">
+<div id="print-seletor" class="zero-reload-overlay">
     <div class="zero-reload-inner" style="background:linear-gradient(180deg, #0b1c33 0%, #060d18 100%); border:1.5px solid #00D672; border-radius:18px; padding:16px; box-shadow:0 0 28px rgba(0,214,114,0.28);">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; padding-bottom:10px; border-bottom:1px solid #163252;">
             <div>
                 <div style="color:#00D672; font-size:0.95rem; font-weight:900; letter-spacing:0.4px;">📸 GERAR PRINT DO MOBILE</div>
-                <div style="color:#94a3b8; font-size:0.74rem; margin-top:2px;">Toque no bloco para abrir a imagem pronta:</div>
+                <div style="color:#94a3b8; font-size:0.74rem; margin-top:2px;">Toque no bloco para gerar a imagem:</div>
             </div>
             <a href="#sec-topo" style="width:36px; height:36px; border-radius:10px; background:#070f1d; border:1.5px solid #E74C3C; color:#ffffff; font-weight:900; text-decoration:none; display:flex; align-items:center; justify-content:center; font-size:1rem;">✕</a>
         </div>
@@ -4241,27 +4226,44 @@ html_fab_e_prints = f"""
         </div>
     </div>
 </div>
-
-{telas_print_individuais}
 """
-render_html(html_fab_e_prints)
+render_html(html_seletor_print)
 
-# Compartilhamento nativo síncrono (converte o Base64 já pronto e abre gaveta do WhatsApp em 2ms)
-components.html("""
-<script>
-(function() {
-    const parentDoc = window.parent.document;
-    const parentWin = window.parent;
+# Renderiza APENAS a imagem solicitada quando clicada (0ms de peso no resto do tempo)
+card_req = st.query_params.get("print_card", "")
+if card_req in mapa_blocos_reais:
+    png_bytes = gerar_card_mobile_png(card_req)
+    png_b64 = base64.b64encode(png_bytes).decode("ascii")
+    nome_arq_png = f"ALOVE_{card_req}_{agora_br.strftime('%d%m_%H%M')}.png"
 
-    function vincularShare() {
-        const botoes = parentDoc.querySelectorAll('.btn-share-b64');
-        botoes.forEach(btn => {
-            if (btn.dataset.bound === "1") return;
+    html_view_unica = f"""
+    <div style="position:fixed; inset:0; background:#050911; z-index:999999; overflow-y:auto; -webkit-overflow-scrolling:touch; padding: calc(env(safe-area-inset-top, 10px) + 14px) 12px calc(env(safe-area-inset-bottom, 16px) + 40px) 12px;">
+        <div style="max-width:520px; margin:0 auto;">
+            <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:10px; background:#0b1830; border:1.5px solid #163252; border-radius:12px; padding:9px 12px;">
+                <a href="?#print-seletor" target="_self" style="color:#38bdf8; font-size:0.80rem; font-weight:800; text-decoration:none;">◀ Trocar</a>
+                <button type="button" id="btnShareSinglePng" data-nome="{nome_arq_png}"
+                        style="background:linear-gradient(90deg, #00D672 0%, #00b4ff 100%); color:#050911; border:none; border-radius:8px; padding:8px 14px; font-size:0.82rem; font-weight:900; cursor:pointer; box-shadow:0 0 12px rgba(0,214,114,0.35);">
+                    📲 Enviar no WhatsApp
+                </button>
+                <a href="?" target="_self" style="color:#ff8080; font-size:0.80rem; font-weight:800; text-decoration:none;">✕ Fechar</a>
+            </div>
+            <img id="imgSinglePng" src="data:image/png;base64,{png_b64}" style="width:100%; display:block; border-radius:16px; box-shadow:0 8px 28px rgba(0,0,0,0.85);">
+        </div>
+    </div>
+    """
+    render_html(html_view_unica)
+
+    components.html("""
+    <script>
+    (function() {
+        const parentDoc = window.parent.document;
+        const parentWin = window.parent;
+        const btn = parentDoc.getElementById('btnShareSinglePng');
+        if (btn && btn.dataset.bound !== "1") {
             btn.dataset.bound = "1";
             btn.addEventListener('click', async function() {
                 try {
-                    const overlay = btn.closest('.zero-reload-overlay');
-                    const imgEl = overlay.querySelector('.img-pronta-png');
+                    const imgEl = parentDoc.getElementById('imgSinglePng');
                     const b64Data = imgEl.src.split(',')[1];
                     const byteChars = atob(b64Data);
                     const byteNums = new Array(byteChars.length);
@@ -4271,12 +4273,8 @@ components.html("""
                     const blob = new Blob([new Uint8Array(byteNums)], { type: 'image/png' });
                     const nomeArq = btn.dataset.nome || 'ALOVE_Print.png';
                     const file = new File([blob], nomeArq, { type: 'image/png' });
-
                     if (parentWin.navigator.canShare && parentWin.navigator.canShare({ files: [file] })) {
-                        await parentWin.navigator.share({
-                            files: [file],
-                            title: 'A.L.O.V.E. Mobile'
-                        });
+                        await parentWin.navigator.share({ files: [file], title: 'A.L.O.V.E. Mobile' });
                     } else {
                         const url = URL.createObjectURL(blob);
                         const a = parentDoc.createElement('a');
@@ -4289,13 +4287,9 @@ components.html("""
                     }
                 } catch (e) {}
             });
-        });
-    }
-
-    vincularShare();
-    setInterval(vincularShare, 1200);
-})();
-</script>
-""", height=0)
+        }
+    })();
+    </script>
+    """, height=0)
 
 st.markdown("<br><center><span style='color:#64748b; font-size:0.75rem; letter-spacing:0.5px;'>A.L.O.V.E - Mobile / Developed by Cristiano Ciriaco</span></center>", unsafe_allow_html=True)
