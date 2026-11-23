@@ -42,7 +42,7 @@ if st.query_params.get("refresh") == "1":
     st.query_params.clear()
     st.session_state.pop("splash_exibida", None)
 
-if "splash_exibida" not in st.session_state:
+if "splash_exibida" not in st.session_state and not st.query_params.get("print_card"):
     st.session_state.splash_exibida = True
     st.markdown("""
         <style>
@@ -4147,12 +4147,16 @@ def gerar_card_mobile_png(chave_bloco: str) -> bytes:
         y_c += 26
 
     y_c += 14
-    for tipo_s, esq_s, dir_s, cor_s in secoes:
+    for item_s in secoes:
+        tipo_s = item_s[0]
         if tipo_s == "SEC":
+            esq_s = item_s[1]
+            cor_s = item_s[-1]
             y_c += 6
             draw.text((30, y_c + 6), str(esq_s), font=f_sec, fill=cor_s)
             y_c += 40
         else:
+            esq_s, dir_s, cor_s = item_s[1], item_s[2], item_s[3]
             draw.rounded_rectangle([26, y_c, largura - 26, y_c + 52], radius=12, fill=(7, 13, 24), outline=(26, 49, 77), width=1)
             draw.text((42, y_c + 13), str(esq_s)[:30], font=f_row, fill=(226, 232, 240))
             bbox_r = draw.textbbox((0, 0), str(dir_s), font=f_row_b)
