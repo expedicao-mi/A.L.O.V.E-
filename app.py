@@ -258,29 +258,32 @@ st.markdown("""
         .fab-menu {
             position: absolute;
             right: 0;
-            bottom: 60px;
-            width: 225px;
+            bottom: 62px;
+            width: 268px;
             background: rgba(7, 15, 29, 0.96);
             backdrop-filter: blur(10px);
             -webkit-backdrop-filter: blur(10px);
             border: 1.5px solid #00D672;
             border-radius: 16px;
-            padding: 8px;
+            padding: 9px;
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.85), 0 0 16px rgba(0, 214, 114, 0.25);
             display: flex;
             flex-direction: column;
-            gap: 4px;
+            gap: 5px;
         }
         .fab-menu a {
             display: flex;
             align-items: center;
-            gap: 8px;
-            padding: 8px 10px;
+            gap: 13px;
+            padding: 9px 12px;
             border-radius: 9px;
             color: #e2e8f0;
             text-decoration: none;
-            font-size: 0.78rem;
-            font-weight: 700;
+            font-size: 0.85rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+            white-space: nowrap;
             background: rgba(255, 255, 255, 0.03);
             border: 1px solid transparent;
         }
