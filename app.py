@@ -668,10 +668,11 @@ def carregar_dados_mobile_otimizados():
     d_tr, _ = carregar_tabela_cega("Status_TR", "PLACA")
     d_sinal, h_sinal = carregar_tabela_cega("Sinal_de_Vida", "APLICATIVO")
     d_prev, h_prev = carregar_tabela_cega("Preventiva_Inspecao", "TAG")
+    d_disp_eq, h_disp_eq = carregar_tabela_cega("Disponibilidade_Equipamentos", "EQUIPAMENTO")
     d_pran = carregar_prancheta_direto()
-    return d_dash, d_qual, d_alert, d_cache, d_virada, d_bal, d_baf, d_frot, d_pran, d_pat, h_pat, d_tr, d_sinal, h_sinal, d_prev, h_prev
+    return d_dash, d_qual, d_alert, d_cache, d_virada, d_bal, d_baf, d_frot, d_pran, d_pat, h_pat, d_tr, d_sinal, h_sinal, d_prev, h_prev, d_disp_eq, h_disp_eq
 
-df_dash, df_qual, df_alertas, df_cache, df_status_virada, df_balanco_dest, df_bafometro, df_frota, df_prancheta, df_patio_dest, hora_att_patio, df_status_tr, df_sinal_vida, hora_att_sinal, df_prev_insp, hora_att_prev = carregar_dados_mobile_otimizados()
+df_dash, df_qual, df_alertas, df_cache, df_status_virada, df_balanco_dest, df_bafometro, df_frota, df_prancheta, df_patio_dest, hora_att_patio, df_status_tr, df_sinal_vida, hora_att_sinal, df_prev_insp, hora_att_prev, df_disp_equip, hora_att_disp_equip = carregar_dados_mobile_otimizados()
 
 
 
@@ -2729,18 +2730,88 @@ tipos_ordenados_frota = sorted(equip_por_tipo.keys(), key=lambda k: (ordem_tipo_
 txt_base_prev = f" | 🕒 Base: {hora_att_prev.split(' ')[1][:5]}" if hora_att_prev and " " in hora_att_prev else ""
 
 # ------------------------------------------------------------------------------
-# BLOCO 8A: FROTA & EQUIPAMENTOS (SOMENTE NOMENCLATURA | HORÍMETRO | STATUS)
+# BLOCO 8A: FROTA & EQUIPAMENTOS (FONTE OFICIAL: ABA Disponibilidade_Equipamentos)
 # ------------------------------------------------------------------------------
+mapa_horimetro_por_tag = {e["tag"]: e["horimetro"] for e in todos_equip_lista}
+disp_por_tipo = {}
+qtd_total_disp = 0
+qtd_total_indisp = 0
+hora_disp_real = ""
+
+if not df_disp_equip.empty:
+    df_disp_equip.columns = [str(c).strip().upper() for c in df_disp_equip.columns]
+    for _, rd in df_disp_equip.iterrows():
+        tag_d = str(rd.get("EQUIPAMENTO", rd.get("TAG", ""))).strip().upper()
+        if not tag_d or tag_d in ["NAN", "NONE", "EQUIPAMENTO", "TAG"]:
+            continue
+        if tag_d in EQUIPAMENTOS_OCULTOS or "EMP-012" in tag_d:
+            continue
+
+        tp_raw = str(rd.get("TIPO", "Outros")).strip()
+        # Converte o rótulo genérico "Equipamento" das empilhadeiras para "Empilhadeira"
+        if tp_raw.upper() in ["EQUIPAMENTO", ""] and "EMP" in tag_d:
+            tp_nome = "Empilhadeira"
+        else:
+            tp_nome = tp_raw or "Outros"
+
+        st_disp_txt = str(rd.get("STATUS_DISPONIBILIDADE", "")).strip().upper()
+        st_oper_txt = str(rd.get("STATUS_OPERACIONAL", "")).strip().upper()
+        att_row = str(rd.get("ATUALIZADO_EM", "")).strip()
+        if att_row and " " in att_row and not hora_disp_real:
+            hora_disp_real = att_row.split(" ")[1][:5]
+
+        # Indisponível se STATUS_DISPONIBILIDADE != DISPONÍVEL (ex: EM MANUTENÇÃO, INDISPONÍVEL, OFFLINE)
+        is_indisp_d = (
+            ("MANUT" in st_disp_txt)
+            or ("INDISP" in st_disp_txt)
+            or ("OFFLINE" in st_disp_txt)
+            or ("MANUT" in st_oper_txt)
+            or ("DISPON" not in st_disp_txt and st_disp_txt != "")
+        )
+
+        if is_indisp_d:
+            qtd_total_indisp += 1
+        else:
+            qtd_total_disp += 1
+
+        disp_por_tipo.setdefault(tp_nome, []).append({
+            "tag": tag_d,
+            "is_indisponivel": is_indisp_d,
+            "status_lbl": st_disp_txt.title() if st_disp_txt else ("Indisponível" if is_indisp_d else "Disponível"),
+            "horimetro": mapa_horimetro_por_tag.get(tag_d, "--"),
+        })
+
+if not hora_disp_real and hora_att_disp_equip and " " in hora_att_disp_equip:
+    hora_disp_real = hora_att_disp_equip.split(" ")[1][:5]
+
+# Fallback caso a aba Disponibilidade_Equipamentos falhe momentaneamente
+if not disp_por_tipo and equip_por_tipo:
+    for tp_fb, lista_fb in equip_por_tipo.items():
+        for x_fb in lista_fb:
+            if x_fb["is_indisponivel"]:
+                qtd_total_indisp += 1
+            else:
+                qtd_total_disp += 1
+            disp_por_tipo.setdefault(tp_fb, []).append({
+                "tag": x_fb["tag"],
+                "is_indisponivel": x_fb["is_indisponivel"],
+                "status_lbl": "Indisponível" if x_fb["is_indisponivel"] else "Disponível",
+                "horimetro": x_fb["horimetro"],
+            })
+
+tipos_disp_ordenados = sorted(disp_por_tipo.keys(), key=lambda k: (ordem_tipo_equipamento(k), k))
+txt_base_disp_frota = f" | 🕒 Base: {hora_disp_real}" if hora_disp_real else txt_base_prev
+
 html_tabelas_disponibilidade = ""
-if tipos_ordenados_frota:
-    for tp in tipos_ordenados_frota:
-        itens_tp = sorted(equip_por_tipo[tp], key=lambda x: (not x["is_indisponivel"], x["tag"]))
+if tipos_disp_ordenados:
+    for tp in tipos_disp_ordenados:
+        itens_tp = sorted(disp_por_tipo[tp], key=lambda x: (not x["is_indisponivel"], x["tag"]))
         linhas_eq_html = ""
         for item in itens_tp:
             if item["is_indisponivel"]:
-                pill_html = '<span style="display:inline-block; min-width:86px; text-align:center; background:#E74C3C; color:#ffffff; font-size:0.68rem; font-weight:800; padding:3px 10px; border-radius:999px;">Indisponível</span>'
+                pill_html = f'<span style="display:inline-block; min-width:96px; text-align:center; background:#E74C3C; color:#ffffff; font-size:0.66rem; font-weight:800; padding:3px 9px; border-radius:999px;">{html_lib.escape(item["status_lbl"])}</span>'
             else:
-                pill_html = '<span style="display:inline-block; min-width:86px; text-align:center; background:#2EE65B; color:#051409; font-size:0.68rem; font-weight:900; padding:3px 10px; border-radius:999px;">Disponível</span>'
+                pill_html = '<span style="display:inline-block; min-width:96px; text-align:center; background:#2EE65B; color:#051409; font-size:0.68rem; font-weight:900; padding:3px 10px; border-radius:999px;">Disponível</span>'
 
             linhas_eq_html += f"""
             <tr style="border-top:1px solid #162840;">
@@ -2789,7 +2860,7 @@ html_frota_disp = f"""
     <summary>
         <div class="header-layout">
             <div class="icon-box" style="background-color:rgba(46,230,91,.15); color:#2EE65B;">🚜</div>
-            <div class="master-metric-title">Frota & Equipamentos{txt_base_prev}</div>
+            <div class="master-metric-title">Frota & Equipamentos{txt_base_disp_frota}</div>
         </div>
         <div class="value-layout">
             <div class="master-metric-val" style="color:#2EE65B;">{qtd_total_disp}</div>
