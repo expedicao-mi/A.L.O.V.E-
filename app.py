@@ -2732,7 +2732,20 @@ txt_base_prev = f" | 🕒 Base: {hora_att_prev.split(' ')[1][:5]}" if hora_att_p
 # ------------------------------------------------------------------------------
 # BLOCO 8A: FROTA & EQUIPAMENTOS (FONTE OFICIAL: ABA Disponibilidade_Equipamentos)
 # ------------------------------------------------------------------------------
-mapa_horimetro_por_tag = {e["tag"]: e["horimetro"] for e in todos_equip_lista}
+def _chave_equip_norm(tag_str: str) -> str:
+    """Normaliza TAGs entre abas (ex: '90-EMP-008' e 'EMP-008' -> 'EMP8'; 'TALHA 01' e 'TALHA-1' -> 'TALHA1')."""
+    s = str(tag_str or "").strip().upper()
+    s = re.sub(r'^90[\-\s_]*', '', s)
+    s = re.sub(r'[\-\s_]+', '', s)
+    s = re.sub(r'0+(\d+)', r'\1', s)
+    return s
+
+mapa_horimetro_norm = {}
+for e in todos_equip_lista:
+    ch_n = _chave_equip_norm(e["tag"])
+    if ch_n and e["horimetro"] != "--":
+        mapa_horimetro_norm[ch_n] = e["horimetro"]
+
 disp_por_tipo = {}
 qtd_total_disp = 0
 qtd_total_indisp = 0
@@ -2748,7 +2761,6 @@ if not df_disp_equip.empty:
             continue
 
         tp_raw = str(rd.get("TIPO", "Outros")).strip()
-        # Converte o rótulo genérico "Equipamento" das empilhadeiras para "Empilhadeira"
         if tp_raw.upper() in ["EQUIPAMENTO", ""] and "EMP" in tag_d:
             tp_nome = "Empilhadeira"
         else:
@@ -2760,7 +2772,10 @@ if not df_disp_equip.empty:
         if att_row and " " in att_row and not hora_disp_real:
             hora_disp_real = att_row.split(" ")[1][:5]
 
-        # Indisponível se STATUS_DISPONIBILIDADE != DISPONÍVEL (ex: EM MANUTENÇÃO, INDISPONÍVEL, OFFLINE)
+        # 1. Tenta ler horímetro da própria aba se preenchido; senão busca na aba Preventiva_Inspeção
+        horim_direto = formatar_horimetro_ou_data(rd.get("HORIMETRO", "--"))
+        horim_final = horim_direto if horim_direto != "--" else mapa_horimetro_norm.get(_chave_equip_norm(tag_d), "--")
+
         is_indisp_d = (
             ("MANUT" in st_disp_txt)
             or ("INDISP" in st_disp_txt)
@@ -2769,6 +2784,17 @@ if not df_disp_equip.empty:
             or ("DISPON" not in st_disp_txt and st_disp_txt != "")
         )
 
+        if is_indisp_d:
+            qtd_total_indisp += 1
+        else:
+            qtd_total_disp += 1
+
+        disp_por_tipo.setdefault(tp_nome, []).append({
+            "tag": tag_d,
+            "is_indisponivel": is_indisp_d,
+            "status_lbl": st_disp_txt.title() if st_disp_txt else ("Indisponível" if is_indisp_d else "Disponível"),
+            "horimetro": horim_final,
+        })
         if is_indisp_d:
             qtd_total_indisp += 1
         else:
