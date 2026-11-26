@@ -2784,7 +2784,7 @@ if not df_disp_equip.empty:
             or ("DISPON" not in st_disp_txt and st_disp_txt != "")
         )
 
-       if is_indisp_d:
+        if is_indisp_d:
             qtd_total_indisp += 1
         else:
             qtd_total_disp += 1
