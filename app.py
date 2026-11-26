@@ -2788,6 +2788,7 @@ if not df_disp_equip.empty:
             qtd_total_indisp += 1
         else:
             qtd_total_disp += 1
+
         disp_por_tipo.setdefault(tp_nome, []).append({
             "tag": tag_d,
             "is_indisponivel": is_indisp_d,
