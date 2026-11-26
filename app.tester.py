@@ -9,14 +9,31 @@ from io import StringIO
 import ast
 import re
 import html as html_lib
+import streamlit.components.v1 as components
 from streamlit_autorefresh import st_autorefresh
 import gspread
 
+
+
 # ==============================================================================
-# ⚙️ CONFIGURAÇÃO DA PÁGINA
+# ⚙️ CONFIGURAÇÃO DA PÁGINA (COMPATÍVEL COM REPOSITÓRIO 100% PRIVADO)
 # ==============================================================================
-LOGO_ALOVE_URL = "https://raw.githubusercontent.com/expedicao-mi/A.L.O.V.E-/main/app_icon.png"
-BANNER_TOPO_URL = "https://raw.githubusercontent.com/expedicao-mi/A.L.O.V.E-/main/logo_alove.jpg?v=99"
+import os
+import base64
+import hmac
+import hashlib
+
+def _img_local_b64(caminho_arq: str, mime: str, url_fallback: str) -> str:
+    if os.path.exists(caminho_arq):
+        try:
+            with open(caminho_arq, "rb") as f_img:
+                return f"data:{mime};base64,{base64.b64encode(f_img.read()).decode('ascii')}"
+        except Exception:
+            pass
+    return url_fallback
+
+LOGO_ALOVE_URL = _img_local_b64("app_icon.png", "image/png", "https://raw.githubusercontent.com/expedicao-mi/A.L.O.V.E-/main/app_icon.png")
+BANNER_TOPO_URL = _img_local_b64("logo_alove.jpg", "image/jpeg", "https://raw.githubusercontent.com/expedicao-mi/A.L.O.V.E-/main/logo_alove.jpg?v=99")
 SENHA_BAFOMETRO = "1000"
 
 st.set_page_config(
@@ -30,6 +47,50 @@ st_autorefresh(interval=1200000, limit=None, key="refresh_mobile")
 
 if "bafometro_autenticado" not in st.session_state:
     st.session_state.bafometro_autenticado = False
+
+# ==============================================================================
+# ⚡ SPLASH SCREEN INSTANTÂNEA (RENDERIZA ANTES DAS CONSULTAS DO GOOGLE SHEETS)
+# ==============================================================================
+if st.query_params.get("refresh") == "1":
+    st.cache_data.clear()
+    st.query_params.clear()
+    st.session_state.pop("splash_exibida", None)
+
+if "splash_exibida" not in st.session_state and not st.query_params.get("print_card"):
+    st.session_state.splash_exibida = True
+    st.markdown("""
+        <style>
+            [data-testid="stStatusWidget"] { display: none !important; visibility: hidden !important; }
+            .alove-loader-bg {
+                position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+                background: #050911; z-index: 99999999;
+                display: flex; flex-direction: column; justify-content: center; align-items: center;
+                gap: 10px;
+                animation: loaderFadeOut 0.45s 2.85s forwards; pointer-events: none;
+            }
+            .alove-loader-text {
+                font-size: 2.8rem; font-weight: 900; color: #00D672;
+                letter-spacing: 6px; text-shadow: 0 0 20px rgba(0,214,114,0.6);
+                overflow: hidden; white-space: nowrap; border-right: 4px solid #00D672;
+                width: 0;
+                animation: loaderTyping 0.95s steps(7, end) forwards, loaderBlink 0.5s step-end infinite alternate;
+            }
+            .alove-loader-sub {
+                font-size: 0.82rem; font-weight: 700; color: #94a3b8;
+                letter-spacing: 2.2px; text-transform: uppercase;
+                opacity: 0;
+                animation: loaderSubIn 0.45s 0.70s forwards;
+            }
+            @keyframes loaderTyping { from { width: 0 } to { width: 5.5em } }
+            @keyframes loaderBlink { 50% { border-color: transparent } }
+            @keyframes loaderSubIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+            @keyframes loaderFadeOut { to { opacity: 0; visibility: hidden; display: none; } }
+        </style>
+        <div class="alove-loader-bg">
+            <div class="alove-loader-text">A.L.O.V.E</div>
+            <div class="alove-loader-sub">Assistente Virtual da Expedição</div>
+        </div>
+    """, unsafe_allow_html=True)
 
 def render_html(html_str: str):
     """Remove recuos e linhas em branco que fazem o Streamlit achar que o HTML é um bloco de código."""
@@ -52,9 +113,26 @@ st.markdown(f"""
 
 st.markdown("""
     <style>
-        /* 🚀 1. TRAVA O FUNDO E GARANTE SCROLL NATIVO LISO NO IPHONE */
-        html, body, [data-testid="stAppViewContainer"], .stApp {
+        /* 🚀 1. ESTICA O CONTAINER DO STREAMLIT ATÉ O ÚLTIMO PIXEL FÍSICO DO IPHONE */
+        html, body {
+            background-color: #050911 !important;
+            height: 100% !important;
+            min-height: 100dvh !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            overflow: hidden !important;
+        }
+
+        [data-testid="stAppViewContainer"], .stApp {
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            right: 0 !important;
+            bottom: 0 !important;
+            height: 100dvh !important;
+            min-height: 100dvh !important;
             background: radial-gradient(ellipse at top, #0c1a33 0%, #070d18 55%, #050911 100%) !important;
+            background-color: #050911 !important;
             overflow-x: hidden !important;
             overflow-y: auto !important;
             -webkit-overflow-scrolling: touch !important;
@@ -78,10 +156,12 @@ st.markdown("""
             content: "";
         }
 
-        /* 🚀 3. ESCONDE CABEÇALHO, RODAPÉ E BOTÕES DO STREAMLIT */
+        /* 🚀 3. ESCONDE CABEÇALHO, RODAPÉ FANTASMA E BOTÕES DO STREAMLIT */
         #MainMenu, footer, header,
         [data-testid="stHeader"],
         [data-testid="stFooter"],
+        [data-testid="stBottom"],
+        [data-testid="stBottomBlockContainer"],
         [data-testid="manage-app-button"],
         [data-testid="stToolbar"],
         [data-testid="stDecoration"],
@@ -103,20 +183,136 @@ st.markdown("""
             pointer-events: none !important;
         }
 
-                /* COLUNA CENTRAL ESTILO APP */
+
+        /* COLUNA CENTRAL ESTILO APP (COMPENSA O BANNER FIXO SEM BURACO) */
         .block-container {
-            padding-top: 0rem !important; 
+            padding-top: calc(env(safe-area-inset-top, 0px) + 18px) !important;
             padding-bottom: 3.5rem !important;
-            padding-left: 0.8rem !important; 
+            padding-left: 0.8rem !important;
             padding-right: 0.8rem !important;
-            max-width: 560px !important; 
+            max-width: 560px !important;
             margin: 0 auto !important;
         }
 
+        /* GARANTE QUE OS ATALHOS PAREM ABAIXO DO BANNER FIXO SEM TAMPAR O TÍTULO */
+        [id^="sec-"] {
+            scroll-margin-top: calc(env(safe-area-inset-top, 0px) + 104px) !important;
+        }
 
-        /* BANNER */
-        .topo-banner { margin: 0 -0.8rem 14px -0.8rem; background: #050d1a; border-bottom: 1px solid #12506e; text-align: center; }
-        .topo-banner img { width: 100%; max-height: 130px; object-fit: cover; display: block; margin: 0 auto; }
+
+        /* BANNER PERSISTENTE NO TOPO COM CANTOS ARREDONDADOS E NEON VERDE */
+        .topo-banner-mask {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: calc(env(safe-area-inset-top, 0px) + 94px);
+            background: linear-gradient(180deg, #050911 82%, rgba(5, 9, 17, 0) 100%);
+            z-index: 9998;
+            pointer-events: none;
+        }
+        .topo-banner {
+            position: fixed;
+            top: calc(env(safe-area-inset-top, 0px) + 6px);
+            left: 50%;
+            transform: translateX(-50%);
+            width: calc(100% - 1.6rem);
+            max-width: 534px;
+            z-index: 9999;
+            background: #050d1a;
+            border: 1.5px solid #00D672;
+            border-radius: 16px;
+            box-shadow: 0 4px 18px rgba(0, 214, 114, 0.28), 0 6px 16px rgba(0, 0, 0, 0.75);
+            overflow: hidden;
+            text-align: center;
+        }
+        .topo-banner img {
+            width: 100%;
+            max-height: 84px;
+            object-fit: cover;
+            display: block;
+            margin: 0 auto;
+        }
+
+        /* 🎯 BOTÃO FLUTUANTE DE ATALHOS & PRINT (CANTO INFERIOR DIREITO) */
+        .fab-container {
+            position: fixed;
+            right: 16px;
+            bottom: calc(env(safe-area-inset-bottom, 0px) + 18px);
+            z-index: 99990;
+        }
+        .fab-details {
+            position: relative;
+        }
+        .fab-details > summary {
+            list-style: none;
+            width: 54px;
+            height: 54px;
+            border-radius: 50%;
+            background: #050911;
+            padding: 3px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 18px rgba(0, 214, 114, 0.55), 0 4px 14px rgba(0, 0, 0, 0.85);
+            border: 2px solid #00D672;
+            cursor: pointer;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+            overflow: hidden;
+        }
+        .fab-details > summary img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 50%;
+            display: block;
+        }
+        .fab-details > summary::-webkit-details-marker { display: none; }
+        .fab-menu {
+            position: absolute;
+            right: 0;
+            bottom: 62px;
+            width: 268px;
+            background: rgba(7, 15, 29, 0.96);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1.5px solid #00D672;
+            border-radius: 16px;
+            padding: 9px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.85), 0 0 16px rgba(0, 214, 114, 0.25);
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        .fab-menu a {
+            display: flex;
+            align-items: center;
+            gap: 13px;
+            padding: 9px 12px;
+            border-radius: 9px;
+            color: #e2e8f0;
+            text-decoration: none;
+            font-size: 0.85rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+            white-space: nowrap;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid transparent;
+        }
+        .fab-menu a:active {
+            background: rgba(0, 214, 114, 0.18);
+            border-color: #00D672;
+            color: #ffffff;
+        }
+        .fab-menu a.fab-print-link {
+            background: linear-gradient(90deg, rgba(0, 214, 114, 0.18) 0%, rgba(0, 132, 255, 0.18) 100%);
+            border: 1px solid #00D672;
+            color: #00FF7F;
+            font-weight: 800;
+            margin-top: 3px;
+        }
 
         /* CARTÕES PADRÃO */
         .card-main {
@@ -238,6 +434,183 @@ st.markdown("""
         @keyframes pulso { 0% { box-shadow: 0 0 0 0 rgba(0,214,114,.55); } 70% { box-shadow: 0 0 0 9px rgba(0,214,114,0); } 100% { box-shadow: 0 0 0 0 rgba(0,214,114,0); } }
     </style>
 """, unsafe_allow_html=True)
+
+# ==============================================================================
+# 🔐 PORTÃO DE LOGIN PERSISTENTE (ARQUIVO usuarios.txt + MEMÓRIA DO APARELHO)
+# ==============================================================================
+CHAVE_ASSINATURA_MOBILE = "ALOVE_ELDORADO_TL_2026_PRIVADO"
+
+def _carregar_mapa_usuarios_txt() -> dict:
+    """Lê usuario:senha do arquivo usuarios.txt no repositório privado."""
+    mapa = {}
+    if os.path.exists("usuarios.txt"):
+        try:
+            with open("usuarios.txt", "r", encoding="utf-8") as f_u:
+                for linha in f_u:
+                    ln = linha.strip()
+                    if not ln or ln.startswith("#"):
+                        continue
+                    sep = ":" if ":" in ln else ("=" if "=" in ln else (";" if ";" in ln else None))
+                    if sep:
+                        u_part, s_part = ln.split(sep, 1)
+                        u_clean = u_part.strip().lower()
+                        s_clean = s_part.strip()
+                        if u_clean and s_clean:
+                            mapa[u_clean] = s_clean
+        except Exception:
+            pass
+    if not mapa:
+        mapa = {"cristiano": "1000"}
+    return mapa
+
+def _gerar_token_aparelho(usuario_limpo: str, senha_limpa: str) -> str:
+    assinatura = hmac.new(
+        CHAVE_ASSINATURA_MOBILE.encode("utf-8"),
+        f"{usuario_limpo}:{senha_limpa}".encode("utf-8"),
+        hashlib.sha256
+    ).hexdigest()[:24]
+    return f"{usuario_limpo}.{assinatura}"
+
+def _validar_token_aparelho(token_str: str) -> str:
+    if not token_str or "." not in token_str:
+        return ""
+    u_part = token_str.split(".", 1)[0].strip().lower()
+    mapa = _carregar_mapa_usuarios_txt()
+    if u_part in mapa:
+        esperado = _gerar_token_aparelho(u_part, mapa[u_part])
+        if hmac.compare_digest(token_str.strip(), esperado):
+            return u_part
+    return ""
+
+if "mobile_autenticado" not in st.session_state:
+    st.session_state.mobile_autenticado = False
+if "usuario_logado_mobile" not in st.session_state:
+    st.session_state.usuario_logado_mobile = ""
+
+# 1. Valida token vindo do localStorage do aparelho
+token_url = st.query_params.get("auth_tk", "")
+if not st.session_state.mobile_autenticado and token_url:
+    u_ok = _validar_token_aparelho(token_url)
+    if u_ok:
+        st.session_state.mobile_autenticado = True
+        st.session_state.usuario_logado_mobile = u_ok.upper()
+        st.query_params.clear()
+        st.rerun()
+
+# 2. Se não autenticado, tenta resgatar token do aparelho ou exige login
+if not st.session_state.mobile_autenticado:
+    components.html("""
+    <script>
+    (function() {
+        try {
+            const tk = window.parent.localStorage.getItem('alove_mobile_auth_tk');
+            const urlAtual = new URL(window.parent.location.href);
+            if (tk && !urlAtual.searchParams.get('auth_tk') && !urlAtual.searchParams.get('logout')) {
+                urlAtual.searchParams.set('auth_tk', tk);
+                window.parent.location.replace(urlAtual.toString());
+            }
+        } catch (e) {}
+    })();
+    </script>
+    """, height=0)
+
+    st.markdown("""
+        <style>
+            .block-container {
+                padding-top: calc(env(safe-area-inset-top, 16px) + 34px) !important;
+                max-width: 430px !important;
+            }
+            [data-testid="stForm"] {
+                background: linear-gradient(180deg, #0b1830 0%, #070f1d 100%) !important;
+                border: 1.5px solid #00D672 !important;
+                border-radius: 18px !important;
+                padding: 20px 18px 22px 18px !important;
+                box-shadow: 0 0 28px rgba(0, 214, 114, 0.22) !important;
+            }
+            [data-testid="stTextInput"] input {
+                background-color: #050911 !important;
+                color: #ffffff !important;
+                border: 1.5px solid #163252 !important;
+                border-radius: 10px !important;
+                min-height: 2.85rem !important;
+                font-size: 0.95rem !important;
+            }
+            [data-testid="stTextInput"] input:focus {
+                border-color: #00D672 !important;
+                box-shadow: 0 0 10px rgba(0, 214, 114, 0.30) !important;
+            }
+            [data-testid="stTextInput"] label p {
+                color: #cbd5e1 !important;
+                font-weight: 700 !important;
+                font-size: 0.82rem !important;
+                text-transform: uppercase !important;
+                letter-spacing: 0.4px !important;
+            }
+            [data-testid="stFormSubmitButton"] button {
+                width: 100% !important;
+                background: linear-gradient(90deg, #00D672 0%, #00b4ff 100%) !important;
+                color: #050911 !important;
+                font-weight: 900 !important;
+                font-size: 0.92rem !important;
+                letter-spacing: 0.5px !important;
+                border: none !important;
+                border-radius: 11px !important;
+                min-height: 3.1rem !important;
+                margin-top: 6px !important;
+                box-shadow: 0 4px 16px rgba(0, 214, 114, 0.35) !important;
+            }
+        </style>
+    """, unsafe_allow_html=True)
+
+    render_html(f"""
+    <div style="text-align:center; margin-bottom:16px;">
+        <div style="width:76px; height:76px; margin:0 auto 12px auto; border-radius:50%; padding:3px; border:2px solid #00D672; box-shadow:0 0 22px rgba(0,214,114,0.40); background:#050911;">
+            <img src="{LOGO_ALOVE_URL}" style="width:100%; height:100%; object-fit:cover; border-radius:50%; display:block;">
+        </div>
+        <div style="color:#00E676; font-size:1.35rem; font-weight:900; letter-spacing:1.2px;">A.L.O.V.E. MOBILE</div>
+        <div style="color:#94a3b8; font-size:0.75rem; font-weight:600; margin-top:3px;">Assistente Logístico Virtual da Expedição • Eldorado Brasil</div>
+    </div>
+    """)
+
+    with st.form("form_login_alove_mobile", clear_on_submit=False):
+        st.markdown("<div style='color:#ffffff; font-size:0.88rem; font-weight:800; text-align:center; margin-bottom:10px; letter-spacing:0.4px;'>🔐 ACESSO RESTRITO À OPERAÇÃO</div>", unsafe_allow_html=True)
+        inp_user = st.text_input("Usuário", placeholder="Digite seu usuário")
+        inp_pass = st.text_input("Senha", type="password", placeholder="Digite sua senha")
+        btn_entrar = st.form_submit_button("🔓 ENTRAR E SALVAR NESTE APARELHO")
+
+        if btn_entrar:
+            u_dig = str(inp_user or "").strip().lower()
+            s_dig = str(inp_pass or "").strip()
+            mapa_u = _carregar_mapa_usuarios_txt()
+            if u_dig in mapa_u and mapa_u[u_dig] == s_dig:
+                tk_novo = _gerar_token_aparelho(u_dig, s_dig)
+                st.session_state.mobile_autenticado = True
+                st.session_state.usuario_logado_mobile = u_dig.upper()
+                st.session_state["salvar_tk_local"] = tk_novo
+                st.rerun()
+            else:
+                st.error("❌ Usuário ou senha inválidos.")
+
+    render_html("""
+    <div style="text-align:center; color:#475569; font-size:0.70rem; margin-top:16px;">
+        O acesso ficará salvo permanentemente neste aparelho após o primeiro login.
+    </div>
+    """)
+    st.stop()
+
+# 3. Grava token permanente no aparelho após o primeiro login
+if st.session_state.get("salvar_tk_local"):
+    tk_gravar = st.session_state.pop("salvar_tk_local")
+    components.html(f"""
+    <script>
+    try {{
+        window.parent.localStorage.setItem('alove_mobile_auth_tk', {json.dumps(tk_gravar)});
+        const urlLimpa = new URL(window.parent.location.href);
+        urlLimpa.searchParams.delete('logout');
+        window.parent.history.replaceState(null, '', urlLimpa.toString());
+    }} catch (e) {{}}
+    </script>
+    """, height=0)
 
 
 SHEET_ID = "10FluiIwlynIlPDA74QI8mpHSIrAc-62H1hZNRBsvfCA"
@@ -486,10 +859,11 @@ def carregar_dados_mobile_otimizados():
     d_tr, _ = carregar_tabela_cega("Status_TR", "PLACA")
     d_sinal, h_sinal = carregar_tabela_cega("Sinal_de_Vida", "APLICATIVO")
     d_prev, h_prev = carregar_tabela_cega("Preventiva_Inspecao", "TAG")
+    d_disp_eq, h_disp_eq = carregar_tabela_cega("Disponibilidade_Equipamentos", "EQUIPAMENTO")
     d_pran = carregar_prancheta_direto()
-    return d_dash, d_qual, d_alert, d_cache, d_virada, d_bal, d_baf, d_frot, d_pran, d_pat, h_pat, d_tr, d_sinal, h_sinal, d_prev, h_prev
+    return d_dash, d_qual, d_alert, d_cache, d_virada, d_bal, d_baf, d_frot, d_pran, d_pat, h_pat, d_tr, d_sinal, h_sinal, d_prev, h_prev, d_disp_eq, h_disp_eq
 
-df_dash, df_qual, df_alertas, df_cache, df_status_virada, df_balanco_dest, df_bafometro, df_frota, df_prancheta, df_patio_dest, hora_att_patio, df_status_tr, df_sinal_vida, hora_att_sinal, df_prev_insp, hora_att_prev = carregar_dados_mobile_otimizados()
+df_dash, df_qual, df_alertas, df_cache, df_status_virada, df_balanco_dest, df_bafometro, df_frota, df_prancheta, df_patio_dest, hora_att_patio, df_status_tr, df_sinal_vida, hora_att_sinal, df_prev_insp, hora_att_prev, df_disp_equip, hora_att_disp_equip = carregar_dados_mobile_otimizados()
 
 
 
@@ -689,21 +1063,384 @@ if not df_balanco_dest.empty:
                 "saldo": saldo_val, "atingimento": ating_val
             })
 
-# ==============================================================================
-# 🖨️ RECARGA NATIVA & SINALIZADOR INSTANTÂNEO P/ SPLASH DO CASULO HTML
-# ==============================================================================
-if st.query_params.get("refresh") == "1":
-    st.cache_data.clear()
-    st.query_params.clear()
-    st.rerun()
+# (Splash Screen já renderizada instantaneamente no topo antes das consultas)
 
-# Avisa o tester.html que os dados novos já renderizaram para recolher a logo
-st.markdown("""
-    <style>[data-testid="stStatusWidget"] { display: none !important; visibility: hidden !important; }</style>
-    <script>
-        try { window.parent.postMessage("ALOVE_READY", "*"); } catch (e) {}
-    </script>
-""", unsafe_allow_html=True)
+
+@st.cache_data(ttl=1800)
+def obter_clima_tres_lagoas():
+    """Busca clima atual + previsão horária (24h) + previsão diária (5 dias) para Três Lagoas - MS."""
+    def mapear_wmo(code, is_day=1):
+        if code == 0:
+            return ("☀️" if is_day else "🌙"), "Céu Limpo"
+        if code in [1, 2]:
+            return ("⛅" if is_day else "☁️"), "Parcialmente Nublado"
+        if code == 3:
+            return "☁️", "Nublado"
+        if code in [45, 48]:
+            return "🌫️", "Neblina"
+        if code in [51, 53, 55]:
+            return "🌦️", "Garoa Leve"
+        if code in [61, 63, 65, 80, 81, 82]:
+            return "🌧️", "Pancadas de Chuva"
+        if code in [95, 96, 99]:
+            return "⛈️", "Trovoadas"
+        return "⛅", "Estável"
+
+    def dir_vento(deg):
+        dirs = ["N", "NE", "L", "SE", "S", "SO", "O", "NO"]
+        return dirs[int((float(deg) + 22.5) // 45) % 8]
+
+    dias_pt = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"]
+
+    try:
+        url_w = (
+            "https://api.open-meteo.com/v1/forecast?"
+            "latitude=-20.7849&longitude=-51.7007"
+            "&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m,wind_direction_10m,is_day"
+            "&hourly=temperature_2m,precipitation_probability,weather_code,is_day"
+            "&daily=weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset"
+            "&timezone=America%2FCampo_Grande&forecast_days=5"
+        )
+        resp = requests.get(url_w, timeout=4).json()
+        cur = resp.get("current", {})
+        hourly = resp.get("hourly", {})
+        daily = resp.get("daily", {})
+
+        temp_atual = int(round(float(cur.get("temperature_2m", 0))))
+        umid_atual = int(round(float(cur.get("relative_humidity_2m", 0))))
+        vento_vel = int(round(float(cur.get("wind_speed_10m", 0))))
+        vento_dir = dir_vento(cur.get("wind_direction_10m", 0))
+        code_atual = int(cur.get("weather_code", 0))
+        is_day = int(cur.get("is_day", 1))
+        ico_atual, desc_atual = mapear_wmo(code_atual, is_day)
+
+        sunrise_raw = (daily.get("sunrise") or [""])[0]
+        sunset_raw = (daily.get("sunset") or [""])[0]
+        nascer_sol = sunrise_raw.split("T")[1][:5] if "T" in sunrise_raw else "--:--"
+        por_sol = sunset_raw.split("T")[1][:5] if "T" in sunset_raw else "--:--"
+
+        # Processa próximas 24 horas a partir da hora atual de Três Lagoas (UTC-4)
+        agora_tl = datetime.utcnow() - timedelta(hours=4)
+        hora_chave_atual = agora_tl.strftime("%Y-%m-%dT%H:00")
+
+        times_h = hourly.get("time", [])
+        temps_h = hourly.get("temperature_2m", [])
+        probs_h = hourly.get("precipitation_probability", [])
+        codes_h = hourly.get("weather_code", [])
+        isday_h = hourly.get("is_day", [])
+
+        idx_ini_h = 0
+        for idx_t, t_str in enumerate(times_h):
+            if t_str >= hora_chave_atual:
+                idx_ini_h = idx_t
+                break
+
+        previsao_24h = []
+        for idx_h in range(idx_ini_h, min(len(times_h), idx_ini_h + 24)):
+            t_raw = times_h[idx_h]
+            hora_lbl = t_raw.split("T")[1][:5] if "T" in t_raw else t_raw[-5:]
+            temp_h_v = int(round(float(temps_h[idx_h]))) if idx_h < len(temps_h) else 0
+            prob_h_v = int(round(float(probs_h[idx_h] or 0))) if idx_h < len(probs_h) else 0
+            code_h_v = int(codes_h[idx_h]) if idx_h < len(codes_h) else 0
+            day_h_v = int(isday_h[idx_h]) if idx_h < len(isday_h) else 1
+            ico_h, _ = mapear_wmo(code_h_v, day_h_v)
+
+            previsao_24h.append({
+                "hora": "Agora" if idx_h == idx_ini_h else hora_lbl,
+                "is_agora": (idx_h == idx_ini_h),
+                "ico": ico_h,
+                "temp": f"{temp_h_v}°",
+                "chuva": prob_h_v
+            })
+
+                # Processa 5 dias
+        previsao_5d = []
+        chuva_hoje = code_atual in [51, 53, 55, 61, 63, 65, 80, 81, 82, 95, 96, 99] or any(h["chuva"] >= 45 for h in previsao_24h[:12])
+        chuva_prox_dias = False
+        datas_d = daily.get("time", [])
+        codes_d = daily.get("weather_code", [])
+        maxs_d = daily.get("temperature_2m_max", [])
+        mins_d = daily.get("temperature_2m_min", [])
+
+        for i in range(min(5, len(datas_d))):
+            dt_obj = datetime.strptime(datas_d[i], "%Y-%m-%d")
+            d_sem = dias_pt[dt_obj.weekday()]
+            d_dm = dt_obj.strftime("%d/%m")
+            c_d = int(codes_d[i]) if i < len(codes_d) else 0
+            if c_d in [51, 53, 55, 61, 63, 65, 80, 81, 82, 95, 96, 99]:
+                if i == 0:
+                    chuva_hoje = True
+                else:
+                    chuva_prox_dias = True
+            ico_d, desc_d = mapear_wmo(c_d, 1)
+            mx_d = int(round(float(maxs_d[i]))) if i < len(maxs_d) else 0
+            mn_d = int(round(float(mins_d[i]))) if i < len(mins_d) else 0
+            previsao_5d.append({
+                "sem": d_sem, "dm": d_dm, "ico": ico_d,
+                "max": f"{mx_d}°C", "min": f"{mn_d}°C", "desc": desc_d
+            })
+
+        # Régua Operacional Dinâmica (Prioridade: Chuva Hoje > Vento > Calor/Seco > Chuva Futura > Firme)
+        if chuva_hoje:
+            aviso_ico, aviso_cor = "🌧️", "#FF8C00"
+            aviso_op = "Alerta pátio (Hoje): risco de chuva nas próximas horas — priorizar enlonamento e atenção ao piso."
+        elif vento_vel >= 30:
+            aviso_ico, aviso_cor = "💨", "#FF8C00"
+            aviso_op = f"Atenção vento ({vento_vel} km/h {vento_dir}): rajadas no pátio — redobrar cuidado no enlonamento."
+        elif temp_atual >= 34 or umid_atual <= 35:
+            aviso_ico, aviso_cor = "☀️", "#FFD600"
+            aviso_op = f"Calor intenso ({temp_atual}°C | Umid. {umid_atual}%): reforçar hidratação no pátio e atenção térmica na frota."
+        elif chuva_prox_dias:
+            aviso_ico, aviso_cor = "🌦️", "#38bdf8"
+            aviso_op = "Tempo firme hoje; previsão de chuva nos próximos dias — acompanhar janela de embarque."
+        else:
+            aviso_ico, aviso_cor = "✅", "#00D672"
+            aviso_op = "Tempo firme e estável em Três Lagoas — condições favoráveis para operação no pátio."
+
+        return {
+            "temp": f"{temp_atual}°C",
+            "ico": ico_atual,
+            "desc": desc_atual,
+            "umid": f"{umid_atual}%",
+            "vento": f"{vento_vel} km/h",
+            "vento_dir": vento_dir,
+            "nascer": nascer_sol,
+            "por": por_sol,
+            "horas": previsao_24h,
+            "dias": previsao_5d,
+            "aviso": aviso_op,
+            "aviso_ico": aviso_ico,
+            "aviso_cor": aviso_cor
+        }
+    except Exception:
+        return {
+            "temp": "--°C", "ico": "⛅", "desc": "Indisponível",
+            "umid": "--%", "vento": "-- km/h", "vento_dir": "",
+            "nascer": "--:--", "por": "--:--", "horas": [], "dias": [],
+            "aviso": "Consulta meteorológica temporariamente indisponível.",
+            "aviso_ico": "ℹ️", "aviso_cor": "#64748b"
+        }
+
+
+clima_tl = obter_clima_tres_lagoas()
+
+dias_pt_topo = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"]
+meses_pt_topo = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"]
+data_topo_str = f"{dias_pt_topo[hoje_date.weekday()]}, {hoje_date.day:02d} de {meses_pt_topo[hoje_date.month - 1]}"
+
+# Montagem dos Cards Por Horário (24h deslizável no dedo)
+cards_24h_html = ""
+for h_item in clima_tl["horas"]:
+    borda_h = "1.5px solid #00D672" if h_item["is_agora"] else "1px solid #163252"
+    bg_h = "linear-gradient(180deg, rgba(0,214,114,0.14) 0%, #070f1d 100%)" if h_item["is_agora"] else "#070f1d"
+    cor_hora_txt = "#00D672" if h_item["is_agora"] else "#cbd5e1"
+    cor_chuva = "#38bdf8" if h_item["chuva"] >= 35 else "#64748b"
+
+    cards_24h_html += f"""
+    <div style="flex:0 0 58px; background:{bg_h}; border:{borda_h}; border-radius:10px; padding:7px 4px; text-align:center;">
+        <div style="font-size:0.64rem; font-weight:800; color:{cor_hora_txt};">{h_item['hora']}</div>
+        <div style="font-size:1.15rem; margin:4px 0;">{h_item['ico']}</div>
+        <div style="font-size:0.80rem; font-weight:900; color:#ffffff;">{h_item['temp']}</div>
+        <div style="font-size:0.58rem; font-weight:700; color:{cor_chuva}; margin-top:3px;">💧{h_item['chuva']}%</div>
+    </div>
+    """
+
+if not cards_24h_html:
+    cards_24h_html = '<div style="color:#94a3b8; font-size:0.75rem; padding:12px; text-align:center; width:100%;">Previsão horária indisponível no momento.</div>'
+
+# Montagem dos Cards Por Dia (5 Dias)
+cards_5d_html = ""
+for d_item in clima_tl["dias"]:
+    cards_5d_html += f"""
+    <div style="flex:1; min-width:0; background:#070f1d; border:1px solid #163252; border-radius:10px; padding:7px 3px; text-align:center;">
+        <div style="font-size:0.68rem; font-weight:800; color:#ffffff;">{d_item['sem']}</div>
+        <div style="font-size:0.56rem; color:#94a3b8; margin-bottom:4px;">{d_item['dm']}</div>
+        <div style="font-size:1.15rem; margin:2px 0;">{d_item['ico']}</div>
+        <div style="font-size:0.74rem; font-weight:900; color:#ffffff; margin-top:3px;">{d_item['max']}</div>
+        <div style="font-size:0.66rem; font-weight:800; color:#38bdf8;">{d_item['min']}</div>
+        <div style="font-size:0.50rem; color:#94a3b8; margin-top:3px; line-height:1.15;">{html_lib.escape(d_item['desc'])}</div>
+    </div>
+    """
+
+if not cards_5d_html:
+    cards_5d_html = '<div style="color:#94a3b8; font-size:0.75rem; padding:12px; text-align:center; width:100%;">Previsão estendida indisponível no momento.</div>'
+
+# 1. Banner Oficial Persistente no Topo (Arredondado + Neon Verde)
+st.markdown(f'<div id="sec-topo"></div><div class="topo-banner-mask"></div><div class="topo-banner"><img src="{BANNER_TOPO_URL}"></div>', unsafe_allow_html=True)
+
+# 1.5 Botão Flutuante com Ícone Oficial A.L.O.V.E. (Renderizado no topo p/ abrir instantâneo no Android)
+html_fab_topo = f"""
+<div class="fab-container">
+    <details class="fab-details" id="fabMenuDetails">
+        <summary title="Atalhos Rápidos"><img src="{LOGO_ALOVE_URL}" alt="A.L.O.V.E."></summary>
+        <div class="fab-menu">
+            <a href="#sec-topo" onclick="this.closest('details').removeAttribute('open')">⬆️ Topo & Clima</a>
+            <a href="#sec-prev" onclick="this.closest('details').removeAttribute('open')">📅 Previsões do Dia</a>
+            <a href="#sec-prod" onclick="this.closest('details').removeAttribute('open')">🏭 Produção Celulose</a>
+            <a href="#sec-est" onclick="this.closest('details').removeAttribute('open')">📦 Estoque Armazém</a>
+            <a href="#sec-exp" onclick="this.closest('details').removeAttribute('open')">🚚 Expedição Realizada</a>
+            <a href="#sec-ped" onclick="this.closest('details').removeAttribute('open')">📑 Pedidos ZLE087</a>
+            <a href="#sec-patio" onclick="this.closest('details').removeAttribute('open')">🚛 Pátio da Fábrica</a>
+            <a href="#sec-frota" onclick="this.closest('details').removeAttribute('open')">🚜 Frota & Equipamentos</a>
+            <a href="#sec-manut" onclick="this.closest('details').removeAttribute('open')">🔧 Preventiva & Inspeção</a>
+            <a href="#sec-glp" onclick="this.closest('details').removeAttribute('open')">⛽ Consumo de GLP</a>
+            <a href="#sec-baf" onclick="this.closest('details').removeAttribute('open')">🩺 Auditoria Bafômetro</a>
+            <a href="#print-seletor" class="fab-print-link" onclick="this.closest('details').removeAttribute('open')">📸 Print de Bloco</a>
+        </div>
+    </details>
+</div>
+"""
+render_html(html_fab_topo)
+
+# 2. Faixa Fina Expansível de Clima com Pílulas (Por Horário vs Por Dia)
+html_clima_barra = f"""
+<style>
+    .clm-wrapper input[type="radio"] {{ display: none !important; }}
+
+    details.clima-strip > summary .clm-chev {{
+        transition: transform 0.25s ease;
+        display: inline-block;
+    }}
+    details.clima-strip[open] > summary .clm-chev {{
+        transform: rotate(180deg);
+    }}
+
+    /* Pílulas de Seleção: Por Horário vs Por Dia */
+    .clm-pill-bar {{
+        display: flex;
+        justify-content: center;
+        gap: 8px;
+        margin-bottom: 10px;
+    }}
+    .clm-pill-bar label {{
+        flex: 1;
+        text-align: center;
+        padding: 7px 8px;
+        font-size: 0.74rem;
+        font-weight: 800;
+        color: #94a3b8;
+        background: #070f1d;
+        border: 1.5px solid #163252;
+        border-radius: 999px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        white-space: nowrap;
+        -webkit-tap-highlight-color: transparent;
+    }}
+    #tab_clm_hora:checked ~ details .lbl-clm-hora {{
+        background: #00D672 !important;
+        color: #050911 !important;
+        border-color: #00D672 !important;
+        box-shadow: 0 0 10px rgba(0, 214, 114, 0.38);
+    }}
+    #tab_clm_dia:checked ~ details .lbl-clm-dia {{
+        background: #38bdf8 !important;
+        color: #050911 !important;
+        border-color: #38bdf8 !important;
+        box-shadow: 0 0 10px rgba(56, 189, 248, 0.38);
+    }}
+
+    .clm-view-hora, .clm-view-dia {{ display: none; }}
+    #tab_clm_hora:checked ~ details .clm-view-hora {{ display: block; }}
+    #tab_clm_dia:checked ~ details .clm-view-dia {{ display: block; }}
+</style>
+
+<div class="clm-wrapper" style="margin-bottom:12px; border:1.5px solid #00D672; border-radius:13px; background:linear-gradient(180deg, #0b1c33 0%, #070f1d 100%); box-shadow:0 0 14px rgba(0, 214, 114, 0.16); overflow:hidden;">
+    <input type="radio" name="clm_view" id="tab_clm_hora" checked>
+    <input type="radio" name="clm_view" id="tab_clm_dia">
+
+    <details class="clima-strip" style="border:none; background:transparent;">
+        <summary style="list-style:none; cursor:pointer; padding:8px 12px; display:flex; align-items:center; justify-content:space-between; gap:8px; outline:none; -webkit-tap-highlight-color:transparent;">
+            <div style="display:flex; align-items:center; gap:7px; min-width:0;">
+                <span style="font-size:0.85rem;">📍</span>
+                <span style="color:#ffffff; font-size:0.78rem; font-weight:800; white-space:nowrap;">Três Lagoas - MS</span>
+                <span style="color:#64748b; font-size:0.72rem; font-weight:600; white-space:nowrap;">• {data_topo_str}</span>
+            </div>
+            <div style="display:flex; align-items:center; gap:8px; flex-shrink:0;">
+                <span style="font-size:1.05rem;">{clima_tl['ico']}</span>
+                <span style="color:#00D672; font-size:0.88rem; font-weight:900; font-family:monospace;">{clima_tl['temp']}</span>
+                <span class="clm-chev" style="color:#00D672; font-size:0.70rem; padding-left:2px;">▼</span>
+            </div>
+        </summary>
+
+        <div style="padding:10px 12px 12px 12px; border-top:1px solid #163252;">
+            <!-- PAINEL ATUAL -->
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; background:rgba(5,9,17,0.75); border:1px solid #163252; border-radius:12px; padding:10px; margin-bottom:10px;">
+                <div style="display:flex; align-items:center; gap:8px; padding-right:10px; border-right:1px solid #163252;">
+                    <span style="font-size:2.1rem;">{clima_tl['ico']}</span>
+                    <div>
+                        <div style="font-size:1.75rem; font-weight:900; color:#ffffff; line-height:1;">{clima_tl['temp']}</div>
+                        <div style="font-size:0.65rem; color:#cbd5e1; margin-top:3px; font-weight:600;">{html_lib.escape(clima_tl['desc'])}</div>
+                    </div>
+                </div>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:7px 10px; flex:1;">
+                    <div style="display:flex; align-items:center; gap:5px;">
+                        <span style="font-size:0.85rem;">💧</span>
+                        <div>
+                            <div style="font-size:0.56rem; color:#94a3b8;">Umidade</div>
+                            <div style="font-size:0.72rem; color:#ffffff; font-weight:800;">{clima_tl['umid']}</div>
+                        </div>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:5px;">
+                        <span style="font-size:0.85rem;">💨</span>
+                        <div>
+                            <div style="font-size:0.56rem; color:#94a3b8;">Vento</div>
+                            <div style="font-size:0.72rem; color:#ffffff; font-weight:800;">{clima_tl['vento']} <span style="color:#00D672; font-size:0.60rem;">{clima_tl['vento_dir']}</span></div>
+                        </div>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:5px;">
+                        <span style="font-size:0.85rem;">🌅</span>
+                        <div>
+                            <div style="font-size:0.56rem; color:#94a3b8;">Nascer do Sol</div>
+                            <div style="font-size:0.72rem; color:#ffffff; font-weight:800;">{clima_tl['nascer']}</div>
+                        </div>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:5px;">
+                        <span style="font-size:0.85rem;">🌇</span>
+                        <div>
+                            <div style="font-size:0.56rem; color:#94a3b8;">Pôr do Sol</div>
+                            <div style="font-size:0.72rem; color:#ffffff; font-weight:800;">{clima_tl['por']}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- PÍLULAS DE ALTERNÂNCIA -->
+            <div class="clm-pill-bar">
+                <label for="tab_clm_hora" class="lbl-clm-hora">⏰ Por Horário (24h)</label>
+                <label for="tab_clm_dia" class="lbl-clm-dia">📅 Por Dia (5 Dias)</label>
+            </div>
+
+            <!-- VISÃO 1: POR HORÁRIO (DESLIZE HORIZONTAL) -->
+            <div class="clm-view-hora">
+                <div style="display:flex; gap:6px; overflow-x:auto; padding-bottom:4px; margin-bottom:7px; -webkit-overflow-scrolling:touch;">
+                    {cards_24h_html}
+                </div>
+            </div>
+
+            <!-- VISÃO 2: POR DIA (5 DIAS) -->
+            <div class="clm-view-dia">
+                <div style="display:flex; gap:5px; margin-bottom:9px;">
+                    {cards_5d_html}
+                </div>
+            </div>
+
+            <!-- RODAPÉ DE ALERTA OPERACIONAL DINÂMICO -->
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:9px; background:#050911; border:1px solid #163252; border-left:3.5px solid {clima_tl['aviso_cor']}; border-radius:10px; padding:8px 10px;">
+                <span style="font-size:1.05rem; flex-shrink:0;">{clima_tl['aviso_ico']}</span>
+                <div style="font-size:0.64rem; color:#e2e8f0; line-height:1.3; flex:1;">{html_lib.escape(clima_tl['aviso'])}</div>
+                <div style="font-size:0.68rem; font-weight:800; color:#00D672; text-align:right; line-height:1.05; flex-shrink:0;">Eldorado<br><span style="color:#94a3b8; font-size:0.56rem;">Brasil</span></div>
+            </div>
+
+        </div>
+    </details>
+</div>
+"""
+render_html(html_clima_barra)
+
+
+
+
 
 # ==============================================================================
 # 🖨️ RENDERIZAÇÃO 1: STATUS DO SISTEMA (NOC TELEMETRY - SEMPRE FECHADO AO ABRIR)
@@ -826,11 +1563,10 @@ html_status_sistema = f"""
                 </div>
 
                 <div style="display: flex; align-items: center; gap: 8px;">
-                    <a href="?refresh=1" target="_self" onclick="event.stopPropagation(); try {{ window.parent.postMessage('ALOVE_REFRESH', '*'); }} catch(e) {{}}" 
+                    <a href="?refresh=1" target="_self" onclick="event.stopPropagation(); document.body.insertAdjacentHTML('beforeend', '<div style=\'position:fixed;inset:0;background:#050911;z-index:99999999;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:10px;\'><div style=\'font-size:2.8rem;font-weight:900;color:#00D672;letter-spacing:6px;text-shadow:0 0 20px rgba(0,214,114,0.6);\'>A.L.O.V.E</div><div style=\'font-size:0.82rem;font-weight:700;color:#94a3b8;letter-spacing:2.2px;text-transform:uppercase;\'>Assistente Virtual da Expedição</div></div>');" 
                        style="width: 38px; height: 38px; border: 1.5px solid #00b4ff; border-radius: 10px; background: #070d18; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; color: #ffffff; text-decoration: none; box-shadow: 0 0 10px rgba(0, 180, 255, 0.25);">
                        🔄
                     </a>
-
 
                     <span class="noc-chev" style="color: #64748b; font-size: 0.8rem; padding: 4px;">▼</span>
                 </div>
@@ -914,6 +1650,7 @@ if not df_prancheta.empty:
 # 🖨️ RENDERIZAÇÃO 3.5: PREVISÕES DO DIA (PRODUÇÃO & CARREGAMENTO)
 # ==============================================================================
 html_previsoes = f"""
+<div id="sec-prev"></div>
 <div class="card-main" style="margin-bottom: 14px;">
     <div class="card-head" style="margin-bottom: 10px;">
         <div class="icon-sq" style="background: rgba(0, 180, 255, 0.15); border-color: #00b4ff;">📅</div>
@@ -944,77 +1681,7 @@ html_previsoes = f"""
 render_html(html_previsoes)
 
 # ==============================================================================
-# 🖨️ RENDERIZAÇÃO 4: PÁTIO DA FÁBRICA (FECHADO AO INICIAR + ÍCONE CAMINHÃO AZUL/RELÓGIO)
-# ==============================================================================
-txt_att_patio = f" | 🕒 Base: {hora_att_patio.split(' ')[1][:5]}" if hora_att_patio and " " in hora_att_patio else ""
-
-icone_caminhao_prog_svg = """
-<svg width="28" height="28" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <!-- Baú e Cabine do Caminhão em Azul Ciano -->
-    <rect x="2" y="9" width="15" height="11" rx="2" fill="#38a9ff" fill-opacity="0.25" stroke="#38a9ff" stroke-width="2"/>
-    <path d="M17 12H22.5L26 16V20H17V12Z" fill="#38a9ff" fill-opacity="0.25" stroke="#38a9ff" stroke-width="2" stroke-linejoin="round"/>
-    <!-- Rodas -->
-    <circle cx="8" cy="22" r="2.3" fill="#0a1424" stroke="#38a9ff" stroke-width="2"/>
-    <circle cx="22" cy="22" r="2.3" fill="#0a1424" stroke="#38a9ff" stroke-width="2"/>
-    <!-- Relógio de Programação no canto superior direito -->
-    <circle cx="25" cy="7" r="5.5" fill="#070d18" stroke="#38bdf8" stroke-width="1.8"/>
-    <path d="M25 4.5V7L26.8 8" stroke="#ffffff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
-</svg>
-"""
-
-html_patio = f"""
-<div id="sec-patio"></div>
-<details class="master-box" style="border-left-color: #38a9ff;">
-    <summary>
-        <div class="header-layout">
-            <div class="icon-box" style="background-color: rgba(56, 169, 255, 0.15); color: #38a9ff;">🏭</div>
-            <div class="master-metric-title">Pátio da Fábrica (Tempo Real{txt_att_patio})</div>
-        </div>
-        <div class="value-layout">
-            <div class="master-metric-val">{total_veiculos_fisicos}</div>
-            <div class="master-metric-unit">Veículos Físicos</div>
-        </div>
-        <div class="master-metric-sub" style="color: #38a9ff;">Carga Disponível: {fmt(vol_patio_disponivel)} t</div>
-        <div class="master-metric-sub" style="color: #64748b;">(Checklist + Apoio + Fila)</div>
-    </summary>
-    <div class="master-content" style="padding-top:16px;">
-"""
-
-for tit, chv, col_v, col_t, cor, ico in mapa_status_colunas:
-    lista_destinos = destinos_por_status.get(chv, [])
-    v_qtd = dados_patio[chv]["veiculos"]
-    v_ton = dados_patio[chv]["peso"]
-
-    ico_render = icone_caminhao_prog_svg if chv == "PR" else ico
-
-    linhas_dest_html = ""
-    if lista_destinos:
-        for item in lista_destinos:
-            linhas_dest_html += f'<div class="dest-row"><span class="n">{html_lib.escape(item["destino"])}</span><span class="v">{item["veic"]} veíc. <small>({fmt(item["ton"])} t)</small></span></div>'
-        linhas_dest_html += f'<div class="dest-row total"><span class="n">TOTAL</span><span class="v">{v_qtd} veíc. <small>({fmt(v_ton)} t)</small></span></div>'
-    else:
-        linhas_dest_html = '<div class="dest-vazio">Nenhum veículo alocado neste status.</div>'
-
-    html_patio += f"""
-    <details class="st-card" style="--c:{cor};">
-        <summary>
-            <div class="st-ico">{ico_render}</div>
-            <div class="st-txt">
-                <div class="st-title">{tit}</div>
-                <div class="st-num">{v_qtd} <span>veíc. / {fmt(v_ton)} t</span></div>
-            </div>
-            <div class="chev">›</div>
-        </summary>
-        <div class="st-body">{linhas_dest_html}</div>
-    </details>
-    """
-
-html_patio += "</div></details>"
-render_html(html_patio)
-
-
-# ==============================================================================
-# 🖨️ RENDERIZAÇÃO 5: PRODUÇÃO DE CELULOSE (CLASSE EQ/SQ/OS REFLETIDA NO CARD)
+# 🖨️ RENDERIZAÇÃO 4: PRODUÇÃO DE CELULOSE (CLASSE EQ/SQ/OS REFLETIDA NO CARD)
 # ==============================================================================
 html_prod_content = ""
 for maq in ["MS1", "MS2"]:
@@ -1138,6 +1805,182 @@ html_prod_completo = f"""
 """
 render_html(html_prod_completo)
 
+
+# ==============================================================================
+# 🖨️ RENDERIZAÇÃO 5: ESTOQUE FÍSICO (TABELA ABERTA + RODAPÉ ON-GRADE VS OFF-GRADE)
+# ==============================================================================
+CAPACIDADE_MAX_ARMAZEM = 25000.0
+
+raw_seg_str = str(cache_dict.get("dados_segregados", "{}")).strip()
+if '""' in raw_seg_str and not dados_segregados:
+    dados_segregados = parse_robusto(raw_seg_str.replace('""', '"'))
+
+itens_estoque = []
+tot_on_grade = 0.0   # EQ
+tot_off_grade = 0.0  # SQ, BQ, OS
+
+# Cores exatas solicitadas por classe na tabela aberta
+CORES_CLASSE_ESTOQUE = {
+    "EQ": ("#00FF7F", "rgba(0, 255, 127, 0.16)"),   # Verde Neon
+    "SQ": ("#FFD600", "rgba(255, 214, 0, 0.16)"),   # Amarelo
+    "BQ": ("#FF8C00", "rgba(255, 140, 0, 0.18)"),   # Laranja
+    "OS": ("#FF2E2E", "rgba(255, 46, 46, 0.18)"),   # Vermelho
+}
+
+if dados_segregados:
+    for m_raw, v_raw in dados_segregados.items():
+        t_val = forcar_par(safe_to_numeric(v_raw))
+        if t_val <= 0:
+            continue
+        m_str = str(m_raw).strip().upper()
+
+        match_cls = re.search(r'\(([^)]+)\)', m_str)
+        if match_cls:
+            classe_real = match_cls.group(1).strip().upper()
+        elif "OS" in m_str:
+            classe_real = "OS"
+        elif "BQ" in m_str:
+            classe_real = "BQ"
+        elif "SQ" in m_str:
+            classe_real = "SQ"
+        else:
+            classe_real = "EQ"
+
+        cod_mat = re.sub(r'\([^)]*\)', '', m_str).strip() or m_str.split()[0]
+
+        if classe_real == "EQ":
+            tot_on_grade += t_val
+        else:
+            tot_off_grade += t_val
+
+        cor_item, bg_item = CORES_CLASSE_ESTOQUE.get(classe_real, ("#38bdf8", "rgba(56, 189, 248, 0.16)"))
+
+        itens_estoque.append({
+            "material": cod_mat,
+            "classe": classe_real,
+            "ton": t_val,
+            "cor": cor_item,
+            "bg": bg_item
+        })
+
+soma_segregada_real = forcar_par(tot_on_grade + tot_off_grade)
+if soma_segregada_real > 0:
+    estoque_total = soma_segregada_real
+else:
+    est_linha4 = forcar_par(safe_to_numeric(cache_dict.get("estoque_total", 0)))
+    if est_linha4 > 0:
+        estoque_total = est_linha4
+
+pct_ocupacao_est = min(100.0, max(0.0, (estoque_total / CAPACIDADE_MAX_ARMAZEM * 100.0)))
+espaco_livre_est = max(0.0, CAPACIDADE_MAX_ARMAZEM - estoque_total)
+
+itens_estoque.sort(key=lambda x: (-x["ton"], x["material"], x["classe"]))
+max_ton_item = max([x["ton"] for x in itens_estoque], default=1.0)
+
+tot_geral_calc = soma_segregada_real if soma_segregada_real > 0 else (estoque_total if estoque_total > 0 else 1.0)
+pct_on_grade = max(0.0, (tot_on_grade / tot_geral_calc) * 100.0)
+pct_off_grade = max(0.0, (tot_off_grade / tot_geral_calc) * 100.0)
+
+linhas_tabela_est = ""
+if itens_estoque:
+    for item in itens_estoque:
+        cor_c = item["cor"]
+        bg_c = item["bg"]
+        pct_barra_item = min(100.0, max(4.0, (item["ton"] / max_ton_item) * 100.0))
+
+        linhas_tabela_est += f"""
+        <tr style="border-bottom: 1px dashed #1c2b42;">
+            <td style="padding: 9px 6px; text-align: left; font-weight: 800; color: #ffffff; font-size: 0.84rem;">
+                📦 {html_lib.escape(item['material'])}
+            </td>
+            <td style="padding: 9px 6px; text-align: center;">
+                <span style="background: {bg_c}; color: {cor_c}; border: 1px solid {cor_c}; font-size: 0.68rem; font-weight: 900; padding: 2px 8px; border-radius: 6px; letter-spacing: 0.4px; box-shadow: 0 0 8px {cor_c}33;">
+                    {html_lib.escape(item['classe'])}
+                </span>
+            </td>
+            <td style="padding: 9px 6px; text-align: right;">
+                <div style="color: {cor_c}; font-weight: 800; font-size: 0.84rem; font-family: monospace;">
+                    {fmt(item['ton'])} <span style="font-size: 0.70rem; color: #94a3b8; font-weight: normal;">t</span>
+                </div>
+                <div style="width: 100%; height: 3px; background: #14243b; border-radius: 999px; overflow: hidden; margin-top: 3px;">
+                    <div style="width: {pct_barra_item:.1f}%; height: 100%; background: {cor_c}; border-radius: 999px;"></div>
+                </div>
+            </td>
+        </tr>
+        """
+else:
+    linhas_tabela_est = '<tr><td colspan="3" style="color:#64748b; font-size:0.8rem; text-align:center; padding:14px;">Aguardando dados segregados...</td></tr>'
+
+html_est = f"""
+<div id="sec-est"></div>
+<details class="master-box" style="border-left-color: #00FF7F;">
+    <summary>
+        <div class="header-layout">
+            <div class="icon-box" style="background-color: rgba(0, 255, 127, 0.15); color: #00FF7F;">📦</div>
+            <div class="master-metric-title">Estoque Físico no Armazém</div>
+        </div>
+
+        <div class="value-layout" style="margin-bottom: 2px;">
+            <div class="master-metric-val">{fmt(estoque_total)}</div>
+            <div class="master-metric-unit">TON</div>
+        </div>
+
+        <div style="margin-top: 6px; margin-bottom: 2px;">
+            <div style="font-size: 0.75rem; color: #cbd5e1; margin-bottom: 5px;">
+                Ocupação: <b style="color: #ffffff;">{fmt(estoque_total)} t</b> de <b style="color: #ffffff;">{fmt(CAPACIDADE_MAX_ARMAZEM)} t</b> ({pct_ocupacao_est:.0f}%) 📦
+            </div>
+            <div style="width: 100%; height: 7px; background: #14243b; border-radius: 999px; overflow: hidden;">
+                <div style="width: {pct_ocupacao_est:.1f}%; height: 100%; background: linear-gradient(90deg, #38bdf8 0%, #00FF7F 100%); border-radius: 999px; box-shadow: 0 0 10px rgba(0,255,127,0.45);"></div>
+            </div>
+            <div style="display: flex; justify-content: space-between; font-size: 0.72rem; color: #64748b; margin-top: 4px;">
+                <span>Espaço Livre: <b style="color: #38bdf8;">{fmt(espaco_livre_est)} t</b></span>
+                <span>Capacidade: 25.000 t</span>
+            </div>
+        </div>
+    </summary>
+
+    <div class="master-content" style="padding-top: 12px;">
+        <!-- 1. MEIO: TABELA ABERTA DE MATERIAIS (EQ Verde Neon | SQ Amarelo | BQ Laranja | OS Vermelho) -->
+        <div style="background: #070d18; border: 1.5px solid #142842; border-radius: 12px; padding: 6px 10px; margin-bottom: 10px;">
+            <table style="width: 100%; border-collapse: collapse;">
+                <thead>
+                    <tr style="border-bottom: 1.5px solid #1c2b42; color: #64748b; font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.5px;">
+                        <th style="padding: 8px 6px; text-align: left;">Material</th>
+                        <th style="padding: 8px 6px; text-align: center;">Classe</th>
+                        <th style="padding: 8px 6px; text-align: right;">Qtd. Ton</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {linhas_tabela_est}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- 2. RODAPÉ: BARRA DE CLASSE (MATERIAL ON-GRADE vs MATERIAL OFF-GRADE) -->
+        <div style="background: #070d18; border: 1.5px solid #142842; border-radius: 12px; padding: 10px 12px;">
+            <div style="display: flex; width: 100%; height: 8px; background: #14243b; border-radius: 999px; overflow: hidden; margin-bottom: 10px;">
+                <div style="width: {pct_on_grade:.1f}%; background: #00FF7F; box-shadow: 0 0 8px rgba(0,255,127,0.5);"></div>
+                <div style="width: {pct_off_grade:.1f}%; background: linear-gradient(90deg, #FFD600 0%, #FF8C00 60%, #FF2E2E 100%);"></div>
+            </div>
+            <div style="display: flex; justify-content: space-between; gap: 8px; text-align: center;">
+                <div style="flex: 1; background: #050911; border: 1px solid #142842; border-left: 3px solid #00FF7F; border-radius: 8px; padding: 8px 6px;">
+                    <div style="font-size: 0.66rem; color: #00FF7F; font-weight: 800; text-transform: uppercase;">Material On-Grade </div>
+                    <div style="font-size: 1.05rem; color: #ffffff; font-weight: 800; margin-top: 3px;">
+                        {fmt(tot_on_grade)} <span style="font-size: 0.72rem; color: #64748b; font-weight: normal;">t ({pct_on_grade:.0f}%)</span>
+                    </div>
+                </div>
+                <div style="flex: 1; background: #050911; border: 1px solid #142842; border-left: 3px solid #FF8C00; border-radius: 8px; padding: 8px 6px;">
+                    <div style="font-size: 0.66rem; color: #FF8C00; font-weight: 800; text-transform: uppercase;">Material Off-Grade </div>
+                    <div style="font-size: 1.05rem; color: #ffffff; font-weight: 800; margin-top: 3px;">
+                        {fmt(tot_off_grade)} <span style="font-size: 0.72rem; color: #64748b; font-weight: normal;">t ({pct_off_grade:.0f}%)</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</details>
+"""
+render_html(html_est)
 
 
 # ==============================================================================
@@ -1305,18 +2148,17 @@ totais_rodape_html = f"""
     <!-- CARD 2: TOTAL CARREGADO -->
     <div style="flex: 1; border-left:1px solid #1c2b42; border-right:1px solid #1c2b42; padding: 0 4px;">
         <div style="font-size:0.68rem; color:#38bdf8; font-weight:bold; text-transform:uppercase;">Carregado</div>
-        <div style="font-size:1.25rem; color:#38bdf8; font-weight:bold; margin-top:2px;">{fmt(total_expedicao_real)} <span style="font-size:0.75rem; font-weight:normal;">t</span></div>
+        <div style="font-size:1.25rem; color:#38bdf8; font-weight:bold; margin-top:2px;">{fmt(total_expedicao_real)} <span style="font-size:0.75rem; color:#64748b; font-weight:normal;">t</span></div>
     </div>
 
     <!-- CARD 3: TOTAL PENDENTE (LARANJA) -->
     <div style="flex: 1;">
         <div style="font-size:0.68rem; color:#FF9F1C; font-weight:bold; text-transform:uppercase;">Pendente</div>
-        <div style="font-size:1.25rem; color:#FF9F1C; font-weight:bold; margin-top:2px;">{fmt(total_expedicao_falta)} <span style="font-size:0.75rem; font-weight:normal;">t</span></div>
+        <div style="font-size:1.25rem; color:#FF9F1C; font-weight:bold; margin-top:2px;">{fmt(total_expedicao_falta)} <span style="font-size:0.75rem; color:#64748b; font-weight:normal;">t</span></div>
     </div>
 </div>
 """
 
-# ⚠️ AQUI ESTAVA O BUG: Essa linha tinha sido apagada!
 html_destinos = f"{tabela_linhas_html}{totais_rodape_html}"
 
 # ----------------------------------------------------
@@ -1539,10 +2381,6 @@ html_exp_completo = f"""
 </div>
 """
 render_html(html_exp_completo)
-
-
-
-
 
 
 # ==============================================================================
@@ -1771,6 +2609,7 @@ html_bloco_pedidos = f"""
     #tab_mi:checked ~ details .ped-view-mi {{ display: block; }}
 </style>
 
+<div id="sec-ped"></div>
 <div class="ped-wrapper">
     <input type="radio" name="ped_view" id="tab_transf" checked>
     <input type="radio" name="ped_view" id="tab_mi">
@@ -1830,183 +2669,74 @@ html_bloco_pedidos = f"""
 render_html(html_bloco_pedidos)
 
 
-
-
 # ==============================================================================
-# 🖨️ RENDERIZAÇÃO 7: ESTOQUE FÍSICO (TABELA ABERTA + RODAPÉ ON-GRADE VS OFF-GRADE)
+# 🖨️ RENDERIZAÇÃO 7: PÁTIO DA FÁBRICA (FECHADO AO INICIAR + ÍCONE CAMINHÃO AZUL/RELÓGIO)
 # ==============================================================================
-CAPACIDADE_MAX_ARMAZEM = 25000.0
+txt_att_patio = f" | 🕒 Base: {hora_att_patio.split(' ')[1][:5]}" if hora_att_patio and " " in hora_att_patio else ""
 
-raw_seg_str = str(cache_dict.get("dados_segregados", "{}")).strip()
-if '""' in raw_seg_str and not dados_segregados:
-    dados_segregados = parse_robusto(raw_seg_str.replace('""', '"'))
+icone_caminhao_prog_svg = """
+<svg width="28" height="28" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <!-- Baú e Cabine do Caminhão em Azul Ciano -->
+    <rect x="2" y="9" width="15" height="11" rx="2" fill="#38a9ff" fill-opacity="0.25" stroke="#38a9ff" stroke-width="2"/>
+    <path d="M17 12H22.5L26 16V20H17V12Z" fill="#38a9ff" fill-opacity="0.25" stroke="#38a9ff" stroke-width="2" stroke-linejoin="round"/>
+    <!-- Rodas -->
+    <circle cx="8" cy="22" r="2.3" fill="#0a1424" stroke="#38a9ff" stroke-width="2"/>
+    <circle cx="22" cy="22" r="2.3" fill="#0a1424" stroke="#38a9ff" stroke-width="2"/>
+    <!-- Relógio de Programação no canto superior direito -->
+    <circle cx="25" cy="7" r="5.5" fill="#070d18" stroke="#38bdf8" stroke-width="1.8"/>
+    <path d="M25 4.5V7L26.8 8" stroke="#ffffff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
+"""
 
-itens_estoque = []
-tot_on_grade = 0.0   # EQ
-tot_off_grade = 0.0  # SQ, BQ, OS
-
-# Cores exatas solicitadas por classe na tabela aberta
-CORES_CLASSE_ESTOQUE = {
-    "EQ": ("#00FF7F", "rgba(0, 255, 127, 0.16)"),   # Verde Neon
-    "SQ": ("#FFD600", "rgba(255, 214, 0, 0.16)"),   # Amarelo
-    "BQ": ("#FF8C00", "rgba(255, 140, 0, 0.18)"),   # Laranja
-    "OS": ("#FF2E2E", "rgba(255, 46, 46, 0.18)"),   # Vermelho
-}
-
-if dados_segregados:
-    for m_raw, v_raw in dados_segregados.items():
-        t_val = forcar_par(safe_to_numeric(v_raw))
-        if t_val <= 0:
-            continue
-        m_str = str(m_raw).strip().upper()
-
-        match_cls = re.search(r'\(([^)]+)\)', m_str)
-        if match_cls:
-            classe_real = match_cls.group(1).strip().upper()
-        elif "OS" in m_str:
-            classe_real = "OS"
-        elif "BQ" in m_str:
-            classe_real = "BQ"
-        elif "SQ" in m_str:
-            classe_real = "SQ"
-        else:
-            classe_real = "EQ"
-
-        cod_mat = re.sub(r'\([^)]*\)', '', m_str).strip() or m_str.split()[0]
-
-        if classe_real == "EQ":
-            tot_on_grade += t_val
-        else:
-            tot_off_grade += t_val
-
-        cor_item, bg_item = CORES_CLASSE_ESTOQUE.get(classe_real, ("#38bdf8", "rgba(56, 189, 248, 0.16)"))
-
-        itens_estoque.append({
-            "material": cod_mat,
-            "classe": classe_real,
-            "ton": t_val,
-            "cor": cor_item,
-            "bg": bg_item
-        })
-
-soma_segregada_real = forcar_par(tot_on_grade + tot_off_grade)
-if soma_segregada_real > 0:
-    estoque_total = soma_segregada_real
-else:
-    est_linha4 = forcar_par(safe_to_numeric(cache_dict.get("estoque_total", 0)))
-    if est_linha4 > 0:
-        estoque_total = est_linha4
-
-pct_ocupacao_est = min(100.0, max(0.0, (estoque_total / CAPACIDADE_MAX_ARMAZEM * 100.0)))
-espaco_livre_est = max(0.0, CAPACIDADE_MAX_ARMAZEM - estoque_total)
-
-itens_estoque.sort(key=lambda x: (-x["ton"], x["material"], x["classe"]))
-max_ton_item = max([x["ton"] for x in itens_estoque], default=1.0)
-
-tot_geral_calc = soma_segregada_real if soma_segregada_real > 0 else (estoque_total if estoque_total > 0 else 1.0)
-pct_on_grade = max(0.0, (tot_on_grade / tot_geral_calc) * 100.0)
-pct_off_grade = max(0.0, (tot_off_grade / tot_geral_calc) * 100.0)
-
-linhas_tabela_est = ""
-if itens_estoque:
-    for item in itens_estoque:
-        cor_c = item["cor"]
-        bg_c = item["bg"]
-        pct_barra_item = min(100.0, max(4.0, (item["ton"] / max_ton_item) * 100.0))
-
-        linhas_tabela_est += f"""
-        <tr style="border-bottom: 1px dashed #1c2b42;">
-            <td style="padding: 9px 6px; text-align: left; font-weight: 800; color: #ffffff; font-size: 0.84rem;">
-                📦 {html_lib.escape(item['material'])}
-            </td>
-            <td style="padding: 9px 6px; text-align: center;">
-                <span style="background: {bg_c}; color: {cor_c}; border: 1px solid {cor_c}; font-size: 0.68rem; font-weight: 900; padding: 2px 8px; border-radius: 6px; letter-spacing: 0.4px; box-shadow: 0 0 8px {cor_c}33;">
-                    {html_lib.escape(item['classe'])}
-                </span>
-            </td>
-            <td style="padding: 9px 6px; text-align: right;">
-                <div style="color: {cor_c}; font-weight: 800; font-size: 0.84rem; font-family: monospace;">
-                    {fmt(item['ton'])} <span style="font-size: 0.70rem; color: #94a3b8; font-weight: normal;">t</span>
-                </div>
-                <div style="width: 100%; height: 3px; background: #14243b; border-radius: 999px; overflow: hidden; margin-top: 3px;">
-                    <div style="width: {pct_barra_item:.1f}%; height: 100%; background: {cor_c}; border-radius: 999px;"></div>
-                </div>
-            </td>
-        </tr>
-        """
-else:
-    linhas_tabela_est = '<tr><td colspan="3" style="color:#64748b; font-size:0.8rem; text-align:center; padding:14px;">Aguardando dados segregados...</td></tr>'
-
-html_est = f"""
-<div id="sec-est"></div>
-<details class="master-box" style="border-left-color: #00FF7F;">
+html_patio = f"""
+<div id="sec-patio"></div>
+<details class="master-box" style="border-left-color: #38a9ff;">
     <summary>
         <div class="header-layout">
-            <div class="icon-box" style="background-color: rgba(0, 255, 127, 0.15); color: #00FF7F;">📦</div>
-            <div class="master-metric-title">Estoque Físico no Armazém</div>
+            <div class="icon-box" style="background-color: rgba(56, 169, 255, 0.15); color: #38a9ff;">🏭</div>
+            <div class="master-metric-title">Pátio da Fábrica (Tempo Real{txt_att_patio})</div>
         </div>
-
-        <div class="value-layout" style="margin-bottom: 2px;">
-            <div class="master-metric-val">{fmt(estoque_total)}</div>
-            <div class="master-metric-unit">TON</div>
+        <div class="value-layout">
+            <div class="master-metric-val">{total_veiculos_fisicos}</div>
+            <div class="master-metric-unit">Veículos Físicos</div>
         </div>
-
-        <div style="margin-top: 6px; margin-bottom: 2px;">
-            <div style="font-size: 0.75rem; color: #cbd5e1; margin-bottom: 5px;">
-                Ocupação: <b style="color: #ffffff;">{fmt(estoque_total)} t</b> de <b style="color: #ffffff;">{fmt(CAPACIDADE_MAX_ARMAZEM)} t</b> ({pct_ocupacao_est:.0f}%) 📦
-            </div>
-            <div style="width: 100%; height: 7px; background: #14243b; border-radius: 999px; overflow: hidden;">
-                <div style="width: {pct_ocupacao_est:.1f}%; height: 100%; background: linear-gradient(90deg, #38bdf8 0%, #00FF7F 100%); border-radius: 999px; box-shadow: 0 0 10px rgba(0,255,127,0.45);"></div>
-            </div>
-            <div style="display: flex; justify-content: space-between; font-size: 0.72rem; color: #64748b; margin-top: 4px;">
-                <span>Espaço Livre: <b style="color: #38bdf8;">{fmt(espaco_livre_est)} t</b></span>
-                <span>Capacidade: 25.000 t</span>
-            </div>
-        </div>
+        <div class="master-metric-sub" style="color: #38a9ff;">Carga Disponível: {fmt(vol_patio_disponivel)} t</div>
+        <div class="master-metric-sub" style="color: #64748b;">(Checklist + Apoio + Fila)</div>
     </summary>
-
-    <div class="master-content" style="padding-top: 12px;">
-        <!-- 1. MEIO: TABELA ABERTA DE MATERIAIS (EQ Verde Neon | SQ Amarelo | BQ Laranja | OS Vermelho) -->
-        <div style="background: #070d18; border: 1.5px solid #142842; border-radius: 12px; padding: 6px 10px; margin-bottom: 10px;">
-            <table style="width: 100%; border-collapse: collapse;">
-                <thead>
-                    <tr style="border-bottom: 1.5px solid #1c2b42; color: #64748b; font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.5px;">
-                        <th style="padding: 8px 6px; text-align: left;">Material</th>
-                        <th style="padding: 8px 6px; text-align: center;">Classe</th>
-                        <th style="padding: 8px 6px; text-align: right;">Qtd. Ton</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {linhas_tabela_est}
-                </tbody>
-            </table>
-        </div>
-
-        <!-- 2. RODAPÉ: BARRA DE CLASSE (MATERIAL ON-GRADE vs MATERIAL OFF-GRADE) -->
-        <div style="background: #070d18; border: 1.5px solid #142842; border-radius: 12px; padding: 10px 12px;">
-            <div style="display: flex; width: 100%; height: 8px; background: #14243b; border-radius: 999px; overflow: hidden; margin-bottom: 10px;">
-                <div style="width: {pct_on_grade:.1f}%; background: #00FF7F; box-shadow: 0 0 8px rgba(0,255,127,0.5);"></div>
-                <div style="width: {pct_off_grade:.1f}%; background: linear-gradient(90deg, #FFD600 0%, #FF8C00 60%, #FF2E2E 100%);"></div>
-            </div>
-            <div style="display: flex; justify-content: space-between; gap: 8px; text-align: center;">
-                <div style="flex: 1; background: #050911; border: 1px solid #142842; border-left: 3px solid #00FF7F; border-radius: 8px; padding: 8px 6px;">
-                    <div style="font-size: 0.66rem; color: #00FF7F; font-weight: 800; text-transform: uppercase;">Material On-Grade </div>
-                    <div style="font-size: 1.05rem; color: #ffffff; font-weight: 800; margin-top: 3px;">
-                        {fmt(tot_on_grade)} <span style="font-size: 0.72rem; color: #64748b; font-weight: normal;">t ({pct_on_grade:.0f}%)</span>
-                    </div>
-                </div>
-                <div style="flex: 1; background: #050911; border: 1px solid #142842; border-left: 3px solid #FF8C00; border-radius: 8px; padding: 8px 6px;">
-                    <div style="font-size: 0.66rem; color: #FF8C00; font-weight: 800; text-transform: uppercase;">Material Off-Grade </div>
-                    <div style="font-size: 1.05rem; color: #ffffff; font-weight: 800; margin-top: 3px;">
-                        {fmt(tot_off_grade)} <span style="font-size: 0.72rem; color: #64748b; font-weight: normal;">t ({pct_off_grade:.0f}%)</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</details>
+    <div class="master-content" style="padding-top:16px;">
 """
-render_html(html_est)
+
+for tit, chv, col_v, col_t, cor, ico in mapa_status_colunas:
+    lista_destinos = destinos_por_status.get(chv, [])
+    v_qtd = dados_patio[chv]["veiculos"]
+    v_ton = dados_patio[chv]["peso"]
+
+    ico_render = icone_caminhao_prog_svg if chv == "PR" else ico
+
+    linhas_dest_html = ""
+    if lista_destinos:
+        for item in lista_destinos:
+            linhas_dest_html += f'<div class="dest-row"><span class="n">{html_lib.escape(item["destino"])}</span><span class="v">{item["veic"]} veíc. <small>({fmt(item["ton"])} t)</small></span></div>'
+        linhas_dest_html += f'<div class="dest-row total"><span class="n">TOTAL</span><span class="v">{v_qtd} veíc. <small>({fmt(v_ton)} t)</small></span></div>'
+    else:
+        linhas_dest_html = '<div class="dest-vazio">Nenhum veículo alocado neste status.</div>'
+
+    html_patio += f"""
+    <details class="st-card" style="--c:{cor};">
+        <summary>
+            <div class="st-ico">{ico_render}</div>
+            <div class="st-txt">
+                <div class="st-title">{tit}</div>
+                <div class="st-num">{v_qtd} <span>veíc. / {fmt(v_ton)} t</span></div>
+            </div>
+            <div class="chev">›</div>
+        </summary>
+        <div class="st-body">{linhas_dest_html}</div>
+    </details>
+    """
+
+html_patio += "</div></details>"
+render_html(html_patio)
 
 
 
@@ -2019,84 +2749,140 @@ equip_por_tipo = {}
 todos_equip_lista = []
 qtd_total_disp = 0
 qtd_total_indisp = 0
-qtd_criticos_prev = 0
-qtd_criticos_insp = 0
+
+qtd_venc_prev = 0
+qtd_prox_prev = 0
+qtd_venc_insp = 0
+qtd_prox_insp = 0
+
+def parse_num_frota_ptbr(val_raw):
+    if val_raw is None or pd.isna(val_raw):
+        return 0.0
+    s = re.sub(r'[^\d,\.\-]', '', str(val_raw).strip())
+    if not s or s in ["-", "."]:
+        return 0.0
+    if "," in s and "." in s:
+        s = s.replace(".", "").replace(",", ".")
+    elif "," in s:
+        s = s.replace(",", ".")
+    elif "." in s:
+        partes = s.split(".")
+        if len(partes[-1]) == 3:
+            s = s.replace(".", "")
+    try:
+        return float(s)
+    except Exception:
+        return 0.0
 
 def formatar_horimetro_ou_data(val_raw):
     s = str(val_raw).strip()
-    if not s or s.upper() in ["NAN", "NONE", "--", "-"]:
+    if not s or s.upper() in ["NAN", "NONE", "--", "-"] or "/" in s:
         return "--"
-    if "/" in s:
-        return s[:5]  # Ex: 14/11
-    num = safe_to_numeric(s)
+    num = parse_num_frota_ptbr(s)
     if num > 0:
         return f"{fmt(num)} h"
-    return s
+    return "--"
 
-def peso_severidade(alerta_str):
-    a = str(alerta_str).upper()
-    if "VENCIDA" in a:
-        return 0
-    if "CRITICO" in a or "CRÍTICO" in a:
-        return 1
-    if "ATENCAO" in a or "ATENÇÃO" in a or "PROXIMA" in a or "PRÓXIMA" in a:
-        return 2
-    if "NORMAL" in a or "EM DIA" in a:
-        return 3
-    return 4
+def analisar_saldo_manut(saldo_raw, is_por_dia=False):
+    """
+    Régua oficial (Preventiva Col. H e Inspeção Col. N):
+      <= 0      -> VENCIDA (Texto Vermelho #FF2E2E + Borda Laranja #FF8C00)
+      1 a 50    -> PRÓX. AO VENCIMENTO (Vermelho #FF2E2E)
+      51 a 100  -> ATENÇÃO (Laranja #FF8C00)
+      101 +     -> EM DIA (Verde #00FF7F)
+    Retorna: (texto_exibicao, rotulo_status, cor_texto, cor_borda, bg_rgba, peso_ordem)
+    """
+    s = str(saldo_raw).strip()
+    if not s or s.upper() in ["NAN", "NONE", "--", "-", "SEM META"]:
+        return "--", "SEM META", "#64748b", "#64748b", "rgba(100, 116, 139, 0.14)", 4
+
+    val = parse_num_frota_ptbr(s)
+    unidade = "d" if is_por_dia else "h"
+    val_fmt = f"{fmt(val)} {unidade}"
+
+    if val <= 0:
+        return val_fmt, "VENCIDA", "#FF2E2E", "#FF8C00", "rgba(255, 46, 46, 0.22)", 0
+    if val <= 50:
+        return val_fmt, "PRÓX. AO VENCIMENTO", "#FF2E2E", "#FF2E2E", "rgba(255, 46, 46, 0.16)", 1
+    if val <= 100:
+        return val_fmt, "ATENÇÃO", "#FF8C00", "#FF8C00", "rgba(255, 140, 0, 0.16)", 2
+    return val_fmt, "EM DIA", "#00FF7F", "#00FF7F", "rgba(0, 255, 127, 0.14)", 3
+
+def limpar_om_sap(om_raw):
+    s = str(om_raw).strip()
+    if not s or s.upper() in ["NAN", "NONE", "--", "-"]:
+        return "--"
+    nums = re.findall(r'\d+', s)
+    return nums[0] if nums else s
 
 def ordem_tipo_equipamento(tipo_str):
     t = str(tipo_str).upper()
-    if "EMPILHADEIRA" in t:
-        return 0  # 1º Empilhadeiras
-    if "TALHA" in t or "PONTE" in t:
-        return 1  # 2º Talhas Elétricas
-    if "TRANSPALETEIRA" in t:
-        return 2  # 3º Transpaleteira
-    if "VARREDEIRA" in t:
-        return 3  # 4º Varredeira
-    if "LAVADORA" in t:
-        return 4  # 5º Lavadora
-    if "BICICLETA" in t or "BIKE" in t:
-        return 5  # 6º Bicicletas
+    if "EMPILHADEIRA" in t: return 0
+    if "TALHA" in t or "PONTE" in t: return 1
+    if "TRANSPALETEIRA" in t: return 2
+    if "VARREDEIRA" in t: return 3
+    if "LAVADORA" in t: return 4
+    if "BICICLETA" in t or "BIKE" in t: return 5
     return 6
 
 def icone_tipo_equipamento(tipo_str):
     t = str(tipo_str).upper()
-    if "EMPILHADEIRA" in t:
-        return "🚜"
-    if "TALHA" in t or "PONTE" in t:
-        return "🏗️"
-    if "TRANSPALETEIRA" in t:
-        return "📦"
-    if "VARREDEIRA" in t or "LAVADORA" in t:
-        return "🧹"
-    if "BICICLETA" in t or "BIKE" in t:
-        return "🚲"
+    if "EMPILHADEIRA" in t: return "🚜"
+    if "TALHA" in t or "PONTE" in t: return "🏗️"
+    if "TRANSPALETEIRA" in t: return "📦"
+    if "VARREDEIRA" in t or "LAVADORA" in t: return "🧹"
+    if "BICICLETA" in t or "BIKE" in t: return "🚲"
     return "⚙️"
 
-if not df_prev_insp.empty and "TAG" in df_prev_insp.columns:
+EQUIPAMENTOS_OCULTOS = {"EMP-012", "90-EMP-012"}
+
+if not df_prev_insp.empty:
+    df_prev_insp.columns = [str(c).strip().upper() for c in df_prev_insp.columns]
+    col_tag = "TAG" if "TAG" in df_prev_insp.columns else df_prev_insp.columns[0]
+
     for _, rp in df_prev_insp.iterrows():
-        tag = str(rp.get("TAG", "")).strip().upper()
-        if not tag or tag in ["NAN", "NONE", "TAG"]:
+        tag = str(rp.get(col_tag, "")).strip().upper()
+        if not tag or tag in ["NAN", "NONE", "TAG", "EQUIPAMENTO"]:
+            continue
+        if tag in EQUIPAMENTOS_OCULTOS or "EMP-012" in tag:
             continue
 
-        tipo_eq = str(rp.get("TIPO_EQUIPAMENTO", "Outros")).strip() or "Outros"
+        tipo_eq = str(rp.get("TIPO_EQUIPAMENTO", rp.get("TIPO", "Outros"))).strip() or "Outros"
+        disp = str(rp.get("DISPONIBILIDADE", rp.get("STATUS", "ONLINE"))).strip().upper()
         st_op = str(rp.get("STATUS_OPERACAO", "")).strip().upper()
-        disp = str(rp.get("DISPONIBILIDADE", "ONLINE")).strip().upper()
-        horim_str = formatar_horimetro_ou_data(rp.get("HORIMETRO_ATUAL", "--"))
-        meta_prev = formatar_horimetro_ou_data(rp.get("META_PREVENTIVA", "--"))
-        alerta_prev = str(rp.get("ALERTA_PREVENTIVA", "--")).strip()
-        om_prev = str(rp.get("OM_PREVENTIVA", "--")).strip()
-        alerta_insp = str(rp.get("ALERTA_INSPECAO", "SEM META")).strip()
-        om_insp = str(rp.get("OM_INSPECAO", "--")).strip()
 
-        sev_p = peso_severidade(alerta_prev)
-        sev_i = peso_severidade(alerta_insp)
-        if sev_p <= 1:
-            qtd_criticos_prev += 1
-        if sev_i <= 1:
-            qtd_criticos_insp += 1
+        horim_raw = str(rp.get("HORIMETRO_ATUAL", "--")).strip()
+        horim_str = formatar_horimetro_ou_data(horim_raw)
+        is_por_dia = ("/" in horim_raw) or ("TALHA" in tipo_eq.upper()) or ("BICICLETA" in tipo_eq.upper())
+
+        # Coluna H: SALDO_PREVENTIVA | Coluna N: SALDO_INSPECAO_125H
+        saldo_prev_raw = rp.get("SALDO_PREVENTIVA", "--")
+        saldo_insp_raw = rp.get("SALDO_INSPECAO_125H", "--")
+
+        txt_saldo_p, lbl_p, cor_txt_p, cor_brd_p, bg_p, sev_p = analisar_saldo_manut(saldo_prev_raw, is_por_dia=is_por_dia)
+        txt_saldo_i, lbl_i, cor_txt_i, cor_brd_i, bg_i, sev_i = analisar_saldo_manut(saldo_insp_raw, is_por_dia=False)
+
+        # Coluna J: TIPO_PREVENTIVA | Coluna P: TIPO_INSPECAO
+        tipo_prev_txt = str(rp.get("TIPO_PREVENTIVA", "--")).strip()
+        if tipo_prev_txt.upper() in ["NAN", "NONE", ""]: tipo_prev_txt = "--"
+
+        tipo_insp_txt = str(rp.get("TIPO_INSPECAO", "--")).strip()
+        if tipo_insp_txt.upper() in ["NAN", "NONE", ""]: tipo_insp_txt = "--"
+
+        # Coluna K: OM_PREVENTIVA | Coluna Q: OM_INSPECAO
+        om_p = limpar_om_sap(rp.get("OM_PREVENTIVA", "--"))
+        om_i = limpar_om_sap(rp.get("OM_INSPECAO", "--"))
+
+        # Contabiliza Vencidas (sev == 0) e Próx. ao Vencimento (sev == 1)
+        if sev_p == 0:
+            qtd_venc_prev += 1
+        elif sev_p == 1:
+            qtd_prox_prev += 1
+
+        if sev_i == 0:
+            qtd_venc_insp += 1
+        elif sev_i == 1:
+            qtd_prox_insp += 1
 
         is_indisponivel = ("OFFLINE" in disp) or ("INDISP" in disp) or ("MANUT" in st_op)
         if is_indisponivel:
@@ -2110,14 +2896,22 @@ if not df_prev_insp.empty and "TAG" in df_prev_insp.columns:
             "ordem_tipo": ordem_tipo_equipamento(tipo_eq),
             "is_indisponivel": is_indisponivel,
             "horimetro": horim_str,
-            "meta_prev": meta_prev,
-            "alerta_prev": alerta_prev,
-            "om_prev": om_prev,
-            "alerta_insp": alerta_insp,
-            "om_insp": om_insp,
+            "txt_saldo_p": txt_saldo_p,
+            "lbl_p": lbl_p,
+            "cor_txt_p": cor_txt_p,
+            "cor_brd_p": cor_brd_p,
+            "bg_p": bg_p,
             "sev_p": sev_p,
+            "tipo_prev": tipo_prev_txt,
+            "om_prev": om_p,
+            "txt_saldo_i": txt_saldo_i,
+            "lbl_i": lbl_i,
+            "cor_txt_i": cor_txt_i,
+            "cor_brd_i": cor_brd_i,
+            "bg_i": bg_i,
             "sev_i": sev_i,
-            "sev_geral": min(sev_p, sev_i),
+            "tipo_insp": tipo_insp_txt,
+            "om_insp": om_i,
         }
 
         todos_equip_lista.append(obj_eq)
@@ -2127,18 +2921,103 @@ tipos_ordenados_frota = sorted(equip_por_tipo.keys(), key=lambda k: (ordem_tipo_
 txt_base_prev = f" | 🕒 Base: {hora_att_prev.split(' ')[1][:5]}" if hora_att_prev and " " in hora_att_prev else ""
 
 # ------------------------------------------------------------------------------
-# BLOCO 8A: FROTA & EQUIPAMENTOS (SOMENTE NOMENCLATURA | HORÍMETRO | STATUS)
+# BLOCO 8A: FROTA & EQUIPAMENTOS (FONTE OFICIAL: ABA Disponibilidade_Equipamentos)
 # ------------------------------------------------------------------------------
+def _chave_equip_norm(tag_str: str) -> str:
+    """Normaliza TAGs entre abas (ex: '90-EMP-008' e 'EMP-008' -> 'EMP8'; 'TALHA 01' e 'TALHA-1' -> 'TALHA1')."""
+    s = str(tag_str or "").strip().upper()
+    s = re.sub(r'^90[\-\s_]*', '', s)
+    s = re.sub(r'[\-\s_]+', '', s)
+    s = re.sub(r'0+(\d+)', r'\1', s)
+    return s
+
+mapa_horimetro_norm = {}
+for e in todos_equip_lista:
+    ch_n = _chave_equip_norm(e["tag"])
+    if ch_n and e["horimetro"] != "--":
+        mapa_horimetro_norm[ch_n] = e["horimetro"]
+
+disp_por_tipo = {}
+qtd_total_disp = 0
+qtd_total_indisp = 0
+hora_disp_real = ""
+
+if not df_disp_equip.empty:
+    df_disp_equip.columns = [str(c).strip().upper() for c in df_disp_equip.columns]
+    for _, rd in df_disp_equip.iterrows():
+        tag_d = str(rd.get("EQUIPAMENTO", rd.get("TAG", ""))).strip().upper()
+        if not tag_d or tag_d in ["NAN", "NONE", "EQUIPAMENTO", "TAG"]:
+            continue
+        if tag_d in EQUIPAMENTOS_OCULTOS or "EMP-012" in tag_d:
+            continue
+
+        tp_raw = str(rd.get("TIPO", "Outros")).strip()
+        if tp_raw.upper() in ["EQUIPAMENTO", ""] and "EMP" in tag_d:
+            tp_nome = "Empilhadeira"
+        else:
+            tp_nome = tp_raw or "Outros"
+
+        st_disp_txt = str(rd.get("STATUS_DISPONIBILIDADE", "")).strip().upper()
+        st_oper_txt = str(rd.get("STATUS_OPERACIONAL", "")).strip().upper()
+        att_row = str(rd.get("ATUALIZADO_EM", "")).strip()
+        if att_row and " " in att_row and not hora_disp_real:
+            hora_disp_real = att_row.split(" ")[1][:5]
+
+        # 1. Tenta ler horímetro da própria aba se preenchido; senão busca na aba Preventiva_Inspeção
+        horim_direto = formatar_horimetro_ou_data(rd.get("HORIMETRO", "--"))
+        horim_final = horim_direto if horim_direto != "--" else mapa_horimetro_norm.get(_chave_equip_norm(tag_d), "--")
+
+        is_indisp_d = (
+            ("MANUT" in st_disp_txt)
+            or ("INDISP" in st_disp_txt)
+            or ("OFFLINE" in st_disp_txt)
+            or ("MANUT" in st_oper_txt)
+            or ("DISPON" not in st_disp_txt and st_disp_txt != "")
+        )
+
+        if is_indisp_d:
+            qtd_total_indisp += 1
+        else:
+            qtd_total_disp += 1
+
+        disp_por_tipo.setdefault(tp_nome, []).append({
+            "tag": tag_d,
+            "is_indisponivel": is_indisp_d,
+            "status_lbl": st_disp_txt.title() if st_disp_txt else ("Indisponível" if is_indisp_d else "Disponível"),
+            "horimetro": horim_final,
+        })
+
+if not hora_disp_real and hora_att_disp_equip and " " in hora_att_disp_equip:
+    hora_disp_real = hora_att_disp_equip.split(" ")[1][:5]
+
+# Fallback caso a aba Disponibilidade_Equipamentos falhe momentaneamente
+if not disp_por_tipo and equip_por_tipo:
+    for tp_fb, lista_fb in equip_por_tipo.items():
+        for x_fb in lista_fb:
+            if x_fb["is_indisponivel"]:
+                qtd_total_indisp += 1
+            else:
+                qtd_total_disp += 1
+            disp_por_tipo.setdefault(tp_fb, []).append({
+                "tag": x_fb["tag"],
+                "is_indisponivel": x_fb["is_indisponivel"],
+                "status_lbl": "Indisponível" if x_fb["is_indisponivel"] else "Disponível",
+                "horimetro": x_fb["horimetro"],
+            })
+
+tipos_disp_ordenados = sorted(disp_por_tipo.keys(), key=lambda k: (ordem_tipo_equipamento(k), k))
+txt_base_disp_frota = f" | 🕒 Base: {hora_disp_real}" if hora_disp_real else txt_base_prev
+
 html_tabelas_disponibilidade = ""
-if tipos_ordenados_frota:
-    for tp in tipos_ordenados_frota:
-        itens_tp = sorted(equip_por_tipo[tp], key=lambda x: (not x["is_indisponivel"], x["tag"]))
+if tipos_disp_ordenados:
+    for tp in tipos_disp_ordenados:
+        itens_tp = sorted(disp_por_tipo[tp], key=lambda x: (not x["is_indisponivel"], x["tag"]))
         linhas_eq_html = ""
         for item in itens_tp:
             if item["is_indisponivel"]:
-                pill_html = '<span style="display:inline-block; min-width:86px; text-align:center; background:#E74C3C; color:#ffffff; font-size:0.68rem; font-weight:800; padding:3px 10px; border-radius:999px;">Indisponível</span>'
+                pill_html = f'<span style="display:inline-block; min-width:96px; text-align:center; background:#E74C3C; color:#ffffff; font-size:0.66rem; font-weight:800; padding:3px 9px; border-radius:999px;">{html_lib.escape(item["status_lbl"])}</span>'
             else:
-                pill_html = '<span style="display:inline-block; min-width:86px; text-align:center; background:#2EE65B; color:#051409; font-size:0.68rem; font-weight:900; padding:3px 10px; border-radius:999px;">Disponível</span>'
+                pill_html = '<span style="display:inline-block; min-width:96px; text-align:center; background:#2EE65B; color:#051409; font-size:0.68rem; font-weight:900; padding:3px 10px; border-radius:999px;">Disponível</span>'
 
             linhas_eq_html += f"""
             <tr style="border-top:1px solid #162840;">
@@ -2156,7 +3035,6 @@ if tipos_ordenados_frota:
 
         html_tabelas_disponibilidade += f"""
         <div style="background:#070d18; border:1.5px solid #162d47; border-radius:14px; margin-bottom:12px; overflow:hidden; box-shadow:0 4px 12px rgba(0,0,0,0.28);">
-            <!-- CABEÇALHO DA CLASSE COM BARRA VERDE LATERAL -->
             <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 12px; background:#0a1424;">
                 <div style="display:flex; align-items:center; gap:9px;">
                     <span style="width:4px; height:20px; background:#2EE65B; border-radius:3px; display:inline-block;"></span>
@@ -2165,7 +3043,6 @@ if tipos_ordenados_frota:
                 <span style="background:#14253d; color:#cbd5e1; font-size:0.74rem; font-weight:800; padding:3px 10px; border-radius:999px;">{len(itens_tp)} un.</span>
             </div>
 
-            <!-- TABELA 3 COLUNAS: NOMENCLATURA | HORÍMETRO | STATUS -->
             <table style="width:100%; border-collapse:collapse;">
                 <thead>
                     <tr style="background:#092418; border-top:1px solid #144d32; border-bottom:1px solid #144d32; color:#e2e8f0; font-size:0.72rem; font-weight:800;">
@@ -2189,7 +3066,7 @@ html_frota_disp = f"""
     <summary>
         <div class="header-layout">
             <div class="icon-box" style="background-color:rgba(46,230,91,.15); color:#2EE65B;">🚜</div>
-            <div class="master-metric-title">Frota & Equipamentos{txt_base_prev}</div>
+            <div class="master-metric-title">Frota & Equipamentos{txt_base_disp_frota}</div>
         </div>
         <div class="value-layout">
             <div class="master-metric-val" style="color:#2EE65B;">{qtd_total_disp}</div>
@@ -2208,18 +3085,8 @@ html_frota_disp = f"""
 render_html(html_frota_disp)
 
 # ------------------------------------------------------------------------------
-# BLOCO 8B: GESTÃO DE PREVENTIVA & INSPEÇÃO (SELETORES EM ABAS - 100% LARGURA)
+# BLOCO 8B: GESTÃO DE PREVENTIVA & INSPEÇÃO (OM AZUL/BRANCO + TOPO VENC/PRÓX)
 # ------------------------------------------------------------------------------
-def estilo_alerta_manut_curto(txt, is_inspecao=False):
-    t = str(txt).upper()
-    if "VENCIDA" in t or "CRITICO" in t or "CRÍTICO" in t:
-        return "CRÍTICA", "#FF2E2E", "rgba(255, 46, 46, 0.16)"
-    if "ATENCAO" in t or "ATENÇÃO" in t or "PROXIMA" in t or "PRÓXIMA" in t:
-        return "ALERTA", "#FFD600", "rgba(255, 214, 0, 0.16)"
-    if "SEM META" in t or t in ["--", "NAN", ""]:
-        return ("SEM META" if is_inspecao else "--"), "#64748b", "rgba(100, 116, 139, 0.14)"
-    return "EM DIA", "#00FF7F", "rgba(0, 255, 127, 0.14)"
-
 html_aba_preventiva = ""
 html_aba_inspecao = ""
 
@@ -2227,26 +3094,47 @@ if tipos_ordenados_frota:
     for tp in tipos_ordenados_frota:
         ico_tp = icone_tipo_equipamento(tp)
 
-        # --- LISTA 1: PREVENTIVAS DA CLASSE (ORDENADA POR SEVERIDADE) ---
+        # --- LISTA 1: PREVENTIVAS (COLUNA H SALDO + COLUNA J TIPO + COLUNA K OM) ---
         itens_prev = sorted(equip_por_tipo[tp], key=lambda x: (x["sev_p"], x["tag"]))
         cards_prev_tp = ""
         for item in itens_prev:
-            lbl_p, cor_p, bg_p = estilo_alerta_manut_curto(item["alerta_prev"], is_inspecao=False)
-            borda_p = cor_p if item["sev_p"] <= 2 else "#1c2b42"
-            om_p_badge = f'<span style="background:#0d1a2d; border:1px solid #1e3554; color:#cbd5e1; font-family:monospace; font-size:0.68rem; padding:2px 7px; border-radius:5px;">OM {html_lib.escape(item["om_prev"])}</span>' if item["om_prev"] not in ["--", "", "nan", "None"] else '<span style="color:#475569; font-size:0.68rem;">Sem OM</span>'
+            cor_txt_p = item["cor_txt_p"]
+            cor_brd_p = item["cor_brd_p"]
+            bg_p = item["bg_p"]
+            lbl_p = item["lbl_p"]
+
+            borda_lat_p = cor_brd_p if item["sev_p"] <= 2 else "#1c2b42"
+            borda_box_p = f"1.5px solid {cor_brd_p}" if item["sev_p"] == 0 else "1px solid #162840"
+            cor_val_p = cor_txt_p if item["sev_p"] <= 3 else "#64748b"
+
+            tipo_p_badge = (
+                f'<span style="background:rgba(255,140,0,0.12); border:1px solid rgba(255,140,0,0.45); color:#FF9F1C; font-size:0.65rem; font-weight:800; padding:2px 7px; border-radius:5px; white-space:nowrap;">🛠️ {html_lib.escape(item["tipo_prev"])}</span>'
+                if item["tipo_prev"] != "--" else ""
+            )
+
+            # Badge da OM em AZUL com letras BRANCAS quando existir; senão "OM n/criada"
+            if item["om_prev"] != "--":
+                om_p_badge = f'<span style="background:#0084FF; border:1px solid #38bdf8; color:#ffffff; font-family:monospace; font-size:0.68rem; font-weight:800; padding:2px 8px; border-radius:5px; box-shadow:0 0 8px rgba(0,132,255,0.35);">OM {html_lib.escape(item["om_prev"])}</span>'
+            elif item["sev_p"] <= 1:
+                om_p_badge = '<span style="background:rgba(255,46,46,0.16); border:1px solid #FF2E2E; color:#ff8080; font-size:0.64rem; font-weight:900; padding:2px 7px; border-radius:5px;">OM n/criada</span>'
+            else:
+                om_p_badge = '<span style="background:#0a1322; border:1px solid #1a2c44; color:#64748b; font-size:0.64rem; font-weight:700; padding:2px 7px; border-radius:5px;">OM n/criada</span>'
 
             cards_prev_tp += f"""
-            <div style="background:#070d18; border:1px solid #162840; border-left:4px solid {borda_p}; border-radius:10px; padding:9px 11px; margin-bottom:7px; display:flex; justify-content:space-between; align-items:center; gap:8px;">
+            <div style="background:#070d18; border:{borda_box_p}; border-left:4px solid {borda_lat_p}; border-radius:10px; padding:9px 11px; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center; gap:8px;">
                 <div style="min-width:0;">
-                    <div style="display:flex; align-items:center; gap:7px; margin-bottom:4px;">
+                    <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-bottom:5px;">
                         <b style="color:#ffffff; font-size:0.88rem; letter-spacing:0.2px;">{html_lib.escape(item['tag'])}</b>
                         {om_p_badge}
                     </div>
-                    <div style="font-size:0.73rem; color:#94a3b8;">
-                        Atual: <b style="color:#38bdf8; font-family:monospace;">{html_lib.escape(item['horimetro'])}</b> &nbsp;&bull;&nbsp; Meta: <b style="color:#e2e8f0; font-family:monospace;">{html_lib.escape(item['meta_prev'])}</b>
+                    <div style="margin-bottom:5px;">
+                        {tipo_p_badge}
+                    </div>
+                    <div style="font-size:0.74rem; color:#94a3b8;">
+                        Saldo Restante: <b style="color:{cor_val_p}; font-family:monospace; font-size:0.83rem;">{html_lib.escape(item['txt_saldo_p'])}</b>
                     </div>
                 </div>
-                <span style="background:{bg_p}; color:{cor_p}; border:1px solid {cor_p}; font-size:0.66rem; font-weight:900; padding:4px 9px; border-radius:7px; white-space:nowrap; flex-shrink:0;">
+                <span style="background:{bg_p}; color:{cor_txt_p}; border:1.5px solid {cor_brd_p}; font-size:0.62rem; font-weight:900; padding:4px 8px; border-radius:7px; white-space:nowrap; flex-shrink:0; letter-spacing:0.2px;">
                     {lbl_p}
                 </span>
             </div>
@@ -2262,26 +3150,47 @@ if tipos_ordenados_frota:
         </div>
         """
 
-        # --- LISTA 2: INSPEÇÕES DA CLASSE (ORDENADA POR SEVERIDADE) ---
+        # --- LISTA 2: INSPEÇÕES (COLUNA N SALDO + COLUNA P TIPO + COLUNA Q OM) ---
         itens_insp = sorted(equip_por_tipo[tp], key=lambda x: (x["sev_i"], x["tag"]))
         cards_insp_tp = ""
         for item in itens_insp:
-            lbl_i, cor_i, bg_i = estilo_alerta_manut_curto(item["alerta_insp"], is_inspecao=True)
-            borda_i = cor_i if item["sev_i"] <= 2 else "#1c2b42"
-            om_i_badge = f'<span style="background:#0d1a2d; border:1px solid #1e3554; color:#cbd5e1; font-family:monospace; font-size:0.68rem; padding:2px 7px; border-radius:5px;">OM {html_lib.escape(item["om_insp"])}</span>' if item["om_insp"] not in ["--", "", "nan", "None"] else '<span style="color:#475569; font-size:0.68rem;">Sem OM</span>'
+            cor_txt_i = item["cor_txt_i"]
+            cor_brd_i = item["cor_brd_i"]
+            bg_i = item["bg_i"]
+            lbl_i = item["lbl_i"]
+
+            borda_lat_i = cor_brd_i if item["sev_i"] <= 2 else "#1c2b42"
+            borda_box_i = f"1.5px solid {cor_brd_i}" if item["sev_i"] == 0 else "1px solid #162840"
+            cor_val_i = cor_txt_i if item["sev_i"] <= 3 else "#64748b"
+
+            tipo_i_badge = (
+                f'<span style="background:rgba(56,189,248,0.12); border:1px solid rgba(56,189,248,0.45); color:#38bdf8; font-size:0.65rem; font-weight:800; padding:2px 7px; border-radius:5px; white-space:nowrap;">📋 {html_lib.escape(item["tipo_insp"])}</span>'
+                if item["tipo_insp"] != "--" else ""
+            )
+
+            # Badge da OM em AZUL com letras BRANCAS quando existir; senão "OM n/criada"
+            if item["om_insp"] != "--":
+                om_i_badge = f'<span style="background:#0084FF; border:1px solid #38bdf8; color:#ffffff; font-family:monospace; font-size:0.68rem; font-weight:800; padding:2px 8px; border-radius:5px; box-shadow:0 0 8px rgba(0,132,255,0.35);">OM {html_lib.escape(item["om_insp"])}</span>'
+            elif item["sev_i"] <= 1:
+                om_i_badge = '<span style="background:rgba(255,46,46,0.16); border:1px solid #FF2E2E; color:#ff8080; font-size:0.64rem; font-weight:900; padding:2px 7px; border-radius:5px;">OM n/criada</span>'
+            else:
+                om_i_badge = '<span style="background:#0a1322; border:1px solid #1a2c44; color:#64748b; font-size:0.64rem; font-weight:700; padding:2px 7px; border-radius:5px;">OM n/criada</span>'
 
             cards_insp_tp += f"""
-            <div style="background:#070d18; border:1px solid #162840; border-left:4px solid {borda_i}; border-radius:10px; padding:9px 11px; margin-bottom:7px; display:flex; justify-content:space-between; align-items:center; gap:8px;">
+            <div style="background:#070d18; border:{borda_box_i}; border-left:4px solid {borda_lat_i}; border-radius:10px; padding:9px 11px; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center; gap:8px;">
                 <div style="min-width:0;">
-                    <div style="display:flex; align-items:center; gap:7px; margin-bottom:4px;">
+                    <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-bottom:5px;">
                         <b style="color:#ffffff; font-size:0.88rem; letter-spacing:0.2px;">{html_lib.escape(item['tag'])}</b>
                         {om_i_badge}
                     </div>
-                    <div style="font-size:0.73rem; color:#94a3b8;">
-                        Horímetro / Ciclo: <b style="color:#38bdf8; font-family:monospace;">{html_lib.escape(item['horimetro'])}</b>
+                    <div style="margin-bottom:5px;">
+                        {tipo_i_badge}
+                    </div>
+                    <div style="font-size:0.74rem; color:#94a3b8;">
+                        Saldo Restante: <b style="color:{cor_val_i}; font-family:monospace; font-size:0.83rem;">{html_lib.escape(item['txt_saldo_i'])}</b>
                     </div>
                 </div>
-                <span style="background:{bg_i}; color:{cor_i}; border:1px solid {cor_i}; font-size:0.66rem; font-weight:900; padding:4px 9px; border-radius:7px; white-space:nowrap; flex-shrink:0;">
+                <span style="background:{bg_i}; color:{cor_txt_i}; border:1.5px solid {cor_brd_i}; font-size:0.62rem; font-weight:900; padding:4px 8px; border-radius:7px; white-space:nowrap; flex-shrink:0; letter-spacing:0.2px;">
                     {lbl_i}
                 </span>
             </div>
@@ -2301,6 +3210,8 @@ else:
     html_aba_preventiva = vazio_manut
     html_aba_inspecao = vazio_manut
 
+qtd_criticos_prev = qtd_venc_prev + qtd_prox_prev
+qtd_criticos_insp = qtd_venc_insp + qtd_prox_insp
 tot_alertas_manut = qtd_criticos_prev + qtd_criticos_insp
 cor_borda_manut = "#FF2E2E" if tot_alertas_manut > 0 else "#E67E22"
 
@@ -2361,26 +3272,24 @@ html_prev_insp_bloco = f"""
             </div>
             <div class="value-layout">
                 <div class="master-metric-val" style="color:{cor_borda_manut};">{tot_alertas_manut}</div>
-                <div class="master-metric-unit">Pendências Críticas</div>
+                <div class="master-metric-unit">Pendências Identificadas</div>
             </div>
-            <div class="master-metric-sub" style="color:#cbd5e1; font-weight:700;">
-                🚨 {qtd_criticos_prev} Preventivas Críticas &nbsp;|&nbsp; 📋 {qtd_criticos_insp} Inspeções Críticas
+            <div style="display:flex; flex-direction:column; gap:3px; margin-top:4px; font-size:0.78rem; color:#cbd5e1;">
+                <div>🛠️ <b>Preventiva:</b> <span style="color:#FF2E2E; font-weight:800;">{qtd_venc_prev} Vencidas</span> &bull; <span style="color:#FF8C00; font-weight:800;">{qtd_prox_prev} Próx. Vencimento</span></div>
+                <div>📋 <b>Inspeção:</b> <span style="color:#FF2E2E; font-weight:800;">{qtd_venc_insp} Vencidas</span> &bull; <span style="color:#FF8C00; font-weight:800;">{qtd_prox_insp} Próx. Vencimento</span></div>
             </div>
         </summary>
 
         <div class="master-content" style="padding-top:14px;">
-            <!-- SELETORES LADO A LADO (IGUAL AO BLOCO DE PEDIDOS) -->
             <div class="manut-tab-bar">
                 <label for="tab_manut_prev" class="lbl-manut-prev">🛠️ Preventiva ({qtd_criticos_prev})</label>
                 <label for="tab_manut_insp" class="lbl-manut-insp">📋 Inspeção ({qtd_criticos_insp})</label>
             </div>
 
-            <!-- ABA 1: PREVENTIVA EM LARGURA TOTAL -->
             <div class="manut-view-prev">
                 {html_aba_preventiva}
             </div>
 
-            <!-- ABA 2: INSPEÇÃO EM LARGURA TOTAL -->
             <div class="manut-view-insp">
                 {html_aba_inspecao}
             </div>
@@ -2389,7 +3298,6 @@ html_prev_insp_bloco = f"""
 </div>
 """
 render_html(html_prev_insp_bloco)
-
 
 
 # ==============================================================================
@@ -2482,7 +3390,7 @@ if linhas_glp_raw:
         # Tabela Direita: Consumo por Máquina (Coluna I=8 até Coluna M=12, Coluna J=9 Abastecimentos)
         if len(row) > 8:
             eq_nome = str(row[8]).strip().upper()
-            if eq_nome and eq_nome not in ["NAN", "NONE", "", "EQUIPAMENTO", "TOTAL"]:
+            if eq_nome and eq_nome not in ["NAN", "NONE", "", "EQUIPAMENTO", "TOTAL"] and eq_nome not in EQUIPAMENTOS_OCULTOS and "EMP-012" not in eq_nome:
                 ab_v = int(round(safe_to_numeric(row[9]))) if len(row) > 9 else 0
                 lit_e_v = safe_to_numeric(row[10]) if len(row) > 10 else 0.0
                 kg_e_v = safe_to_numeric(row[11]) if len(row) > 11 else 0.0
@@ -3244,4 +4152,570 @@ with st.expander("🛠️ Console de Telemetria & Logs do Core (Dev)", expanded=
                 )
 
 
-st.markdown("<br><center><span style='color:#64748b; font-size:0.75rem; letter-spacing:0.5px;'>A.L.O.V.E - Mobile / Developed by Cristiano Ciriaco</span></center>", unsafe_allow_html=True)
+# ==============================================================================
+# 📸 GERADOR DE PRINT RETRATO MOBILE (LETRAS GRANDES + ZERO PESO NO ANDROID)
+# ==============================================================================
+import os
+import base64
+from io import BytesIO
+import PIL
+from PIL import Image, ImageDraw, ImageFont
+
+@st.cache_resource
+def _obter_caminhos_fontes_roboto():
+    """Garante fontes TrueType Roboto reais (UTF-8 completo com Ç, Ã, Õ, É, Í, •) no servidor."""
+    caminho_bold = "/tmp/Roboto-Bold.ttf"
+    caminho_reg = "/tmp/Roboto-Regular.ttf"
+    urls = {
+        caminho_bold: "https://github.com/googlefonts/roboto/raw/main/src/hinted/Roboto-Bold.ttf",
+        caminho_reg: "https://github.com/googlefonts/roboto/raw/main/src/hinted/Roboto-Regular.ttf",
+    }
+    for dest, url_f in urls.items():
+        if not os.path.exists(dest) or os.path.getsize(dest) < 10000:
+            try:
+                r = requests.get(url_f, timeout=6)
+                if r.status_code == 200 and len(r.content) > 10000:
+                    with open(dest, "wb") as f_out:
+                        f_out.write(r.content)
+            except Exception:
+                pass
+    return caminho_bold, caminho_reg
+
+def _carregar_fonte_png(tamanho, bold=True):
+    c_bold, c_reg = _obter_caminhos_fontes_roboto()
+    alvo = c_bold if bold else c_reg
+    if os.path.exists(alvo):
+        try:
+            return ImageFont.truetype(alvo, tamanho)
+        except Exception:
+            pass
+    for c_win in ["C:/Windows/Fonts/arialbd.ttf" if bold else "C:/Windows/Fonts/arial.ttf"]:
+        if os.path.exists(c_win):
+            try:
+                return ImageFont.truetype(c_win, tamanho)
+            except Exception:
+                pass
+    try:
+        return ImageFont.load_default(size=tamanho)
+    except Exception:
+        return ImageFont.load_default()
+
+def gerar_card_mobile_png(chave_bloco: str) -> bytes:
+    """Gera imagem vertical 720px (formato celular) com tipografia grande e visual idêntico ao Mobile."""
+    cor_tema = (0, 214, 114)
+    titulo = ""
+    kpi_big = ""
+    kpi_unit = ""
+    sub_1 = ""
+    sub_2 = ""
+    pct_barra = None
+    secoes = []
+
+    if chave_bloco == "prev":
+        cor_tema = (0, 180, 255)
+        titulo = "PREVISÕES DO DIA (24H)"
+        kpi_big = f"{fmt(prev_prod)} t | {fmt(prev_carr)} t"
+        kpi_unit = ""
+        sub_1 = "Projeção Consolidada de Fechamento 24 Horas"
+        secoes = [
+            ("SEC", "PROJEÇÃO DE PRODUÇÃO", (0, 180, 255)),
+            ("ROW", "Prev. Fechamento (24h)", f"{fmt(prev_prod)} t", (255, 255, 255)),
+            ("ROW", "Realizado até agora", f"{fmt(prod_hoje_calc)} t", (229, 184, 0)),
+            ("SEC", "PROJEÇÃO DE CARREGAMENTO", (0, 230, 118)),
+            ("ROW", "Prev. Fechamento (24h)", f"{fmt(prev_carr)} t", (0, 230, 118)),
+            ("ROW", "Expedido até agora", f"{fmt(vol_hoje)} t", (56, 189, 248)),
+        ]
+
+    elif chave_bloco == "prod":
+        cor_tema = (229, 184, 0)
+        titulo = "PRODUÇÃO DE CELULOSE"
+        kpi_big = fmt(prod_hoje_calc)
+        kpi_unit = "TON"
+        sub_1 = f"MS1: {fmt(dados_maquinas['MS1'].get('producao', 0))} t  |  MS2: {fmt(dados_maquinas['MS2'].get('producao', 0))} t"
+        sub_2 = f"Prev. Fechamento: {fmt(prev_prod)} t"
+        for m_k in ["MS1", "MS2"]:
+            qm = dados_maquinas.get(m_k, {})
+            if qm:
+                qt = qm.get("qualidade_tipo", "EQ")
+                c_q = (231, 76, 60) if qt in ["OS", "BQ"] else ((255, 214, 0) if qt == "SQ" else (0, 214, 114))
+                info_v = viradas_info.get(m_k, {})
+                secoes.append(("SEC", f"{m_k} • MAT {qm.get('material', '--')} [{qt}] — {fmt(qm.get('producao', 0))} t", c_q))
+                secoes.append(("ROW", "Linhas A/B ou C/D", f"{fmt(qm.get('l1', 0))} t  |  {fmt(qm.get('l2', 0))} t", (56, 189, 248)))
+                secoes.append(("ROW", "Alvura  /  Sujidade", f"{fmt(qm.get('alvura', 0), 2)}%  |  {fmt(qm.get('sujidade', 0), 2)}", (255, 255, 255)))
+                secoes.append(("ROW", "Viscosidade  /  pH", f"{fmt(qm.get('viscosidade', 0))}  |  pH {fmt(qm.get('ph', 0), 1)}", (255, 255, 255)))
+                secoes.append(("ROW", "Próxima Virada", f"MAT {info_v.get('prox_mat', '--')} • {info_v.get('prev_virada', '--')}", (255, 159, 28)))
+
+    elif chave_bloco == "est":
+        cor_tema = (0, 255, 127)
+        titulo = "ESTOQUE FÍSICO NO ARMAZÉM"
+        kpi_big = fmt(estoque_total)
+        kpi_unit = "TON"
+        sub_1 = f"Ocupação: {fmt(estoque_total)} t de 25.000 t ({pct_ocupacao_est:.0f}%)"
+        sub_2 = f"Espaço Livre: {fmt(espaco_livre_est)} t  |  Cap.: 25.000 t"
+        pct_barra = pct_ocupacao_est
+        secoes.append(("SEC", "CLASSE DE QUALIDADE", (0, 255, 127)))
+        secoes.append(("ROW", "On-Grade (EQ)", f"{fmt(tot_on_grade)} t ({pct_on_grade:.0f}%)", (0, 255, 127)))
+        secoes.append(("ROW", "Off-Grade (SQ/BQ/OS)", f"{fmt(tot_off_grade)} t ({pct_off_grade:.0f}%)", (255, 140, 0)))
+        secoes.append(("SEC", "MATERIAIS EM ESTOQUE", (56, 189, 248)))
+        for it_e in itens_estoque:
+            c_cls = (0, 255, 127) if it_e["classe"] == "EQ" else ((255, 214, 0) if it_e["classe"] == "SQ" else ((255, 140, 0) if it_e["classe"] == "BQ" else (255, 46, 46)))
+            secoes.append(("ROW", f"MAT {it_e['material']}  [{it_e['classe']}]", f"{fmt(it_e['ton'])} t", c_cls))
+
+    elif chave_bloco == "exp":
+        cor_tema = (0, 214, 114)
+        titulo = "EXPEDIÇÃO REALIZADA"
+        kpi_big = fmt(vol_hoje)
+        kpi_unit = "TON"
+        sub_1 = f"Consolidado Ontem (D-1): {fmt(vol_ontem)} t"
+        sub_2 = f"Progresso: {fmt(vol_hoje)} t de {fmt(prev_carr)} t ({pct_prog:.0f}%)"
+        pct_barra = pct_prog
+        secoes.append(("SEC", "TURNOS EM OPERAÇÃO HOJE", (0, 214, 114)))
+        for th in tns_hoje:
+            v_s = th.get("str_vol", f"{fmt(th['v'])} t")
+            c_t = (231, 76, 60) if v_s == "EM FOLGA" else (255, 255, 255)
+            secoes.append(("ROW", f"{th['letra']} ({th['horario']})", v_s, c_t))
+        if balanco_destinos:
+            secoes.append(("SEC", "PLANO VS EXPEDIDO POR DESTINO", (56, 189, 248)))
+            for bd in balanco_destinos:
+                c_bd = (0, 214, 114) if bd["atingimento"] >= 100 else (56, 189, 248)
+                nome_d_curto = bd["destino"][:24]
+                secoes.append(("ROW", f"{nome_d_curto} ({bd['atingimento']:.0f}%)", f"{fmt(bd['realizado'])}/{fmt(bd['meta'])} t", c_bd))
+            secoes.append(("ROW", "TOTAL PENDENTE", f"{fmt(total_expedicao_falta)} t", (255, 159, 28)))
+
+    elif chave_bloco == "ped":
+        cor_tema = (0, 132, 255)
+        titulo = "ANÁLISE DE PEDIDOS (ZLE087)"
+        kpi_big = fmt(tot_saldo_geral)
+        kpi_unit = "TON PENDENTES"
+        sub_1 = f"Transf.: {fmt(tot_saldo_transf)} t ({len(pedidos_transf)} ped.)"
+        sub_2 = f"MI / LATAM: {fmt(tot_saldo_mi)} t ({len(pedidos_mi)} ped.)"
+        if pedidos_transf:
+            secoes.append(("SEC", f"TRANSFERÊNCIA ({len(pedidos_transf)} PED.)", (0, 132, 255)))
+            for pt in pedidos_transf:
+                c_p = (255, 46, 46) if pt["is_fim"] else (56, 189, 248)
+                secoes.append(("ROW", f"{pt['destino'][:20]} • {pt['material']}", f"{fmt(pt['saldo'])} t", c_p))
+        if pedidos_mi:
+            secoes.append(("SEC", f"MI / LATAM ({len(pedidos_mi)} PED.)", (0, 214, 114)))
+            for pm in pedidos_mi:
+                c_m = (255, 46, 46) if pm["is_fim"] else (0, 214, 114)
+                secoes.append(("ROW", f"{pm['destino'][:20]} • {pm['material']}", f"{fmt(pm['saldo'])} t", c_m))
+
+    elif chave_bloco == "patio":
+        cor_tema = (56, 169, 255)
+        titulo = "PÁTIO DA FÁBRICA (TEMPO REAL)"
+        kpi_big = str(total_veiculos_fisicos)
+        kpi_unit = "VEÍCULOS FÍSICOS"
+        sub_1 = f"Carga Disponível: {fmt(vol_patio_disponivel)} t"
+        secoes.append(("SEC", "VEÍCULOS POR ETAPA", (56, 169, 255)))
+        for tit_p, chv_p, _, _, _, _ in mapa_status_colunas:
+            dp = dados_patio.get(chv_p, {"veiculos": 0, "peso": 0})
+            secoes.append(("ROW", tit_p, f"{dp['veiculos']} veíc. ({fmt(dp['peso'])} t)", (255, 255, 255)))
+
+    elif chave_bloco == "frota":
+        cor_tema = (46, 230, 91)
+        titulo = "FROTA & EQUIPAMENTOS"
+        kpi_big = str(qtd_total_disp)
+        kpi_unit = "DISPONÍVEIS"
+        sub_1 = f"Disponíveis: {qtd_total_disp}  |  Indisponíveis: {qtd_total_indisp}"
+        secoes.append(("SEC", "STATUS POR CATEGORIA", (46, 230, 91)))
+        for tp_f in tipos_ordenados_frota:
+            ltp = equip_por_tipo.get(tp_f, [])
+            d_c = sum(1 for x in ltp if not x["is_indisponivel"])
+            i_c = sum(1 for x in ltp if x["is_indisponivel"])
+            c_f = (231, 76, 60) if i_c > 0 else (46, 230, 91)
+            secoes.append(("ROW", tp_f, f"{d_c} Disp. / {i_c} Indisp.", c_f))
+
+    elif chave_bloco == "manut":
+        cor_tema = (255, 46, 46) if tot_alertas_manut > 0 else (230, 126, 34)
+        titulo = "PREVENTIVA & INSPEÇÃO"
+        kpi_big = str(tot_alertas_manut)
+        kpi_unit = "PENDÊNCIAS"
+        sub_1 = f"Prev.: {qtd_venc_prev} Venc. • {qtd_prox_prev} Próx. Venc."
+        sub_2 = f"Insp.: {qtd_venc_insp} Venc. • {qtd_prox_insp} Próx. Venc."
+        criticos = [e for e in todos_equip_lista if e["sev_p"] <= 1 or e["sev_i"] <= 1]
+        secoes.append(("SEC", "EQUIPAMENTOS CRÍTICOS", (255, 140, 0)))
+        for eq_c in criticos:
+            pts = []
+            if eq_c["sev_p"] <= 1:
+                pts.append(f"Prev: {eq_c['txt_saldo_p']}")
+            if eq_c["sev_i"] <= 1:
+                pts.append(f"Insp: {eq_c['txt_saldo_i']}")
+            secoes.append(("ROW", eq_c["tag"], " | ".join(pts), (255, 46, 46)))
+        if not criticos:
+            secoes.append(("ROW", "Status Geral", "Nenhuma pendência crítica", (0, 255, 127)))
+
+    elif chave_bloco == "glp":
+        cor_tema = (255, 159, 28)
+        titulo = "CONSUMO DE GLP — FROTA"
+        kpi_big = f"{fmt(kg_mes_atual, 1)}"
+        kpi_unit = f"KG ({fmt(litros_mes_atual, 1)} L)"
+        sub_1 = f"Mês Atual ({rotulo_mes_atual}) • {len(glp_maquinas)} Empilhadeiras"
+        if mes_atual_obj:
+            secoes.append(("SEC", f"POR TURNO ({rotulo_mes_atual})", (0, 255, 127)))
+            secoes.append(("ROW", "00h às 08h", f"{fmt(mes_atual_obj['t1'], 1)} kg", (56, 189, 248)))
+            secoes.append(("ROW", "08h às 16h", f"{fmt(mes_atual_obj['t2'], 1)} kg", (0, 255, 127)))
+            secoes.append(("ROW", "16h às 00h", f"{fmt(mes_atual_obj['t3'], 1)} kg", (255, 159, 28)))
+        secoes.append(("SEC", "POR EMPILHADEIRA", (255, 159, 28)))
+        for mq_g in glp_maquinas:
+            secoes.append(("ROW", f"{mq_g['equip']} ({mq_g['abast']} ab.)", f"{fmt(mq_g['kg'], 1)} kg", (255, 255, 255)))
+
+    elif chave_bloco == "baf":
+        cor_tema = (231, 76, 60) if len(lista_pendentes) > 0 else (0, 214, 114)
+        titulo = "AUDITORIA BAFÔMETRO (H&S)"
+        kpi_big = str(total_registrados_baf)
+        kpi_unit = "AUDITADOS"
+        sub_1 = f"{nome_turno_completo}"
+        sub_2 = f"Pendentes: {len(lista_pendentes)} | Trocas: {len(lista_trocas)} | OK: {len(lista_aprovados)}"
+        secoes.append(("SEC", "RESUMO DO TURNO", cor_tema))
+        secoes.append(("ROW", "Aprovados / Realizados", f"{len(lista_aprovados)} colab.", (0, 214, 114)))
+        secoes.append(("ROW", "Trocas / Não Cadastrados", f"{len(lista_trocas)} colab.", (56, 189, 248)))
+        secoes.append(("ROW", "Não Realizados / Pendentes", f"{len(lista_pendentes)} colab.", (231, 76, 60)))
+        if lista_pendentes:
+            secoes.append(("SEC", "COLABORADORES PENDENTES", (231, 76, 60)))
+            for pb in lista_pendentes:
+                secoes.append(("ROW", pb["nome"][:24], pb["funcao"][:18], (255, 128, 128)))
+
+    else:
+        cor_tema = (0, 123, 255)
+        titulo = "COMPARATIVO ANUAL"
+        kpi_big = f"{fmt(ca_at)}"
+        kpi_unit = "t EXPEDIDAS"
+        sub_1 = f"Meta Diária Necessária: {fmt(mdc)} t/dia"
+        sub_2 = tv
+        secoes = [
+            ("SEC", "ACUMULADO NO ANO", (0, 123, 255)),
+            ("ROW", "Expedição Anual", f"{fmt(ca_at)} t", (0, 123, 255)),
+            ("ROW", "Produção Anual", f"{fmt(pa_at)} t", (0, 214, 114)),
+            ("SEC", "PROJEÇÃO 31/12", (56, 189, 248)),
+            ("ROW", "Proj. Expedição", f"{fmt(pcf)} t", (56, 189, 248)),
+            ("ROW", "Proj. Produção", f"{fmt(ppf)} t", (167, 243, 208)),
+            ("ROW", "Estoque Meta Ano", f"{fmt(meta_est_ano)} t", (255, 255, 255)),
+        ]
+
+    if not secoes:
+        secoes.append(("ROW", "Status", "Aguardando dados", (148, 163, 184)))
+
+    # Fontes GRANDES calibradas para 720px de largura (leitura perfeita no WhatsApp do celular)
+    f_brand = _carregar_fonte_png(30, True)
+    f_brand_sub = _carregar_fonte_png(17, False)
+    f_tit = _carregar_fonte_png(23, True)
+    f_kpi = _carregar_fonte_png(64 if len(kpi_big) <= 8 else 44, True)
+    f_unit = _carregar_fonte_png(24, True)
+    f_sub = _carregar_fonte_png(20, False)
+    f_sec = _carregar_fonte_png(19, True)
+    f_row = _carregar_fonte_png(22, False)
+    f_row_b = _carregar_fonte_png(23, True)
+    f_foot = _carregar_fonte_png(16, False)
+
+    largura = 720
+    alt_cab = 320 + (32 if sub_2 else 0) + (28 if pct_barra is not None else 0)
+    alt_linhas = sum(46 if s[0] == "SEC" else 60 for s in secoes)
+    altura = alt_cab + alt_linhas + 64
+
+    img = Image.new("RGB", (largura, altura), (5, 9, 17))
+    draw = ImageDraw.Draw(img)
+
+    # Moldura externa neon arredondada
+    draw.rounded_rectangle([12, 12, largura - 12, altura - 12], radius=24, fill=(11, 24, 48), outline=cor_tema, width=4)
+
+    # Cabeçalho Institucional A.L.O.V.E. | Eldorado Brasil
+    draw.rounded_rectangle([26, 26, largura - 26, 118], radius=16, fill=(7, 15, 29), outline=(22, 50, 82), width=2)
+    draw.text((44, 40), "A.L.O.V.E. | Eldorado Brasil", font=f_brand, fill=(0, 230, 118))
+    draw.text((44, 82), "Três Lagoas - MS  •  " + agora_br.strftime("%d/%m/%Y às %H:%M"), font=f_brand_sub, fill=(148, 163, 184))
+
+    # Bloco KPI Gigante estilo Mobile
+    y_c = 138
+    draw.rounded_rectangle([26, y_c, 36, y_c + 128], radius=5, fill=cor_tema)
+    draw.text((52, y_c), titulo, font=f_tit, fill=cor_tema)
+    draw.text((52, y_c + 34), kpi_big, font=f_kpi, fill=(255, 255, 255))
+    if kpi_unit:
+        bbox_k = draw.textbbox((0, 0), kpi_big, font=f_kpi)
+        draw.text((52 + (bbox_k[2] - bbox_k[0]) + 12, y_c + 68), kpi_unit, font=f_unit, fill=(148, 163, 184))
+
+    y_c += 116
+    if sub_1:
+        draw.text((52, y_c), sub_1, font=f_sub, fill=(226, 232, 240))
+        y_c += 30
+    if sub_2:
+        draw.text((52, y_c), sub_2, font=f_sub, fill=(148, 163, 184))
+        y_c += 30
+    if pct_barra is not None:
+        y_c += 6
+        draw.rounded_rectangle([52, y_c, largura - 38, y_c + 14], radius=7, fill=(20, 36, 59))
+        w_fill = int(((largura - 90) * min(100.0, max(3.0, pct_barra))) / 100.0)
+        draw.rounded_rectangle([52, y_c, 52 + w_fill, y_c + 14], radius=7, fill=cor_tema)
+        y_c += 26
+
+    y_c += 14
+    for item_s in secoes:
+        tipo_s = item_s[0]
+        if tipo_s == "SEC":
+            esq_s = item_s[1]
+            cor_s = item_s[-1]
+            y_c += 6
+            draw.text((30, y_c + 6), str(esq_s), font=f_sec, fill=cor_s)
+            y_c += 40
+        else:
+            esq_s, dir_s, cor_s = item_s[1], item_s[2], item_s[3]
+            draw.rounded_rectangle([26, y_c, largura - 26, y_c + 52], radius=12, fill=(7, 13, 24), outline=(26, 49, 77), width=1)
+            draw.text((42, y_c + 13), str(esq_s)[:30], font=f_row, fill=(226, 232, 240))
+            bbox_r = draw.textbbox((0, 0), str(dir_s), font=f_row_b)
+            draw.text((largura - 42 - (bbox_r[2] - bbox_r[0]), y_c + 12), str(dir_s), font=f_row_b, fill=cor_s)
+            y_c += 60
+
+    draw.text((30, altura - 42), "A.L.O.V.E. Mobile  •  Expedição de Celulose", font=f_foot, fill=(100, 116, 139))
+
+    buf = BytesIO()
+    img.save(buf, format="PNG")
+    return buf.getvalue()
+
+
+@st.cache_data(ttl=60)
+def gerar_todos_cards_mobile_b64(carimbo_minuto: str) -> dict:
+    """Gera e cacheia por 60s os 11 cards PNG compactos (~35KB cada) para abertura instantânea zero-reload."""
+    chaves = ["prev", "prod", "est", "exp", "ped", "patio", "frota", "manut", "glp", "baf", "anual"]
+    return {k: base64.b64encode(gerar_card_mobile_png(k)).decode("ascii") for k in chaves}
+
+mapa_blocos_reais = {
+    "prev":  "📅 Previsões do Dia",
+    "prod":  "🏭 Produção de Celulose",
+    "est":   "📦 Estoque Físico no Armazém",
+    "exp":   "🚚 Expedição Realizada",
+    "ped":   "📑 Análise de Pedidos (ZLE087)",
+    "patio": "🚛 Pátio da Fábrica",
+    "frota": "🚜 Frota & Equipamentos",
+    "manut": "🔧 Preventiva & Inspeção",
+    "glp":   "⛽ Consumo de GLP",
+    "baf":   "🩺 Auditoria Bafômetro (H&S)",
+    "anual": "📊 Comparativo Anual",
+}
+
+cards_b64_map = gerar_todos_cards_mobile_b64(agora_br.strftime("%Y%m%d_%H%M"))
+
+botoes_escolha_print = ""
+for chave_b, rotulo_b in mapa_blocos_reais.items():
+    partes_rot = rotulo_b.split(" ", 1)
+    ico_b = partes_rot[0] if len(partes_rot) > 1 else "📊"
+    txt_b = partes_rot[1] if len(partes_rot) > 1 else rotulo_b
+
+    botoes_escolha_print += f"""
+    <a href="#alove-print-modal" class="btn-abrir-card-print" data-chave="{chave_b}" data-nome="ALOVE_{chave_b}_{agora_br.strftime('%d%m_%H%M')}.png"
+       style="display:flex; align-items:center; justify-content:space-between; gap:12px; background:linear-gradient(90deg, #081224 0%, #0b1b34 100%); border:1.5px solid #1a3b5c; border-radius:14px; padding:13px 15px; color:#ffffff; text-decoration:none; box-shadow:0 4px 12px rgba(0,0,0,0.35);">
+        <div style="display:flex; align-items:center; gap:13px; min-width:0;">
+            <span style="width:36px; height:36px; border-radius:10px; background:#0c223d; border:1px solid #1e4b75; display:flex; align-items:center; justify-content:center; font-size:1.15rem; flex-shrink:0;">{ico_b}</span>
+            <span style="font-size:0.86rem; font-weight:800; text-transform:uppercase; letter-spacing:0.5px; color:#f8fafc; line-height:1.25;">{txt_b}</span>
+        </div>
+        <span style="background:rgba(0, 214, 114, 0.14); border:1px solid #00D672; color:#00FF7F; font-size:0.72rem; font-weight:900; text-transform:uppercase; letter-spacing:0.4px; padding:5px 10px; border-radius:8px; white-space:nowrap; flex-shrink:0;">Print ›</span>
+    </a>
+    """
+
+html_seletor_print = f"""
+<style>
+    .zero-reload-overlay {{
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(3, 7, 14, 0.96);
+        z-index: 999998;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        padding: calc(env(safe-area-inset-top, 10px) + 14px) 12px calc(env(safe-area-inset-bottom, 16px) + 40px) 12px;
+    }}
+    .zero-reload-overlay:target {{
+        display: block;
+    }}
+    .zero-reload-inner {{
+        max-width: 540px;
+        margin: 0 auto;
+    }}
+</style>
+
+<!-- JANELA 1: SELETOR DE BLOCO -->
+<div id="print-seletor" class="zero-reload-overlay">
+    <div class="zero-reload-inner" style="background:linear-gradient(180deg, #0b1c33 0%, #060d18 100%); border:1.5px solid #00D672; border-radius:18px; padding:18px; box-shadow:0 0 28px rgba(0,214,114,0.28);">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; padding-bottom:12px; border-bottom:1px solid #163252;">
+            <div>
+                <div style="color:#00D672; font-size:0.98rem; font-weight:900; letter-spacing:0.6px; text-transform:uppercase;">📸 GERAR PRINT DO MOBILE</div>
+                <div style="color:#94a3b8; font-size:0.75rem; margin-top:3px;">Selecione o módulo abaixo para gerar a imagem:</div>
+            </div>
+            <a href="#sec-topo" class="btn-fechar-overlay" style="width:38px; height:38px; border-radius:10px; background:#070f1d; border:1.5px solid #E74C3C; color:#ffffff; font-weight:900; text-decoration:none; display:flex; align-items:center; justify-content:center; font-size:1.05rem;">✕</a>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:11px;">
+            {botoes_escolha_print}
+        </div>
+    </div>
+</div>
+
+<!-- JANELA 2: VISUALIZADOR ÚNICO ZERO-RELOAD (ABRE E FECHA EM 0MS SEM RECARREGAR O APP) -->
+<div id="alove-print-modal" style="display:none; position:fixed; inset:0; background:#050911; z-index:999999; overflow-y:auto; -webkit-overflow-scrolling:touch; padding: calc(env(safe-area-inset-top, 10px) + 14px) 12px calc(env(safe-area-inset-bottom, 16px) + 40px) 12px;">
+    <div style="max-width:520px; margin:0 auto;">
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:10px; background:#0b1830; border:1.5px solid #163252; border-radius:12px; padding:9px 12px;">
+            <a href="#print-seletor" id="btnTrocarCardPrint" style="color:#38bdf8; font-size:0.80rem; font-weight:800; text-decoration:none;">◀ Trocar</a>
+            <button type="button" id="btnShareSinglePng" data-nome="ALOVE_Print.png"
+                    style="background:linear-gradient(90deg, #00D672 0%, #00b4ff 100%); color:#050911; border:none; border-radius:8px; padding:8px 14px; font-size:0.82rem; font-weight:900; cursor:pointer; box-shadow:0 0 12px rgba(0,214,114,0.35);">
+                📲 Enviar no WhatsApp
+            </button>
+            <a href="#sec-topo" id="btnFecharCardPrint" style="color:#ff8080; font-size:0.80rem; font-weight:800; text-decoration:none;">✕ Fechar</a>
+        </div>
+        <img id="imgSinglePng" src="" style="width:100%; display:block; border-radius:16px; box-shadow:0 8px 28px rgba(0,0,0,0.85);">
+    </div>
+</div>
+"""
+render_html(html_seletor_print)
+
+# Controlador único zero-reload: fecha menu flutuante, abre print instantâneo, troca e fecha sem recarregar página
+components.html(f"""
+<script>
+(function() {{
+    const parentDoc = window.parent.document;
+    const parentWin = window.parent;
+    const CARDS_B64 = {json.dumps(cards_b64_map)};
+
+    function inicializarControles() {{
+        // 1. Menu flutuante fecha sozinho, pula p/ o bloco abaixo do banner e abre o card automaticamente
+        const fab = parentDoc.getElementById('fabMenuDetails');
+        if (fab) {{
+            fab.querySelectorAll('.fab-menu a').forEach(link => {{
+                if (link.dataset.closeBound === "1") return;
+                link.dataset.closeBound = "1";
+                link.addEventListener('click', function(ev) {{
+                    fab.removeAttribute('open');
+                    const href = link.getAttribute('href') || '';
+                    if (href.startsWith('#sec-')) {{
+                        const secEl = parentDoc.getElementById(href.slice(1));
+                        if (secEl) {{
+                            ev.preventDefault();
+                            let irmao = secEl.nextElementSibling;
+                            while (irmao) {{
+                                if (irmao.matches && irmao.matches('details.master-box')) {{
+                                    irmao.setAttribute('open', '');
+                                    break;
+                                }}
+                                const interno = irmao.querySelector ? irmao.querySelector('details.master-box') : null;
+                                if (interno) {{
+                                    interno.setAttribute('open', '');
+                                    break;
+                                }}
+                                if (irmao.id && irmao.id.startsWith('sec-')) break;
+                                irmao = irmao.nextElementSibling;
+                            }}
+                            secEl.scrollIntoView({{ behavior: 'smooth', block: 'start' }});
+                            try {{ parentWin.history.replaceState(null, '', href); }} catch (e) {{}}
+                        }}
+                    }}
+                }});
+            }});
+            if (parentDoc.body.dataset.fabOutsideBound !== "1") {{
+                parentDoc.body.dataset.fabOutsideBound = "1";
+                parentDoc.addEventListener('click', function(ev) {{
+                    const fabAtual = parentDoc.getElementById('fabMenuDetails');
+                    if (fabAtual && fabAtual.hasAttribute('open') && !fabAtual.contains(ev.target)) {{
+                        fabAtual.removeAttribute('open');
+                    }}
+                }});
+            }}
+        }}
+
+        // 2. Abre qualquer card de print em 0ms sem recarregar a página
+        const modalPrint = parentDoc.getElementById('alove-print-modal');
+        const imgPrint = parentDoc.getElementById('imgSinglePng');
+        const btnShare = parentDoc.getElementById('btnShareSinglePng');
+
+        parentDoc.querySelectorAll('.btn-abrir-card-print').forEach(btnCard => {{
+            if (btnCard.dataset.printBound === "1") return;
+            btnCard.dataset.printBound = "1";
+            btnCard.addEventListener('click', function(ev) {{
+                ev.preventDefault();
+                const chave = btnCard.dataset.chave;
+                const nomeArq = btnCard.dataset.nome || 'ALOVE_Print.png';
+                if (CARDS_B64[chave] && modalPrint && imgPrint) {{
+                    imgPrint.src = 'data:image/png;base64,' + CARDS_B64[chave];
+                    if (btnShare) btnShare.dataset.nome = nomeArq;
+                    modalPrint.style.display = 'block';
+                    modalPrint.scrollTop = 0;
+                    try {{ parentWin.history.replaceState(null, '', '#alove-print-modal'); }} catch (e) {{}}
+                }}
+            }});
+        }});
+
+        // 3. Trocar bloco ou Fechar print em 0ms sem recarregar a página
+        const btnTrocar = parentDoc.getElementById('btnTrocarCardPrint');
+        if (btnTrocar && btnTrocar.dataset.bound !== "1") {{
+            btnTrocar.dataset.bound = "1";
+            btnTrocar.addEventListener('click', function(ev) {{
+                ev.preventDefault();
+                if (modalPrint) modalPrint.style.display = 'none';
+                try {{ parentWin.history.replaceState(null, '', '#print-seletor'); }} catch (e) {{}}
+            }});
+        }}
+
+        const btnFechar = parentDoc.getElementById('btnFecharCardPrint');
+        if (btnFechar && btnFechar.dataset.bound !== "1") {{
+            btnFechar.dataset.bound = "1";
+            btnFechar.addEventListener('click', function(ev) {{
+                ev.preventDefault();
+                if (modalPrint) modalPrint.style.display = 'none';
+                try {{ parentWin.history.replaceState(null, '', '#sec-topo'); }} catch (e) {{}}
+            }});
+        }}
+
+        // 4. Botão Enviar no WhatsApp síncrono
+        if (btnShare && btnShare.dataset.bound !== "1") {{
+            btnShare.dataset.bound = "1";
+            btnShare.addEventListener('click', async function() {{
+                try {{
+                    if (!imgPrint || !imgPrint.src.includes(',')) return;
+                    const b64Data = imgPrint.src.split(',')[1];
+                    const byteChars = atob(b64Data);
+                    const byteNums = new Array(byteChars.length);
+                    for (let i = 0; i < byteChars.length; i++) {{
+                        byteNums[i] = byteChars.charCodeAt(i);
+                    }}
+                    const blob = new Blob([new Uint8Array(byteNums)], {{ type: 'image/png' }});
+                    const nomeArq = btnShare.dataset.nome || 'ALOVE_Print.png';
+                    const file = new File([blob], nomeArq, {{ type: 'image/png' }});
+                    if (parentWin.navigator.canShare && parentWin.navigator.canShare({{ files: [file] }})) {{
+                        await parentWin.navigator.share({{ files: [file], title: 'A.L.O.V.E. Mobile' }});
+                    }} else {{
+                        const url = URL.createObjectURL(blob);
+                        const a = parentDoc.createElement('a');
+                        a.href = url;
+                        a.download = nomeArq;
+                        parentDoc.body.appendChild(a);
+                        a.click();
+                        a.remove();
+                        URL.revokeObjectURL(url);
+                    }}
+                }} catch (e) {{}}
+            }});
+        }}
+    }}
+
+    inicializarControles();
+    setInterval(inicializarControles, 1000);
+}})();
+</script>
+""", height=0)
+
+if st.query_params.get("logout") == "1":
+    st.session_state.mobile_autenticado = False
+    st.session_state.usuario_logado_mobile = ""
+    st.query_params.clear()
+    components.html("""
+    <script>
+    try {
+        window.parent.localStorage.removeItem('alove_mobile_auth_tk');
+        window.parent.location.replace(window.parent.location.pathname);
+    } catch (e) {}
+    </script>
+    """, height=0)
+    st.stop()
+
+st.markdown(
+    f"<br><center><span style='color:#64748b; font-size:0.75rem; letter-spacing:0.5px;'>"
+    f"Logado como <b style='color:#00D672;'>{st.session_state.get('usuario_logado_mobile', '')}</b> • "
+    f"<a href='?logout=1' target='_self' style='color:#94a3b8; text-decoration:underline;'>Desconectar aparelho</a><br>"
+    f"A.L.O.V.E - Mobile / Developed by Cristiano Ciriaco"
+    f"</span></center>",
+    unsafe_allow_html=True
+)
