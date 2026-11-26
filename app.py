@@ -2784,7 +2784,7 @@ if not df_disp_equip.empty:
             or ("DISPON" not in st_disp_txt and st_disp_txt != "")
         )
 
-        if is_indisp_d:
+       if is_indisp_d:
             qtd_total_indisp += 1
         else:
             qtd_total_disp += 1
@@ -2794,17 +2794,6 @@ if not df_disp_equip.empty:
             "is_indisponivel": is_indisp_d,
             "status_lbl": st_disp_txt.title() if st_disp_txt else ("Indisponível" if is_indisp_d else "Disponível"),
             "horimetro": horim_final,
-        })
-        if is_indisp_d:
-            qtd_total_indisp += 1
-        else:
-            qtd_total_disp += 1
-
-        disp_por_tipo.setdefault(tp_nome, []).append({
-            "tag": tag_d,
-            "is_indisponivel": is_indisp_d,
-            "status_lbl": st_disp_txt.title() if st_disp_txt else ("Indisponível" if is_indisp_d else "Disponível"),
-            "horimetro": mapa_horimetro_por_tag.get(tag_d, "--"),
         })
 
 if not hora_disp_real and hora_att_disp_equip and " " in hora_att_disp_equip:
